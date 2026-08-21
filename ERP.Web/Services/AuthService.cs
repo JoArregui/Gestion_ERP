@@ -50,6 +50,7 @@ namespace ERP.Web.Services
 
 
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using Microsoft.JSInterop;
 using ERP.Domain.Dtos;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -73,25 +74,22 @@ namespace ERP.Web.Services
 
         public async Task<AuthResponseDto?> Login(LoginDto loginDto)
         {
-            // --- MODO DESARROLLO: SALTAR LOGIN ---
-            // Simulamos una respuesta exitosa sin llamar al API
-            var fakeToken = "TOKEN_DE_PRUEBA_BYPASS";
-            
-            await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "authToken", fakeToken);
-            _authStateProvider.NotifyUserAuthentication(fakeToken);
+            var response = await _httpClient.PostAsJsonAsync("api/auth/login", loginDto);
+            var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
 
-            return new AuthResponseDto 
-            { 
-                IsAuthSuccessful = true, 
-                Token = fakeToken, 
-                FullName = "Admin Desarrollador" 
-            };
+            if (!response.IsSuccessStatusCode || result is null || string.IsNullOrWhiteSpace(result.Token))
+                return result ?? new AuthResponseDto { IsAuthSuccessful = false, ErrorMessage = "Error de servidor" };
+
+            await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
+            _authStateProvider.NotifyUserAuthentication(result.Token);
+            return result;
         }
 
         public async Task Logout()
         {
             await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
             _authStateProvider.NotifyUserLogout();
+            _httpClient.DefaultRequestHeaders.Authorization = null;
         }
     }
 }

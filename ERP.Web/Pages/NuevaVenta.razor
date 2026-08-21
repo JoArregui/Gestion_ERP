@@ -379,6 +379,10 @@
                 }).ToList()
             };
 
+            nuevaFactura.BaseImponible = nuevaFactura.Lineas.Sum(l => l.Cantidad * l.PrecioUnitario);
+            nuevaFactura.TotalIva = nuevaFactura.Lineas.Sum(l => l.Cantidad * l.PrecioUnitario * (l.PorcentajeIva / 100m));
+            nuevaFactura.Total = nuevaFactura.BaseImponible + nuevaFactura.TotalIva;
+
             var response = await Http.PostAsJsonAsync("api/facturacion/crear-factura", nuevaFactura);
             
             if (response.IsSuccessStatusCode) {

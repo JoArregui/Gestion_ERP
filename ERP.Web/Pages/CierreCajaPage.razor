@@ -127,11 +127,24 @@
                 
                 if (resultado != null)
                 {
-                    // Abrir el PDF generado por la API en nueva pestaña
-                    await JS.InvokeVoidAsync("open", $"api/cierrecaja/{resultado.Id}/pdf", "_blank");
+                    var pdfResponse = await Http.GetAsync($"api/cierrecaja/{resultado.Id}/pdf");
+                    if (pdfResponse.IsSuccessStatusCode)
+                    {
+                        var pdfBytes = await pdfResponse.Content.ReadAsByteArrayAsync();
+                        await JS.InvokeVoidAsync("downloadFile", $"Cierre_{resultado.Id}.pdf", Convert.ToBase64String(pdfBytes));
+                    }
+                    else
+                    {
+                        await JS.InvokeVoidAsync("alert", "El cierre se guardó, pero no se pudo generar el PDF.");
+                    }
                 }
 
-                Nav.NavigateTo("/ventas/facturas");
+                Nav.NavigateTo("/ventas/cierres");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", $"No se pudo ejecutar el cierre Z: {error}");
             }
         }
         catch (Exception ex)

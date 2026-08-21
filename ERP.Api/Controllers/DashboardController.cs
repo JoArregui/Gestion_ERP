@@ -35,7 +35,10 @@ namespace ERP.Api.Controllers
 
             var ventasTotal = await _context.Documentos
                 .Where(d => d.Tipo == TipoDocumento.Factura && !d.EsCompra)
-                .SumAsync(d => d.Total);
+                .Select(d => d.Total != 0
+                    ? d.Total
+                    : d.Lineas.Sum(l => l.Cantidad * l.PrecioUnitario * (1 + l.PorcentajeIva / 100m)))
+                .SumAsync();
 
             var comprasTotal = await _context.Documentos
                 .Where(d => d.Tipo == TipoDocumento.Factura && d.EsCompra)
@@ -62,7 +65,9 @@ namespace ERP.Api.Controllers
                 .Select(g => new GraficoVentasMes
                 {
                     Mes = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMM yy", new CultureInfo("es-ES")),
-                    Importe = g.Sum(d => d.Total),
+                    Importe = g.Sum(d => d.Total != 0
+                        ? d.Total
+                        : d.Lineas.Sum(l => l.Cantidad * l.PrecioUnitario * (1 + l.PorcentajeIva / 100m))),
                     Orden = g.Key.Year * 100 + g.Key.Month 
                 })
                 .OrderBy(x => x.Orden)

@@ -1,8 +1,9 @@
 using ERP.Data;
 using ERP.Domain.Entities;
+using ERP.Domain.DTOs;
 using Microsoft.EntityFrameworkCore;
 
-namespace ERP.API.Services
+namespace ERP.Services
 {
     public class StockService
     {
@@ -19,7 +20,9 @@ namespace ERP.API.Services
         public async Task ProcesarMovimientoStock(int documentoId)
         {
             // Usamos una transacción para asegurar la atomicidad de todos los cambios
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            var transaction = _context.Database.CurrentTransaction is null
+                ? await _context.Database.BeginTransactionAsync()
+                : null;
 
             try
             {
@@ -35,7 +38,7 @@ namespace ERP.API.Services
                     var articulo = await _context.Articulos
                         .FirstOrDefaultAsync(a => a.Id == linea.ArticuloId);
 
-                    if (articulo == null) 
+                    if (articulo == null)
                         throw new Exception($"El artículo con ID {linea.ArticuloId} no existe en el maestro.");
 
                     string tipoMov = "";
@@ -46,15 +49,15 @@ namespace ERP.API.Services
                     {
                         // --- ENTRADA DE MERCANCÍA ---
                         tipoMov = "ENTRADA_COMPRA";
-                        
+
                         // Recálculo del PMP antes de actualizar el stock total
                         // Fórmula: ((Stock Actual * PMP Actual) + (Nueva Cantidad * Nuevo Precio)) / (Stock Actual + Nueva Cantidad)
                         if (articulo.Stock + linea.Cantidad > 0)
                         {
-                            articulo.PrecioCompra = ((articulo.Stock * articulo.PrecioCompra) + (linea.Cantidad * linea.PrecioUnitario)) 
+                            articulo.PrecioCompra = ((articulo.Stock * articulo.PrecioCompra) + (linea.Cantidad * linea.PrecioUnitario))
                                                     / (articulo.Stock + linea.Cantidad);
                         }
-                        
+
                         articulo.Stock += linea.Cantidad;
                     }
                     else
@@ -82,7 +85,7 @@ namespace ERP.API.Services
                             {
                                 var tieneAlbaran = await _context.Documentos
                                     .AnyAsync(x => x.Id == doc.DocumentoOrigenId && x.Tipo == TipoDocumento.Albaran);
-                                
+
                                 if (tieneAlbaran)
                                 {
                                     articulo.StockReservado -= linea.Cantidad;
@@ -108,12 +111,19 @@ namespace ERP.API.Services
                 }
 
                 await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                if (transaction is not null)
+                    await transaction.CommitAsync();
             }
-            catch (Exception ex)
+            catch
             {
-                await transaction.RollbackAsync();
-                throw new Exception($"Error crítico en actualización de inventario: {ex.Message}", ex);
+                if (transaction is not null)
+                    await transaction.RollbackAsync();
+                throw;
+            }
+            finally
+            {
+                if (transaction is not null)
+                    await transaction.DisposeAsync();
             }
         }
 
@@ -131,7 +141,7 @@ namespace ERP.API.Services
                 if (articulo != null)
                 {
                     articulo.StockReservado -= linea.Cantidad;
-                    
+
                     // Registro de la liberación en el histórico
                     _context.MovimientosStock.Add(new MovimientoStock
                     {
@@ -147,6 +157,50 @@ namespace ERP.API.Services
                 }
             }
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<decimal> AjustarStockAsync(AjusteStockDTO ajuste)
+        {
+            var articulo = ajuste.ArticuloId > 0
+                ? await _context.Articulos.FindAsync(ajuste.ArticuloId)
+                : await _context.Articulos.FirstOrDefaultAsync(a => a.Codigo == ajuste.CodigoBarras);
+
+            if (articulo is null) throw new InvalidOperationException("Artículo no encontrado.");
+
+            var stockObjetivo = ajuste.ArticuloId > 0 ? ajuste.NuevoStock : ajuste.CantidadReal;
+            if (stockObjetivo < 0) throw new InvalidOperationException("El stock físico no puede ser negativo.");
+            if (stockObjetivo < articulo.StockReservado)
+                throw new InvalidOperationException("El stock físico no puede ser inferior al stock reservado en albaranes pendientes.");
+
+            var diferencia = stockObjetivo - articulo.Stock;
+            if (diferencia == 0) return articulo.Stock;
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                articulo.Stock = stockObjetivo;
+                _context.MovimientosStock.Add(new MovimientoStock
+                {
+                    ArticuloId = articulo.Id,
+                    EmpresaId = articulo.EmpresaId,
+                    Fecha = DateTime.Now,
+                    TipoMovimiento = diferencia > 0 ? "AJUSTE_ENTRADA" : "AJUSTE_SALIDA",
+                    Cantidad = Math.Abs(diferencia),
+                    StockResultante = stockObjetivo,
+                    ReferenciaDocumento = "AJUSTE INV",
+                    Observaciones = string.IsNullOrWhiteSpace(ajuste.Motivo)
+                        ? $"Ajuste desde {ajuste.TerminalId}"
+                        : $"{ajuste.Motivo} | Terminal: {ajuste.TerminalId}"
+                });
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return articulo.Stock;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
     }
 }

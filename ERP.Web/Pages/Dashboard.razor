@@ -30,7 +30,7 @@
     }
 </style>
 
-<div class="p-8 bg-slate-50 min-h-screen @(isUpdating ? "data-update-flash" : "")">
+<div id="dashboard-report" class="p-8 bg-slate-50 min-h-screen @(isUpdating ? "data-update-flash" : "")">
     
     @* --- CABECERA --- *@
     <div class="flex justify-between items-end mb-10">
@@ -122,7 +122,7 @@
         await CargarDatos();
 
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/dashboardHub"))
+            .WithUrl("http://localhost:5109/dashboardHub")
             .WithAutomaticReconnect()
             .Build();
 
@@ -169,7 +169,7 @@
         }
     }
 
-    private async Task ImprimirInforme() => await JS.InvokeVoidAsync("printWindow");
+    private async Task ImprimirInforme() => await JS.InvokeVoidAsync("printDashboard", "dashboard-report");
 
     public async ValueTask DisposeAsync()
     {

@@ -1,6 +1,8 @@
 @page "/compras"
 @using ERP.Domain.DTOs
 @inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
 
 <div class="p-8 bg-slate-50 min-h-screen animate__animated animate__fadeIn">
     @* --- CABECERA --- *@
@@ -21,6 +23,9 @@
                 <span class="text-3xl font-black text-rose-600 leading-none">@Alertas?.Count()</span>
             </div>
         </div>
+        <button @onclick='() => Navigation.NavigateTo("/compras/nuevo-pedido")' class="px-6 py-3 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest">
+            <i class="bi bi-cart-plus-fill me-2"></i> Nuevo pedido
+        </button>
     </div>
 
     @if (Alertas == null)
@@ -68,8 +73,18 @@
                         </div>
                     </div>
 
-                    <button class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 shadow-xl shadow-slate-900/10 transition-all flex items-center justify-center gap-3">
-                        <i class="bi bi-cart-plus-fill fs-5"></i> Generar Pedido (@item.CantidadSugerida.ToString("N0") uds)
+                    <button @onclick="() => GenerarPedido(item)" disabled="@(codigoEnProceso == item.Codigo)"
+                            class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 disabled:bg-slate-300 shadow-xl shadow-slate-900/10 transition-all flex items-center justify-center gap-3">
+                        @if (codigoEnProceso == item.Codigo)
+                        {
+                            <span class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                            <span>Generando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-cart-plus-fill fs-5"></i>
+                            <span>Generar Pedido (@item.CantidadSugerida.ToString("N0") uds)</span>
+                        }
                     </button>
                 </div>
             }
@@ -79,6 +94,7 @@
 
 @code {
     private List<AlertaStockDTO>? Alertas;
+    private string? codigoEnProceso;
 
     protected override async Task OnInitializedAsync()
     {
@@ -87,5 +103,40 @@
         } catch {
             Alertas = new List<AlertaStockDTO>(); // Evitar null en caso de error de API
         }
+    }
+
+    private async Task GenerarPedido(AlertaStockDTO alerta)
+    {
+        if (codigoEnProceso is not null) return;
+
+        codigoEnProceso = alerta.Codigo;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/compras/generar-desde-alertas", new[] { alerta });
+            var mensaje = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                await JS.InvokeVoidAsync("alert", "Pedido generado correctamente.");
+                await CargarAlertas();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", $"No se pudo generar el pedido: {mensaje}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error de conexión al generar el pedido: {ex.Message}");
+        }
+        finally
+        {
+            codigoEnProceso = null;
+        }
+    }
+
+    private async Task CargarAlertas()
+    {
+        Alertas = await Http.GetFromJsonAsync<List<AlertaStockDTO>>("api/articulos/alertas-reposicion") ?? new();
     }
 }

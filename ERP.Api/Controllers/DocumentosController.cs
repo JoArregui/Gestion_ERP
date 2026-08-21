@@ -116,6 +116,25 @@ namespace ERP.Api.Controllers
 
             // Nota profesional: En ERPs reales se suele usar "Borrado Lógico" (isDeleted) 
             // en lugar de borrar físicamente si el documento tiene trazabilidad.
+            if (documento.Tipo == TipoDocumento.Albaran)
+            {
+                try
+                {
+                    var eliminado = await _cicloService.IntentarEliminarAlbaran(id);
+                    return eliminado ? NoContent() : NotFound();
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
+            }
+
+            if (documento.Tipo is TipoDocumento.Factura or TipoDocumento.FacturaRectificativa)
+                return BadRequest("Las facturas no se eliminan. Emita una factura rectificativa para mantener la trazabilidad contable.");
+
+            if (await _context.Documentos.AnyAsync(d => d.DocumentoOrigenId == id))
+                return BadRequest("No se puede eliminar un documento que ya ha generado documentos posteriores.");
+
             _context.Documentos.Remove(documento);
             await _context.SaveChangesAsync();
 

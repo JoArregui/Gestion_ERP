@@ -232,6 +232,47 @@
             }
         };
 
+        window.downloadFile = (fileName, base64Data) => {
+            const binary = atob(base64Data);
+            const bytes = new Uint8Array(binary.length);
+
+            for (let index = 0; index < binary.length; index++) {
+                bytes[index] = binary.charCodeAt(index);
+            }
+
+            const blob = new Blob([bytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = fileName;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+        };
+
+        window.printDashboard = (elementId) => {
+            const source = document.getElementById(elementId);
+            if (!source) return;
+
+            const printWindow = window.open('', '_blank', 'width=1200,height=900');
+            if (!printWindow) return;
+
+            printWindow.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>ERP Insights</title><style>
+                * { box-sizing: border-box; }
+                body { margin: 0; padding: 24px; background: #f8fafc; color: #0f172a; font-family: Arial, sans-serif; }
+                button, .no-print { display: none !important; }
+                .shadow-xl, .shadow-2xl, .shadow-lg { box-shadow: none !important; }
+                @media print { body { padding: 0; } }
+            </style></head><body>${source.innerHTML}</body></html>`);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.onload = () => {
+                printWindow.print();
+                printWindow.close();
+            };
+        };
+
         window.printWindow = () => { window.print(); };
     </script>
 </body>

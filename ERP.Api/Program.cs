@@ -7,18 +7,22 @@ using Microsoft.OpenApi.Models;
 using ERP.Data;
 using ERP.Domain.Entities;
 using ERP.Services;
-using ERP.API.Services;
-using ERP.Application.Services;
 using ERP.Api.Hubs;
-using ERP.Api.Services;
+using ERP.Api.Services; // IEmailService / EmailService siguen aquí (Api-specific infra)
 using ERP.Domain.Constants;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. CONFIGURACIÓN DE BASE DE DATOS ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var useSqlite = builder.Configuration.GetValue<bool>("Database:UseSqlite");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+{
+    if (useSqlite)
+        options.UseSqlite(connectionString);
+    else
+        options.UseSqlServer(connectionString);
+});
 
 // --- 2. CONFIGURACIÓN DE IDENTITY ---
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
@@ -32,8 +36,13 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
 .AddDefaultTokenProviders();
 
 // --- 3. CONFIGURACIÓN DE SEGURIDAD JWT ---
-var jwtSecret = builder.Configuration["JWT:Secret"] ?? "Clave_Super_Secreta_De_Prueba_2026_ERP";
-var key = Encoding.ASCII.GetBytes(jwtSecret);
+var jwtSecret = builder.Configuration["JWT:Secret"];
+if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
+    throw new InvalidOperationException("JWT:Secret debe configurarse con al menos 32 caracteres.");
+
+var jwtIssuer = builder.Configuration["JWT:Issuer"] ?? "ERP.Api";
+var jwtAudience = builder.Configuration["JWT:Audience"] ?? "ERP.Web";
+var key = Encoding.UTF8.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -42,14 +51,16 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false;
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = false,
-        ValidateAudience = false,
+        ValidateIssuer = true,
+        ValidIssuer = jwtIssuer,
+        ValidateAudience = true,
+        ValidAudience = jwtAudience,
         ClockSkew = TimeSpan.Zero 
     };
 });
@@ -78,13 +89,15 @@ builder.Services.AddCors(options =>
 
 // --- 6. REGISTRO DE SERVICIOS DE NEGOCIO ---
 builder.Services.AddSignalR();
-builder.Services.AddScoped<IEmailService, EmailService>(); 
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<NominaService>();
+builder.Services.AddScoped<RRHHService>();
 builder.Services.AddScoped<PdfService>();
-builder.Services.AddScoped<StockService>(); 
+builder.Services.AddScoped<StockService>();
 builder.Services.AddScoped<ComprasService>();
-builder.Services.AddScoped<ERP.Application.Services.CicloFacturacionService>();
+builder.Services.AddScoped<CicloFacturacionService>();
 builder.Services.AddScoped<FacturacionService>();
+builder.Services.AddScoped<VerifactuService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -124,7 +137,10 @@ using (var scope = app.Services.CreateScope())
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         
-        await context.Database.MigrateAsync();
+        if (useSqlite)
+            await context.Database.EnsureCreatedAsync();
+        else
+            await context.Database.MigrateAsync();
         await SeedService.SeedAsync(context, userManager, roleManager);
     }
     catch (Exception ex)

@@ -1,7 +1,9 @@
 @using ERP.Web.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject AuthService AuthService
+@inject NotificationService NotificationService
 @inject NavigationManager NavigationManager
+@implements IDisposable
 
 <header class="h-20 bg-[#0f172a] border-b border-slate-800/50 flex items-center justify-between px-8 shadow-sm">
     
@@ -13,11 +15,48 @@
     @* INFO USUARIO Y ACCIONES *@
     <div class="flex items-center gap-6">
         
-        @* NOTIFICACIONES (ESTÁTICO) *@
-        <button class="relative text-slate-400 hover:text-white transition-colors">
+        @* NOTIFICACIONES *@
+        <div class="relative">
+        <button @onclick="ToggleNotifications" class="relative text-slate-400 hover:text-white transition-colors" title="Notificaciones">
             <i class="bi bi-bell-fill text-xl"></i>
-            <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0f172a]">3</span>
+            @if (NotificationService.History.Count > 0)
+            {
+                <span class="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0f172a]">@NotificationService.History.Count</span>
+            }
         </button>
+
+        @if (showNotifications)
+        {
+            <div class="absolute right-0 top-12 z-50 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden text-slate-800">
+                <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+                    <span class="text-[10px] font-black uppercase tracking-widest">Notificaciones</span>
+                    @if (NotificationService.History.Count > 0)
+                    {
+                        <button @onclick="ClearNotifications" class="text-[9px] font-black uppercase text-blue-600">Limpiar</button>
+                    }
+                </div>
+                @if (NotificationService.History.Count == 0)
+                {
+                    <p class="px-5 py-8 text-center text-xs text-slate-400">No hay notificaciones nuevas.</p>
+                }
+                else
+                {
+                    <div class="max-h-80 overflow-y-auto">
+                        @foreach (var notification in NotificationService.History)
+                        {
+                            <div class="px-4 py-3 border-b border-slate-100 flex gap-3">
+                                <i class="bi @GetNotificationIcon(notification.Type) @GetNotificationColor(notification.Type)"></i>
+                                <div>
+                                    <p class="text-xs font-semibold">@notification.Message</p>
+                                    <p class="text-[10px] text-slate-400">@notification.CreatedAt.ToString("HH:mm")</p>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        </div>
 
         @* PERFIL Y LOGOUT *@
         <AuthorizeView>
@@ -48,6 +87,42 @@
 </header>
 
 @code {
+    private bool showNotifications;
+
+    protected override void OnInitialized()
+    {
+        NotificationService.OnShow += HandleNotification;
+    }
+
+    private void HandleNotification(string _, NotificationType __)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleNotifications() => showNotifications = !showNotifications;
+
+    private void ClearNotifications()
+    {
+        NotificationService.ClearHistory();
+        showNotifications = false;
+    }
+
+    private static string GetNotificationIcon(NotificationType type) => type switch
+    {
+        NotificationType.Success => "bi-check-circle-fill",
+        NotificationType.Error => "bi-x-circle-fill",
+        NotificationType.Warning => "bi-exclamation-triangle-fill",
+        _ => "bi-info-circle-fill"
+    };
+
+    private static string GetNotificationColor(NotificationType type) => type switch
+    {
+        NotificationType.Success => "text-emerald-500",
+        NotificationType.Error => "text-rose-500",
+        NotificationType.Warning => "text-amber-500",
+        _ => "text-blue-500"
+    };
+
     private async Task HandleLogout()
     {
         // 1. Llama al servicio para borrar token y notificar estado
@@ -55,5 +130,10 @@
         
         // 2. Redirige al login
         NavigationManager.NavigateTo("login");
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnShow -= HandleNotification;
     }
 }

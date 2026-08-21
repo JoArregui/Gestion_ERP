@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using ERP.Domain.Entities;
 using ERP.Data;
 using Microsoft.EntityFrameworkCore;
-using ERP.Application.Services; // Namespace unificado
+using ERP.Services;
 
 namespace ERP.Api.Controllers
 {
@@ -10,7 +10,6 @@ namespace ERP.Api.Controllers
     [Route("api/[controller]")]
     public class CicloFacturacionController : ControllerBase
     {
-        // Corregido: Referencia directa al servicio de Application.Services
         private readonly CicloFacturacionService _cicloService;
         private readonly ApplicationDbContext _context;
 

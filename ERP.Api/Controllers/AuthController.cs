@@ -80,6 +80,7 @@ namespace ERP.Api.Controllers
         private async Task<string> GenerateJwtToken(ApplicationUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);
+            var permissions = await _userManager.GetClaimsAsync(user);
             
             // Claims básicos y personalizados para el ERP
             var claims = new List<Claim>
@@ -99,6 +100,11 @@ namespace ERP.Api.Controllers
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
+            foreach (var permission in permissions.Where(c => c.Type == "Permission"))
+            {
+                claims.Add(new Claim("Permission", permission.Value));
+            }
+
             // Usamos la clave definida en tu appsettings.json
             var jwtSecret = _configuration["JWT:Secret"];
             if (string.IsNullOrEmpty(jwtSecret)) 
@@ -108,10 +114,10 @@ namespace ERP.Api.Controllers
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: _configuration["JWT:Issuer"], // Puede ser null según tu Program.cs actual
-                audience: _configuration["JWT:Audience"], // Puede ser null según tu Program.cs actual
+                issuer: _configuration["JWT:Issuer"] ?? "ERP.Api",
+                audience: _configuration["JWT:Audience"] ?? "ERP.Web",
                 claims: claims,
-                expires: DateTime.Now.AddHours(8), // Duración de jornada laboral estándar
+                expires: DateTime.UtcNow.AddHours(8),
                 signingCredentials: creds
             );
 

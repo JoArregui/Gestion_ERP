@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace ERP.Domain.Entities
 {
@@ -26,6 +27,7 @@ namespace ERP.Domain.Entities
 
         // Relación inversa con Artículos
         // Se utiliza virtual para permitir Lazy Loading si el proxy está configurado
+        [JsonIgnore]
         public virtual ICollection<Articulo> Articulos { get; set; } = new List<Articulo>();
 
         // Propiedades de auditoría (opcionales pero recomendadas en ERP)

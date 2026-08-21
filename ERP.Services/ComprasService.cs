@@ -3,7 +3,7 @@ using ERP.Data;
 using ERP.Domain.Entities;
 using ERP.Domain.DTOs;
 
-namespace ERP.API.Services
+namespace ERP.Services
 {
     public class ComprasService
     {
@@ -12,6 +12,61 @@ namespace ERP.API.Services
         public ComprasService(ApplicationDbContext context)
         {
             _context = context;
+        }
+
+        public async Task<DocumentoComercial> CrearPedidoAsync(PedidoCompraRequest request, int empresaId)
+        {
+            if (request.ProveedorId <= 0 || request.Lineas.Count == 0)
+                throw new InvalidOperationException("El pedido debe incluir proveedor y al menos una línea.");
+
+            var proveedorExiste = await _context.Proveedores
+                .AnyAsync(p => p.Id == request.ProveedorId && p.IsActivo);
+            if (!proveedorExiste)
+                throw new InvalidOperationException("El proveedor no existe o está inactivo.");
+
+            var articuloIds = request.Lineas.Select(l => l.ArticuloId).Distinct().ToList();
+            var articulos = await _context.Articulos
+                .Where(a => articuloIds.Contains(a.Id) && a.EmpresaId == empresaId && !a.IsDescatalogado)
+                .ToDictionaryAsync(a => a.Id);
+
+            if (articulos.Count != articuloIds.Count)
+                throw new InvalidOperationException("Uno o más artículos no pertenecen a la empresa o no están disponibles.");
+
+            var lineas = request.Lineas.Select(linea =>
+            {
+                if (linea.Cantidad <= 0 || linea.PrecioUnitario < 0)
+                    throw new InvalidOperationException("Las cantidades deben ser mayores que cero y los precios no pueden ser negativos.");
+
+                var articulo = articulos[linea.ArticuloId];
+                return new DocumentoLinea
+                {
+                    ArticuloId = articulo.Id,
+                    DescripcionArticulo = articulo.Descripcion,
+                    Cantidad = linea.Cantidad,
+                    PrecioUnitario = linea.PrecioUnitario,
+                    PorcentajeIva = articulo.PorcentajeIva
+                };
+            }).ToList();
+
+            var baseImponible = lineas.Sum(l => l.Cantidad * l.PrecioUnitario);
+            var totalIva = lineas.Sum(l => l.Cantidad * l.PrecioUnitario * l.PorcentajeIva / 100m);
+            var pedido = new DocumentoComercial
+            {
+                EmpresaId = empresaId,
+                ProveedorId = request.ProveedorId,
+                EsCompra = true,
+                Tipo = TipoDocumento.Pedido,
+                Fecha = DateTime.Now,
+                NumeroDocumento = $"PED-{DateTime.Now:yyyyMMdd-HHmmssfff}",
+                BaseImponible = baseImponible,
+                TotalIva = totalIva,
+                Total = baseImponible + totalIva,
+                Lineas = lineas
+            };
+
+            _context.Documentos.Add(pedido);
+            await _context.SaveChangesAsync();
+            return pedido;
         }
 
         /// <summary>
@@ -64,7 +119,7 @@ namespace ERP.API.Services
                 }
 
                 pedido.IsContabilizado = true;
-                pedido.NumeroAlbaran = numeroAlbaran; 
+                pedido.NumeroAlbaran = numeroAlbaran;
                 pedido.FechaRecepcion = DateTime.Now;
 
                 await _context.SaveChangesAsync();
@@ -75,7 +130,7 @@ namespace ERP.API.Services
             catch
             {
                 await transaction.RollbackAsync();
-                throw; 
+                throw;
             }
         }
 
@@ -92,11 +147,11 @@ namespace ERP.API.Services
             foreach (var grupo in alertasPorProveedor)
             {
                 var proveedorId = grupo.Key;
-                
+
                 var nuevoPedido = new DocumentoComercial
                 {
                     ProveedorId = proveedorId,
-                    EmpresaId = 1, 
+                    EmpresaId = 1,
                     Fecha = DateTime.Now,
                     EsCompra = true,
                     Tipo = TipoDocumento.Pedido,
@@ -124,9 +179,9 @@ namespace ERP.API.Services
 
                 // Cálculo automático del Total basado en las líneas recién agregadas
                 nuevoPedido.Total = nuevoPedido.Lineas.Sum(l => l.Cantidad * l.PrecioUnitario);
-                
+
                 // Cálculo de Base e IVA
-                nuevoPedido.BaseImponible = nuevoPedido.Total / 1.21m; 
+                nuevoPedido.BaseImponible = nuevoPedido.Total / 1.21m;
                 nuevoPedido.TotalIva = nuevoPedido.Total - nuevoPedido.BaseImponible;
 
                 _context.Documentos.Add(nuevoPedido);

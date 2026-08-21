@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ERP.Domain.Entities;
 using ERP.Data;
@@ -9,6 +10,7 @@ namespace ERP.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class CierreCajaController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -20,9 +22,21 @@ namespace ERP.API.Controllers
             _pdfService = pdfService;
         }
 
+        private int GetEmpresaId()
+        {
+            var claim = User.FindFirst("EmpresaId")?.Value;
+            return int.TryParse(claim, out var empresaId) && empresaId > 0
+                ? empresaId
+                : 0;
+        }
+
+        private bool PerteneceAEmpresa(int empresaId) => empresaId == GetEmpresaId();
+
         [HttpGet("totales-pendientes/{empresaId}")]
         public async Task<ActionResult<CierreCaja>> GetTotalesPendientes(int empresaId)
         {
+            if (!PerteneceAEmpresa(empresaId)) return Forbid();
+
             try
             {
                 var docs = await _context.Documentos
@@ -81,6 +95,7 @@ namespace ERP.API.Controllers
         public async Task<IActionResult> EjecutarCierre([FromBody] CierreCaja cierre)
         {
             if (cierre == null) return BadRequest("Datos de cierre inválidos.");
+            if (!PerteneceAEmpresa(cierre.EmpresaId)) return Forbid();
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -115,9 +130,10 @@ namespace ERP.API.Controllers
         [HttpGet("{id}/pdf")]
         public async Task<IActionResult> DescargarCierrePdf(int id)
         {
+            var empresaId = GetEmpresaId();
             var cierre = await _context.CierresCaja
                 .Include(c => c.Empresa)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id && c.EmpresaId == empresaId);
 
             if (cierre == null || cierre.Empresa == null) return NotFound();
 
@@ -128,6 +144,8 @@ namespace ERP.API.Controllers
         [HttpGet("historial/{empresaId}")]
         public async Task<ActionResult<List<CierreCaja>>> GetHistorial(int empresaId)
         {
+            if (!PerteneceAEmpresa(empresaId)) return Forbid();
+
             return await _context.CierresCaja
                 .Where(c => c.EmpresaId == empresaId)
                 .OrderByDescending(c => c.FechaCierre)

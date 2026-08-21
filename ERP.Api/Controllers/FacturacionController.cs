@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using ERP.Domain.Entities;
-using ERP.Application.Services;
 using ERP.Services;
 using ERP.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using ERP.Api.Hubs;
 
 namespace ERP.Api.Controllers
 {
@@ -16,15 +17,18 @@ namespace ERP.Api.Controllers
         private readonly ApplicationDbContext _context;
         private readonly FacturacionService _facturacionService;
         private readonly PdfService _pdfService;
+        private readonly IHubContext<DashboardHub> _hubContext;
 
         public FacturacionController(
             ApplicationDbContext context, 
             FacturacionService facturacionService, 
-            PdfService pdfService)
+            PdfService pdfService,
+            IHubContext<DashboardHub> hubContext)
         {
             _context = context;
             _facturacionService = facturacionService;
             _pdfService = pdfService;
+            _hubContext = hubContext;
         }
 
         [HttpGet("listado")]
@@ -60,6 +64,7 @@ namespace ERP.Api.Controllers
 
             if (exito)
             {
+                await _hubContext.Clients.All.SendAsync("ReceiveDashboardUpdate");
                 // Devolvemos el ID para que el frontend pueda generar el PDF/Ticket inmediatamente
                 return Ok(new { Message = "Factura procesada y stock actualizado", Id = factura.Id });
             }

@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using ERP.API.Services;
+using ERP.Services;
 using ERP.Domain.DTOs;
 using ERP.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using ERP.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,7 @@ namespace ERP.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class ComprasController : ControllerBase
     {
         private readonly ComprasService _comprasService;
@@ -18,6 +20,25 @@ namespace ERP.API.Controllers
         {
             _comprasService = comprasService;
             _context = context;
+        }
+
+        [HttpPost("crear-pedido")]
+        public async Task<IActionResult> CrearPedido([FromBody] PedidoCompraRequest request)
+        {
+            var empresaId = int.TryParse(User.FindFirst("EmpresaId")?.Value, out var claimEmpresaId)
+                ? claimEmpresaId
+                : 0;
+            if (empresaId <= 0) return Unauthorized("Sesión sin empresa asociada.");
+
+            try
+            {
+                var pedido = await _comprasService.CrearPedidoAsync(request, empresaId);
+                return Ok(new { id = pedido.Id, numeroDocumento = pedido.NumeroDocumento });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { mensaje = ex.Message });
+            }
         }
 
         /// <summary>

@@ -23,6 +23,7 @@ namespace ERP.Data
         public DbSet<DocumentoComercial> Documentos { get; set; }
         public DbSet<DocumentoLinea> DocumentoLineas { get; set; }
         public DbSet<Vencimiento> Vencimientos { get; set; }
+        public DbSet<RegistroVerifactu> RegistrosVerifactu { get; set; }
         public DbSet<Nomina> Nominas { get; set; }
         public DbSet<CierreCaja> CierresCaja { get; set; }
         public DbSet<MovimientoStock> MovimientosStock { get; set; }
@@ -118,6 +119,19 @@ namespace ERP.Data
                 .WithMany()
                 .HasForeignKey(d => d.ProveedorId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // La referencia comercial debe ser única dentro de cada empresa. Es la
+            // última barrera de integridad frente a peticiones concurrentes.
+            modelBuilder.Entity<DocumentoComercial>()
+                .HasIndex(d => new { d.EmpresaId, d.NumeroDocumento })
+                .IsUnique();
+
+            modelBuilder.Entity<RegistroVerifactu>()
+                .HasIndex(r => r.DocumentoId)
+                .IsUnique();
+
+            modelBuilder.Entity<RegistroVerifactu>()
+                .HasIndex(r => new { r.EmpresaId, r.FechaHoraHusoGeneracion });
             
             modelBuilder.Entity<DocumentoLinea>()
                 .HasOne(l => l.Documento)

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.DTOs;
 using ERP.Domain.Entities;
+using ERP.Services;
 
 namespace ERP.API.Controllers
 {
@@ -11,10 +12,12 @@ namespace ERP.API.Controllers
     public class StockController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly StockService _stockService;
 
-        public StockController(ApplicationDbContext context)
+        public StockController(ApplicationDbContext context, StockService stockService)
         {
             _context = context;
+            _stockService = stockService;
         }
 
         /// <summary>
@@ -81,6 +84,19 @@ namespace ERP.API.Controllers
         [HttpPost("ajuste-manual")]
         public async Task<IActionResult> AjusteManual([FromBody] AjusteStockDTO ajuste)
         {
+            if (ajuste.ArticuloId >= 0)
+            {
+                try
+                {
+                    var nuevoStockSeguro = await _stockService.AjustarStockAsync(ajuste);
+                    return Ok(new { mensaje = "Inventario regularizado correctamente.", nuevoStock = nuevoStockSeguro });
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return BadRequest(ex.Message);
+                }
+            }
+
             Articulo? articulo;
             
             if (ajuste.ArticuloId > 0)

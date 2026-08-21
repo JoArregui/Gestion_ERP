@@ -4,6 +4,7 @@ using ERP.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERP.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260821083805_AddUniqueDocumentNumberPerCompany")]
+    partial class AddUniqueDocumentNumberPerCompany
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -450,10 +453,9 @@ namespace ERP.Data.Migrations
 
                     b.HasIndex("ClienteId");
 
-                    b.HasIndex("ProveedorId");
+                    b.HasIndex("EmpresaId");
 
-                    b.HasIndex("EmpresaId", "NumeroDocumento")
-                        .IsUnique();
+                    b.HasIndex("ProveedorId");
 
                     b.ToTable("Documentos");
                 });
