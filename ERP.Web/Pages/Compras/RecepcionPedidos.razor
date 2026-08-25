@@ -3,6 +3,7 @@
 @using ERP.Web.Services
 @inject ComprasWebService ComprasService
 @inject IJSRuntime JS
+@inject NotificationService Notify
 
 <PageTitle>Recepción de Pedidos | ERP</PageTitle>
 
@@ -40,6 +41,15 @@
             </button>
         </div>
     </div>
+
+    @* --- MENSAJE DE ERROR --- *@
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger mt-3" role="alert">
+            <strong class="text-[10px] font-black uppercase text-slate-400">Error</strong>
+            <span class="text-slate-300 text-[10px]">@errorMessage</span>
+        </div>
+    }
 
     @if (pedidos == null)
     {
@@ -170,18 +180,28 @@
 
 @code {
     private List<DocumentoComercial>? pedidos;
+    private string? errorMessage;
     private bool mostrarModal = false;
-    private bool mostrarToast = false;
     private DocumentoComercial? pedidoSeleccionado;
     private string numeroAlbaran = string.Empty;
+    private bool mostrarToast = false;
 
     protected override async Task OnInitializedAsync() => await CargarDatos();
 
     private async Task CargarDatos() 
     {
+        errorMessage = null;
         pedidos = null;
         StateHasChanged();
-        pedidos = await ComprasService.GetPedidosPendientes();
+        
+        var result = await ComprasService.GetPedidosPendientes();
+        pedidos = result.pedidos;
+        errorMessage = result.errorMessage;
+        if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            // Mostrar notificación de error
+            Notify.Error(errorMessage);
+        }
     }
 
     private void PrepararRecepcion(DocumentoComercial pedido)
@@ -201,12 +221,16 @@
     {
         if (pedidoSeleccionado != null && !string.IsNullOrWhiteSpace(numeroAlbaran))
         {
-            var exito = await ComprasService.RecepcionarPedido(pedidoSeleccionado.Id, numeroAlbaran);
-            if (exito) 
+            var (success, errorMessage) = await ComprasService.RecepcionarPedido(pedidoSeleccionado.Id, numeroAlbaran);
+            if (success) 
             {
                 CerrarModal();
                 await CargarDatos();
                 await LanzarNotificacion();
+            }
+            else
+            {
+                Notify.Error(errorMessage ?? "Error desconocido al procesar la recepción.");
             }
         }
     }

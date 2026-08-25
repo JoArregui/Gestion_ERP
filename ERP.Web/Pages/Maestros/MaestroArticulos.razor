@@ -252,8 +252,13 @@
     {
         try {
             articulos = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos");
+            if (articulos == null) {
+                Notify.Warning("No se encontraron artículos. La sesión puede haber expirado.");
+            }
+        } catch (Exception ex) when (ex is HttpRequestException) {
+            Notify.Error("Error de conexión con el servidor. Verifique que el API esté ejecutándose en http://localhost:5109/");
         } catch {
-            Notify.Error("Fallo en la conexión con el servidor de inventario");
+            Notify.Error("Error inesperado al cargar los datos del inventario. Póngase en contacto con el administrador.");
         }
     }
 
@@ -330,4 +335,4 @@
     public void Dispose() => Notify.OnShow -= HandleGlobalNotification;
 
     private class NotificationItem { public string Message { get; set; } = ""; public NotificationType Type { get; set; } }
-}}
+}

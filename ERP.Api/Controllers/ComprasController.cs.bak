@@ -85,12 +85,12 @@ namespace ERP.API.Controllers
 
             try 
             {
-                var (resultado, mensajeError) = await _comprasService.RecepcionarPedido(id, numeroAlbaran);
+                bool resultado = await _comprasService.RecepcionarPedido(id, numeroAlbaran);
 
                 if (resultado)
                     return Ok(new { mensaje = "Pedido recepcionado, stock actualizado y precio medio recalculado." });
 
-                return BadRequest(new { mensaje = mensajeError ?? "Error desconocido al procesar la recepción." });
+                return BadRequest("No se pudo procesar la recepción. Verifique si el pedido existe o ya fue procesado.");
             }
             catch (Exception ex)
             {

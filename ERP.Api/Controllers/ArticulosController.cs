@@ -21,8 +21,12 @@ namespace ERP.API.Controllers
             _context = context;
         }
 
-        // Helper para obtener el EmpresaId del Token actual
-        private int GetEmpresaId() => int.Parse(User.FindFirst("EmpresaId")?.Value ?? "0");
+        // Helper para obtener el EmpresaId del Token actual de forma segura
+        private int GetEmpresaId()
+        {
+            var claim = User.FindFirst("EmpresaId")?.Value;
+            return int.TryParse(claim, out int id) ? id : 0;
+        }
 
         // --- MÉTODOS DE IMPORTACIÓN Y EXCEL ---
 
@@ -175,14 +179,34 @@ namespace ERP.API.Controllers
         // --- MÉTODOS CRUD ESTÁNDAR ---
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Articulo>>> GetArticulos()
+        public async Task<ActionResult> GetArticulos()
         {
             int empresaId = GetEmpresaId();
-            return await _context.Articulos
-                .Include(a => a.Familia)
-                .Include(a => a.ProveedorHabitual)
+            
+            // Usamos AsNoTracking y proyección anónima/DTO para evitar
+            // excepciones por ciclos de referencia de Entity Framework al serializar JSON
+            var articulos = await _context.Articulos
+                .AsNoTracking()
                 .Where(a => a.EmpresaId == empresaId)
+                .Select(a => new
+                {
+                    a.Id,
+                    a.Codigo,
+                    a.Descripcion,
+                    a.PrecioCompra,
+                    a.PrecioVenta,
+                    a.Stock,
+                    a.PorcentajeIva,
+                    a.IsDescatalogado,
+                    a.EmpresaId,
+                    a.FamiliaId,
+                    FamiliaNombre = a.Familia != null ? a.Familia.Nombre : null,
+                    a.ProveedorHabitualId,
+                    ProveedorNombre = a.ProveedorHabitual != null ? a.ProveedorHabitual.RazonSocial : null
+                })
                 .ToListAsync();
+
+            return Ok(articulos);
         }
 
         [HttpGet("{id}")]
@@ -190,6 +214,7 @@ namespace ERP.API.Controllers
         {
             int empresaId = GetEmpresaId();
             var articulo = await _context.Articulos
+                .AsNoTracking()
                 .Include(a => a.Familia)
                 .Include(a => a.ProveedorHabitual)
                 .FirstOrDefaultAsync(a => a.Id == id && a.EmpresaId == empresaId);
@@ -203,6 +228,7 @@ namespace ERP.API.Controllers
         {
             int empresaId = GetEmpresaId();
             var articulo = await _context.Articulos
+                .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Codigo == codigo && a.EmpresaId == empresaId);
 
             if (articulo == null) return NotFound(new { message = "Artículo no encontrado" });
@@ -261,6 +287,7 @@ namespace ERP.API.Controllers
         {
             int empresaId = GetEmpresaId();
             return await _context.Articulos
+                .AsNoTracking()
                 .Include(a => a.Familia)
                 .Where(a => a.EmpresaId == empresaId && !a.IsDescatalogado)
                 .Select(a => new AnalisisRentabilidadDTO

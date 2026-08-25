@@ -36,6 +36,13 @@ appsettings.Local.json
 *.pfx
 *.publishsettings
 
+## [ Bases de Datos Locales y Temporales ]
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
 ## [ Node / Herramientas de Front-end (si usas Tailwind local) ]
 node_modules/
 npm-debug.log*

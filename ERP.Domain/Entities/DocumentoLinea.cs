@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization; // <-- añadir este using
 
 namespace ERP.Domain.Entities
 {
@@ -11,6 +12,7 @@ namespace ERP.Domain.Entities
         [Required]
         public int DocumentoId { get; set; }
         
+        [JsonIgnore] // <-- añadir esto
         [ForeignKey("DocumentoId")]
         public virtual DocumentoComercial? Documento { get; set; }
 
@@ -28,15 +30,12 @@ namespace ERP.Domain.Entities
         [Column(TypeName = "decimal(18,4)")]
         public decimal PrecioUnitario { get; set; }
 
-        // Cambiado a decimal para evitar errores de conversión y mejorar precisión
         [Column(TypeName = "decimal(5,2)")]
         public decimal PorcentajeIva { get; set; }
 
-        // Propiedad calculada para la UI y lógica de negocio
         [NotMapped]
         public decimal Subtotal => Cantidad * PrecioUnitario;
 
-        // --- NUEVA PROPIEDAD PARA EL CIERRE ---
         [StringLength(100)]
         public string? CategoriaNombre { get; set; }
     }

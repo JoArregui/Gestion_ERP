@@ -16,6 +16,7 @@ namespace ERP.Data
         public DbSet<Empresa> Empresas { get; set; }
         public DbSet<Cliente> Clientes { get; set; }
         public DbSet<Proveedor> Proveedores { get; set; }
+        public DbSet<Acreedor> Acreedores { get; set; }
         public DbSet<Articulo> Articulos { get; set; }
         public DbSet<Familia> Familias { get; set; } 
         public DbSet<Empleado> Empleados { get; set; }
@@ -38,6 +39,7 @@ namespace ERP.Data
             modelBuilder.Entity<Articulo>().HasQueryFilter(a => !a.IsDescatalogado);
             modelBuilder.Entity<Empleado>().HasQueryFilter(e => e.FechaBaja == null || e.FechaBaja > DateTime.Now);
             modelBuilder.Entity<Proveedor>().HasQueryFilter(p => p.IsActivo);
+            modelBuilder.Entity<Acreedor>().HasQueryFilter(a => a.IsActivo);
             modelBuilder.Entity<Familia>().HasQueryFilter(f => f.IsActiva); 
 
             // --- 2. CONFIGURACIÓN DE PRECISIÓN DECIMAL ---

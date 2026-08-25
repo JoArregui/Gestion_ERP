@@ -72,7 +72,7 @@ namespace ERP.Services
         /// <summary>
         /// Procesa la recepción de un pedido de compra.
         /// </summary>
-        public async Task<bool> RecepcionarPedido(int pedidoId, string numeroAlbaran)
+        public async Task<(bool success, string errorMessage)> RecepcionarPedido(int pedidoId, string numeroAlbaran)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -83,8 +83,17 @@ namespace ERP.Services
                         .ThenInclude(l => l.Articulo)
                     .FirstOrDefaultAsync(d => d.Id == pedidoId && d.Tipo == TipoDocumento.Pedido);
 
-                if (pedido == null || pedido.IsContabilizado)
-                    return false;
+                if (pedido == null)
+                {
+                    await transaction.RollbackAsync();
+                    return (false, "El pedido con ID " + pedidoId + " no existe en el sistema.");
+                }
+
+                if (pedido.IsContabilizado)
+                {
+                    await transaction.RollbackAsync();
+                    return (false, "El pedido " + pedido.NumeroDocumento + " ya fue procesado anteriormente. No se puede volver a recepcionar.");
+                }
 
                 foreach (var linea in pedido.Lineas)
                 {
@@ -107,6 +116,7 @@ namespace ERP.Services
                     var movimiento = new MovimientoStock
                     {
                         ArticuloId = articulo.Id,
+                        EmpresaId = articulo.EmpresaId,
                         Fecha = DateTime.Now,
                         TipoMovimiento = "ENTRADA",
                         Cantidad = linea.Cantidad,
@@ -125,12 +135,17 @@ namespace ERP.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return true;
+                return (true, null);
             }
-            catch
+            catch (DbUpdateException ex)
             {
                 await transaction.RollbackAsync();
-                throw;
+                return (false, "Error de integridad de datos: " + ex.Message);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return (false, "Error inesperado: " + ex.Message);
             }
         }
 
