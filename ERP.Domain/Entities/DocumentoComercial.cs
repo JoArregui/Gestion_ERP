@@ -57,6 +57,9 @@ namespace ERP.Domain.Entities
 
         public bool IsContabilizado { get; set; } = false;
 
+        // --- ESTADO SEMÁNTICO PARA USUARIO ---
+        public EstadoDocumento Estado { get; set; } = EstadoDocumento.Borrador;
+
         public string MetodoPago { get; set; } = "Efectivo";
 
         public string? Observaciones { get; set; } 

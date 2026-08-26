@@ -10,4 +10,12 @@ namespace ERP.Domain.Entities
         FacturaRectificativa,
         AjusteStock // <--- Crucial para Scanpal y auditoría de almacén
     }
+
+    public enum EstadoDocumento
+    {
+        Borrador,
+        Emitido,
+        Pagado,
+        Anulado
+    }
 }

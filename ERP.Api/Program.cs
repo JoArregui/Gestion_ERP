@@ -78,13 +78,13 @@ builder.Services.AddAuthorization(options =>
 // --- 5. POLÍTICA DE CORS ---
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowBlazorClient", policy =>
-    {
-        policy.WithOrigins("http://localhost:5053", "https://localhost:5053")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-    });
+options.AddPolicy("AllowBlazorClient", policy =>
+{
+    policy.WithOrigins("http://localhost:5053", "https://localhost:5053", "http://localhost:5109", "https://localhost:5109")
+          .AllowAnyMethod()
+          .AllowAnyHeader()
+          .AllowCredentials();
+});
 });
 
 // --- 6. REGISTRO DE SERVICIOS DE NEGOCIO ---

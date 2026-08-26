@@ -1,86 +1,118 @@
 @page "/llamadas"
-@inject NavigationManager Navigation
+@inject HttpClient Http
 
-<div class="max-w-[1200px] mx-auto p-8 animate-in fade-in duration-500">
-    
-    @* CABECERA *@
-    <div class="flex justify-between items-end mb-8 border-b-2 border-slate-200 pb-6">
+<div class="max-w-[1200px] mx-auto p-6 sm:p-8 lg:p-8 animate-in fade-in duration-500">
+
+    @* CABECERA CON ESTADO DE CARGA *@
+    <div class="flex justify-between items-end mb-6 sm:mb-8 border-b-2 border-slate-200 pb-6 sm:pb-8">
         <div>
-            <h1 class="text-4xl font-black text-slate-900 uppercase tracking-tighter">Central de Comunicaciones</h1>
-            <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em]">Gestión de contactos y seguimiento telefónico</p>
+            <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter sm:text-4xl">Central de Comunicaciones</h1>
+            <p class="text-slate-500 font-bold text-[10px] sm:text-[11px] uppercase tracking-[0.3em] sm:text-base">Gestión de contactos y seguimiento telefónico</p>
         </div>
-        <button class="bg-slate-900 text-white px-6 py-2 rounded-xl font-black text-[10px] hover:bg-blue-600 transition shadow-lg uppercase flex items-center gap-2">
-            <i class="bi bi-telephone-plus-fill"></i> Registrar Llamada
-        </button>
-    </div>
-
-    @* ESTADÍSTICAS RÁPIDAS *@
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div class="bg-blue-600 p-6 rounded-[2rem] text-white shadow-xl shadow-blue-900/20">
-            <div class="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Pendientes Hoy</div>
-            <div class="text-3xl font-black">08</div>
-        </div>
-        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Realizadas</div>
-            <div class="text-3xl font-black text-slate-800">24</div>
-        </div>
-        <div class="bg-rose-500 p-6 rounded-[2rem] text-white shadow-xl shadow-rose-900/20">
-            <div class="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Urgentes</div>
-            <div class="text-3xl font-black">02</div>
+        <div class="flex items-center gap-3">
+            <button class="bg-emerald-600 text-white px-4 sm:px-5 py-2 sm:rounded-xl sm:text-base font-black tracking-widest sm:uppercase hover:bg-emerald-700 transition shadow-lg sm:shadow-emerald-900/20">
+                <i class="bi bi-telephone-plus-fill"></i> Nueva Llamada
+            </button>
         </div>
     </div>
 
-    @* LISTADO DE LLAMADAS *@
-    <div class="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-        <div class="p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
-            <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Cola de llamadas prioritarias</span>
-            <div class="flex gap-2">
-                <i class="bi bi-filter-right text-slate-400"></i>
-                <span class="text-[10px] font-bold text-slate-400 uppercase">Filtrar por agente</span>
-            </div>
+    @* ESTADÍSTICAS DESDE LA API *@
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mb-6">
+        <div class="bg-emerald-600 p-4 sm:p-5 rounded-[2rem] text-white shadow-xl sm:shadow-emerald-900/20" id="estadistica1">
+            <div class="text-xs sm:text-base uppercase opacity-80 mb-1 sm:mb-1">Total Llamadas</div>
+            <div class="text-2xl sm:text-3xl font-black" id="totalLlamadas">Cargando...</div>
+        </div>
+        <div class="bg-white p-4 sm:p-5 rounded-[2rem] border border-slate-100 shadow-sm" id="estadistica2">
+            <div class="text-xs sm:text-base uppercase opacity-80 mb-1 sm:mb-1">Urgentes</div>
+            <div class="text-2xl sm:text-3xl font-black text-rose-400" id="urgentes">Cargando...</div>
+        </div>
+        <div class="bg-rose-500 p-4 sm:p-5 rounded-[2rem] text-white shadow-xl sm:shadow-rose-900/20" id="estadistica3">
+            <div class="text-xs sm:text-base uppercase opacity-80 mb-1 sm:mb-1">Hoy</div>
+            <div class="text-2xl sm:text-3xl font-black" id="hoy">Cargando...</div>
+        </div>
+    </div>
+
+    @* LISTADO DE LLAMADAS DESDE LA API *@>
+    <div class="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+        <div class="p-5 sm:p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
+            <span class="text-xs sm:text-base font-black uppercase tracking-widest sm:text-sm">Lista de Llamadas</span>
         </div>
         
-        <div class="divide-y divide-slate-100">
-            @foreach (var call in llamadasFicticias)
-            {
-                <div class="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors group">
-                    <div class="flex items-center gap-5">
-                        <div class="w-12 h-12 @(call.Urgente ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-400") rounded-2xl flex items-center justify-center text-xl">
-                            <i class="bi @(call.Urgente ? "bi-telephone-exclamation-fill" : "bi-telephone-fill")"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-black text-slate-800 uppercase text-sm tracking-tight">@call.Empresa</h3>
-                            <p class="text-[11px] text-slate-400 font-bold">@call.Motivo • <span class="text-blue-500">@call.Telefono</span></p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-4">
-                        <div class="text-right mr-4">
-                            <span class="block text-[10px] font-black text-slate-300 uppercase">Hace</span>
-                            <span class="text-xs font-bold text-slate-600">@call.Tiempo</span>
-                        </div>
-                        <button class="bg-emerald-500 text-white px-5 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-900/20 flex items-center gap-2">
-                            <i class="bi bi-telephone-outbound"></i> Llamar Ahora
-                        </button>
-                    </div>
-                </div>
-            }
+        <div class="divide-y divide-slate-100" id="listaLlamadas">
+            <!-- Llamadas se cargarán dinámicamente via JavaScript -->
+            <div class="p-6 text-center text-slate-500">
+                <i class="bi bi-spinner text-3xl animate-spin mb-3"></i>
+                <p class="text-base">Cargando llamadas...</p>
+            </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch('api/llamadas');
+                if (!response.ok) throw new Error('Error al cargar datos');
+                
+                const data = await response.json();
+                
+                // Actualizar estadísticas
+                const totalLlamadas = document.getElementById('totalLlamadas');
+                const urgentes = document.getElementById('urgentes');
+                const hoy = document.getElementById('hoy');
+                
+                totalLlamadas.textContent = data.length;
+                
+                const urgentesCount = data.filter(l => l.Urgente).length;
+                urgentes.textContent = urgentesCount;
+                
+                // Llamadas de hoy (simplificado: todas las de la lista)
+                hoy.textContent = data.length;
+                
+                // Renderizar lista de llamadas
+                const listaLlamadas = document.getElementById('listaLlamadas');
+                listaLlamadas.innerHTML = '';
+                
+                data.forEach((call, index) => {
+                    const urgenteClass = call.Urgente ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400';
+                    const urgenteIcon = call.Urgente ? 'bi-telephone-exclamation-fill' : 'bi-telephone-fill';
+                    
+                    const llamadaHTML = `
+                        <div class="p-5 sm:p-6 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-sm flex items-center justify-center text-xs ${urgenteClass}">
+                                    <i class="${urgenteIcon}"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-black text-slate-800 uppercase text-sm sm:text-base tracking-tight">${call.Empresa}</h3>
+                                    <p class="text-sm sm:text-base text-slate-400 font-bold">${call.Motivo} • <span class="text-blue-500">${call.Telefono}</span></p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center gap-3">
+                                <div class="text-right mr-3">
+                                    <span class="block text-xs sm:text-sm font-black text-slate-300 uppercase">Hace</span>
+                                    <span class="text-xs sm:text-base font-bold text-slate-600">${call.Tiempo}</span>
+                                </div>
+                                <button class="flex-1 sm:flex-0 sm:py-3 sm:px-5 rounded-sm sm:rounded-lg sm:text-base sm:py-4 sm:px-6 bg-emerald-500 text-white sm:text-white uppercase tracking-widest sm:tracking-wider hover:bg-emerald-600 transition-all shadow-lg">
+                                    <i class="bi bi-telephone-outbound"></i> Llamar Ahora
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    listaLlamadas.innerHTML += llamadaHTML;
+                });
+            } catch (error) {
+                console.error('Error al cargar llamadas:', error);
+                const listaLlamadas = document.getElementById('listaLlamadas');
+                listaLlamadas.innerHTML = `
+                    <div class="p-6 text-center text-red-600">
+                        <i class="bi bi-exclamation-triangle text-3xl mb-3"></i>
+                        <p>Error al cargar las comunicaciones. Por favor, recargue la página.</p>
+                    </div>
+                `;
+            }
+        });
+    </script>
+
 </div>
-
-@code {
-    public class Llamada {
-        public string Empresa { get; set; } = "";
-        public string Motivo { get; set; } = "";
-        public string Telefono { get; set; } = "";
-        public string Tiempo { get; set; } = "";
-        public bool Urgente { get; set; }
-    }
-
-    private List<Llamada> llamadasFicticias = new() {
-        new Llamada { Empresa = "CONSTRUCCIONES RUIZ S.A.", Motivo = "Presupuesto nave industrial", Telefono = "912 344 555", Tiempo = "15 min", Urgente = true },
-        new Llamada { Empresa = "PROVEEDOR METALES S.L.", Motivo = "Rotura de stock vigas", Telefono = "934 122 333", Tiempo = "1 hora", Urgente = true },
-        new Llamada { Empresa = "TALLERES J. JURADO", Motivo = "Seguimiento de entrega", Telefono = "955 667 889", Tiempo = "3 horas", Urgente = false }
-    };
-}
