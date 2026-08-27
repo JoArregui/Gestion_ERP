@@ -197,6 +197,8 @@
                 else if (Nav.Uri.Contains("nuevo-albaran")) documento.Tipo = TipoDocumento.Albaran;
                 else documento.Tipo = TipoDocumento.Factura;
 
+                // NumeroDocumento es [Required] pero lo genera el servidor -> placeholder para que OnValidSubmit no bloquee
+                if (string.IsNullOrWhiteSpace(documento.NumeroDocumento)) documento.NumeroDocumento = "AUTO";
                 if (!documento.Lineas.Any()) AgregarLinea();
             }
         } catch (Exception ex) {
@@ -238,8 +240,33 @@
 
     private async Task GuardarDocumento()
     {
-        var response = await Http.PostAsJsonAsync("api/CicloFacturacion/guardar", documento);
-        if (response.IsSuccessStatusCode) Volver();
+        // Asegura que el validador no bloquee por NumeroDocumento y que haya al menos una línea válida
+        if (string.IsNullOrWhiteSpace(documento.NumeroDocumento)) documento.NumeroDocumento = "AUTO";
+        documento.Lineas.RemoveAll(l => string.IsNullOrWhiteSpace(l.DescripcionArticulo) && l.ArticuloId == null);
+        if (!documento.Lineas.Any())
+        {
+            await JS.InvokeVoidAsync("alert", "Añada al menos una línea con artículo.");
+            return;
+        }
+        if (documento.ClienteId == null || documento.ClienteId == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "Seleccione un cliente.");
+            return;
+        }
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/CicloFacturacion/guardar", documento);
+            if (response.IsSuccessStatusCode) Volver();
+            else
+            {
+                var msg = await response.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", string.IsNullOrWhiteSpace(msg) ? "Error al guardar el documento" : msg);
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error de conexión: {ex.Message}");
+        }
     }
 
     private void Volver() => Nav.NavigateTo(documento.Tipo == TipoDocumento.Factura ? "/ventas/facturas" : "/ventas/presupuestos");

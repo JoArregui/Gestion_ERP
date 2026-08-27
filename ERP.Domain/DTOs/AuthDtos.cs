@@ -66,9 +66,9 @@ namespace ERP.Domain.Dtos
         [EmailAddress(ErrorMessage = "Formato de email inválido.")]
         public string Email { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "La contraseña es obligatoria.")]
-        [MinLength(8, ErrorMessage = "La política de administración exige un mínimo de 8 caracteres.")]
-        public string Password { get; set; } = string.Empty;
+        // Password es obligatorio al crear (8+), opcional al editar (vacío = no cambia).
+        // Sin DataAnnotation para permitir vacío en edición; se valida manualmente en el controlador.
+        public string? Password { get; set; }
 
         [Required(ErrorMessage = "El rol es obligatorio para definir permisos.")]
         public string Role { get; set; } = string.Empty;

@@ -7,124 +7,119 @@
 
 <PageTitle>Ajuste de Inventario</PageTitle>
 
-<div class="container-fluid">
-    @* --- CABECERA ESTILO ERP MODERNO --- *@
-    <div class="d-flex justify-content-between align-items-center my-4">
+<div class="max-w-[1400px] mx-auto space-y-6 animate-in fade-in duration-500">
+    @* HEADER *@
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h1 class="text-3xl font-black text-slate-900 tracking-tighter italic uppercase mb-0">AJUSTE DE STOCK</h1>
-            <p class="text-slate-500 text-[10px] font-mono uppercase tracking-widest">Corrección de inventario físico y regularizaciones</p>
+            <h1 class="text-4xl font-black text-white tracking-tighter uppercase italic">Ajuste de Stock</h1>
+            <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">Corrección de inventario físico y regularizaciones · Tiempo real</p>
         </div>
-        <div class="bg-blue-600 text-white px-4 py-2 rounded-2xl shadow-lg shadow-blue-200">
-            <span class="text-[10px] uppercase font-bold d-block opacity-75">Terminal Activo</span>
-            <span class="font-black">WEB-ADMIN-01</span>
+        <div class="bg-blue-600 text-white px-6 py-3 rounded-2xl shadow-lg flex items-center gap-3">
+            <i class="bi bi-upc-scan text-xl"></i>
+            <div>
+                <span class="text-[10px] uppercase font-bold opacity-75 block">Terminal Activo</span>
+                <span class="font-black text-sm">WEB-ADMIN-01</span>
+            </div>
         </div>
     </div>
 
-    <div class="row">
-        @* --- COLUMNA IZQUIERDA: BUSCADOR --- *@
-        <div class="col-md-5">
-            <div class="card border-0 shadow-xl rounded-3xl overflow-hidden mb-4">
-                <div class="card-body p-4">
-                    <label class="text-[10px] font-black uppercase text-blue-600 mb-2 d-block">Buscar Artículo (Código o Nombre)</label>
-                    <div class="input-group mb-3">
-                        <span class="input-group-text bg-slate-50 border-0 rounded-start-2xl">
-                            <i class="bi bi-search text-slate-400"></i>
-                        </span>
-                        <input type="text" class="form-control form-control-lg bg-slate-50 border-0 rounded-end-2xl text-sm font-bold" 
-                               placeholder="Escriba para filtrar..." @oninput="BuscarArticulos" />
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        @* BUSCADOR *@
+        <div class="lg:col-span-5">
+            <div class="bg-[#0f172a] border border-slate-800 rounded-3xl overflow-hidden shadow-xl flex flex-col" style="height: 640px;">
+                <div class="p-6 border-b border-slate-800">
+                    <label class="text-[10px] font-black uppercase text-blue-400 tracking-widest mb-2 block">Buscar Artículo (Código o Nombre)</label>
+                    <div class="relative">
+                        <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                        <input type="text" placeholder="Escriba para filtrar..." @oninput="BuscarArticulos" class="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-600" />
                     </div>
-
-                    <div class="list-group list-group-flush overflow-auto" style="max-height: 500px;">
-                        @if (articulosFiltrados == null)
+                    <p class="text-[10px] text-slate-500 mt-2">@(articulosFiltrados?.Count ?? 0) referencias</p>
+                </div>
+                <div class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+                    @if (articulosFiltrados == null)
+                    {
+                        <div class="flex flex-col items-center justify-center py-16 gap-3">
+                            <div class="w-8 h-8 border-4 border-slate-700 border-t-blue-500 rounded-full animate-spin"></div>
+                            <span class="text-[10px] font-black text-slate-500 uppercase">Cargando catálogo...</span>
+                        </div>
+                    }
+                    else if (!articulosFiltrados.Any())
+                    {
+                        <div class="text-center py-12 text-slate-500 text-sm"><i class="bi bi-inbox text-3xl mb-2 block opacity-20"></i> Sin resultados</div>
+                    }
+                    else
+                    {
+                        @foreach (var art in articulosFiltrados)
                         {
-                            <div class="text-center py-5">
-                                <div class="spinner-border text-slate-200" role="status"></div>
-                            </div>
+                            <button @onclick="() => SeleccionarArticulo(art)" class="w-full text-left p-4 rounded-2xl border transition-all flex justify-between items-center gap-3 @(articuloSeleccionado?.Id == art.Id ? "bg-blue-600 border-blue-500 text-white shadow-lg" : "bg-slate-900 border-slate-800 hover:border-slate-700 text-white")">
+                                <div class="min-w-0">
+                                    <div class="font-black italic uppercase text-sm truncate">@art.Codigo</div>
+                                    <div class="text-xs opacity-70 truncate">@art.Descripcion</div>
+                                    <div class="text-[10px] font-mono opacity-50">@art.Familia?.Nombre</div>
+                                </div>
+                                <span class="px-3 py-1 rounded-full text-xs font-black shrink-0 @(art.Stock < art.StockMinimo ? "bg-rose-500 text-white" : "bg-slate-700 text-slate-200")">@art.Stock.ToString("N0")</span>
+                            </button>
                         }
-                        else
-                        {
-                            @foreach (var art in articulosFiltrados)
-                            {
-                                <button type="button" @onclick="() => SeleccionarArticulo(art)"
-                                        class="list-group-item list-group-item-action border-0 rounded-2xl mb-2 p-3 transition-all @(articuloSeleccionado?.Id == art.Id ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-700")">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="font-black italic uppercase">@art.Codigo</div>
-                                            <div class="text-xs opacity-75">@art.Descripcion</div>
-                                        </div>
-                                        <div class="text-end">
-                                            <span class="badge @(art.Stock < 0 ? "bg-red-500" : "bg-blue-500") rounded-pill">@art.Stock.ToString("N2")</span>
-                                        </div>
-                                    </div>
-                                </button>
-                            }
-                        }
-                    </div>
+                    }
                 </div>
             </div>
         </div>
 
-        @* --- COLUMNA DERECHA: FORMULARIO DE AJUSTE --- *@
-        <div class="col-md-7">
+        @* FORMULARIO *@
+        <div class="lg:col-span-7">
             @if (articuloSeleccionado != null)
             {
-                <div class="card border-0 shadow-2xl rounded-3xl animate__animated animate__fadeInRight">
-                    <div class="card-header bg-slate-900 text-white p-4 border-0">
-                        <h5 class="mb-0 font-black uppercase italic tracking-tighter">Detalles del Ajuste</h5>
+                <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
+                    <div class="bg-slate-900 text-white p-6 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-black uppercase italic tracking-tighter">@articuloSeleccionado.Codigo · @articuloSeleccionado.Descripcion</h3>
+                            <p class="text-[10px] text-slate-400 uppercase tracking-widest">Ajuste manual con trazabilidad</p>
+                        </div>
+                        <button @onclick="() => articuloSeleccionado = null" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">✕</button>
                     </div>
-                    <div class="card-body p-5">
-                        <div class="row mb-5 text-center">
-                            <div class="col-6 border-end">
-                                <span class="text-[10px] uppercase font-bold text-slate-400 d-block">Stock en Sistema</span>
+                    <div class="p-8 space-y-6">
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6">
+                                <span class="text-[10px] font-black uppercase text-slate-400 block mb-1">Stock en Sistema</span>
                                 <span class="text-4xl font-black text-slate-900">@articuloSeleccionado.Stock.ToString("N2")</span>
+                                <span class="text-[10px] text-slate-500 block mt-1">PMP @articuloSeleccionado.PrecioCompra.ToString("N2")€</span>
                             </div>
-                            <div class="col-6">
-                                <span class="text-[10px] uppercase font-bold text-blue-600 d-block">Diferencia</span>
-                                <span class="text-4xl font-black @(CalcularDiferencia() >= 0 ? "text-green-500" : "text-red-500")">
-                                    @(CalcularDiferencia() > 0 ? "+" : "")@CalcularDiferencia().ToString("N2")
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="text-[10px] font-black uppercase text-slate-500 mb-2 d-block text-center">Nuevo Stock Físico (Contado)</label>
-                            <div class="d-flex align-items-center justify-content-center">
-                                <button class="btn btn-outline-slate btn-lg rounded-circle border-2" @onclick="() => ajuste.NuevoStock--">
-                                    <i class="bi bi-dash-lg"></i>
-                                </button>
-                                <input type="number" class="form-control form-control-lg border-0 text-center font-black mx-3 text-5xl" 
-                                       style="width: 200px;" @bind="ajuste.NuevoStock" @bind:event="oninput" />
-                                <button class="btn btn-outline-slate btn-lg rounded-circle border-2" @onclick="() => ajuste.NuevoStock++">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
+                            <div class="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+                                <span class="text-[10px] font-black uppercase text-blue-600 block mb-1">Diferencia</span>
+                                <span class="text-4xl font-black @(CalcularDiferencia() == 0 ? "text-slate-400" : CalcularDiferencia() > 0 ? "text-emerald-600" : "text-rose-600")">@(CalcularDiferencia() > 0 ? "+" : "")@CalcularDiferencia().ToString("N2")</span>
+                                <span class="text-[10px] uppercase font-bold @(CalcularDiferencia()==0 ? "text-slate-400" : CalcularDiferencia()>0 ? "text-emerald-600" : "text-rose-600")">@(CalcularDiferencia()==0 ? "Sin cambios" : CalcularDiferencia()>0 ? "Entrada" : "Salida")</span>
                             </div>
                         </div>
 
-                        <div class="form-group mb-4">
-                            <label class="text-[10px] font-black uppercase text-slate-500 mb-2 d-block">Motivo del ajuste</label>
-                            <textarea class="form-control rounded-2xl border-2 border-slate-100 p-3 text-sm" 
-                                      rows="3" @bind="ajuste.Motivo" placeholder="Ej: Rotura, error de conteo, regularización anual..."></textarea>
+                        <div>
+                            <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3 block text-center">Nuevo Stock Físico (Contado)</label>
+                            <div class="flex items-center justify-center gap-4">
+                                <button @onclick="() => ajuste.NuevoStock = Math.Max(0, ajuste.NuevoStock - 1)" class="w-14 h-14 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 flex items-center justify-center text-xl transition"><i class="bi bi-dash-lg"></i></button>
+                                <input type="number" @bind="ajuste.NuevoStock" @bind:event="oninput" min="0" step="1" class="w-40 text-center text-5xl font-black bg-slate-50 border-2 border-slate-200 rounded-2xl py-4 focus:ring-2 focus:ring-blue-500 outline-none" />
+                                <button @onclick="() => ajuste.NuevoStock++" class="w-14 h-14 rounded-2xl bg-blue-600 text-white hover:bg-blue-500 flex items-center justify-center text-xl transition shadow-lg"><i class="bi bi-plus-lg"></i></button>
+                            </div>
+                            @if (ajuste.NuevoStock < 0) { <p class="text-center text-rose-500 text-xs font-bold mt-2">El stock no puede ser negativo</p> }
                         </div>
 
-                        <button class="btn btn-slate-900 w-100 py-4 rounded-2xl text-white font-black uppercase tracking-widest shadow-xl transition-all hover:bg-blue-600"
-                                @onclick="ProcesarAjuste" disabled="@isProcessing">
-                            @if (isProcessing)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span> <span>Procesando...</span>
-                            }
-                            else
-                            {
-                                <span>Confirmar Ajuste de Stock</span>
-                            }
+                        <div>
+                            <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2 block">Motivo del ajuste *</label>
+                            <textarea @bind="ajuste.Motivo" rows="3" placeholder="Ej: Recuento físico 27/08, rotura, error de albarán..." class="w-full p-4 bg-slate-50 border-2 @(string.IsNullOrWhiteSpace(ajuste.Motivo) ? "border-amber-200 focus:border-amber-400" : "border-slate-200 focus:border-blue-500") rounded-2xl text-sm focus:ring-2 outline-none" ></textarea>
+                            @if (string.IsNullOrWhiteSpace(ajuste.Motivo)) { <p class="text-[10px] text-amber-600 font-bold mt-1">Requerido para trazabilidad</p> }
+                        </div>
+
+                        <button @onclick="ProcesarAjuste" disabled="@(isProcessing || string.IsNullOrWhiteSpace(ajuste.Motivo) || ajuste.NuevoStock < 0)" class="w-full bg-slate-900 hover:bg-blue-600 disabled:bg-slate-300 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all flex items-center justify-center gap-2">
+                            @if (isProcessing) { <span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> <span>Procesando...</span> } else { <span><i class="bi bi-check2-circle mr-2"></i> Confirmar Ajuste de Stock</span> }
                         </button>
+                        <p class="text-center text-[10px] text-slate-400">Se generará un <b>MovimientoStock</b> y se actualizará la valoración PMP.</p>
                     </div>
                 </div>
             }
             else
             {
-                <div class="h-100 d-flex flex-column align-items-center justify-content-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-5">
-                    <i class="bi bi-box-seam text-slate-200 display-1 mb-4"></i>
-                    <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Seleccione un artículo para comenzar el ajuste</p>
+                <div class="h-[640px] flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-10 text-center">
+                    <div class="w-20 h-20 bg-white rounded-3xl shadow flex items-center justify-center mb-4"><i class="bi bi-box-seam text-3xl text-slate-300"></i></div>
+                    <p class="font-black uppercase text-slate-700 tracking-widest text-sm">Seleccione un artículo</p>
+                    <p class="text-slate-400 text-xs mt-2 max-w-sm">Busque por código o descripción en el panel izquierdo para iniciar el ajuste. El sistema registrará la diferencia como entrada/salida.</p>
                 </div>
             }
         </div>
@@ -140,27 +135,20 @@
 
     protected override async Task OnInitializedAsync()
     {
-        todosLosArticulos = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos");
-        articulosFiltrados = todosLosArticulos;
+        try { todosLosArticulos = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos"); articulosFiltrados = todosLosArticulos; }
+        catch (Exception ex) { await JS.InvokeVoidAsync("alert", $"Error cargando catálogo: {ex.Message}"); }
     }
 
     private void BuscarArticulos(ChangeEventArgs e)
     {
         var texto = e.Value?.ToString()?.ToLower() ?? "";
-        articulosFiltrados = todosLosArticulos?
-            .Where(a => a.Codigo.ToLower().Contains(texto) || a.Descripcion.ToLower().Contains(texto))
-            .ToList();
+        articulosFiltrados = string.IsNullOrWhiteSpace(texto) ? todosLosArticulos : todosLosArticulos?.Where(a => a.Codigo.ToLower().Contains(texto) || a.Descripcion.ToLower().Contains(texto)).ToList();
     }
 
     private void SeleccionarArticulo(Articulo art)
     {
         articuloSeleccionado = art;
-        ajuste = new AjusteStockDTO 
-        { 
-            ArticuloId = art.Id, 
-            NuevoStock = art.Stock, 
-            TerminalId = "WEB-ADMIN-01" 
-        };
+        ajuste = new AjusteStockDTO { ArticuloId = art.Id, NuevoStock = art.Stock, TerminalId = "WEB-ADMIN-01", Motivo = "" };
     }
 
     private decimal CalcularDiferencia() => ajuste.NuevoStock - (articuloSeleccionado?.Stock ?? 0);
@@ -168,22 +156,27 @@
     private async Task ProcesarAjuste()
     {
         if (articuloSeleccionado == null) return;
-        
+        if (string.IsNullOrWhiteSpace(ajuste.Motivo)) { await JS.InvokeVoidAsync("alert", "Indique el motivo del ajuste."); return; }
         isProcessing = true;
-        var response = await Http.PostAsJsonAsync("api/stock/ajuste-manual", ajuste);
-
-        if (response.IsSuccessStatusCode)
+        try
         {
-            // Actualizamos localmente para reflejar el cambio sin recargar todo
-            articuloSeleccionado.Stock = ajuste.NuevoStock;
-            
-            // Notificación visual (opcional con JS o Toast)
-            await JS.InvokeVoidAsync("alert", "Inventario actualizado correctamente");
-            
-            articuloSeleccionado = null; // Limpiamos selección
-            await OnInitializedAsync(); // Recargamos la lista principal
+            var response = await Http.PostAsJsonAsync("api/stock/ajuste-manual", ajuste);
+            var body = await response.Content.ReadAsStringAsync();
+            if (response.IsSuccessStatusCode)
+            {
+                await JS.InvokeVoidAsync("alert", "Inventario actualizado correctamente. Movimiento registrado.");
+                articuloSeleccionado.Stock = ajuste.NuevoStock;
+                // refrescar lista sin perder filtro
+                var idx = todosLosArticulos?.FindIndex(a => a.Id == articuloSeleccionado.Id);
+                if (idx.HasValue && idx.Value >= 0 && todosLosArticulos != null) todosLosArticulos[idx.Value].Stock = ajuste.NuevoStock;
+                articuloSeleccionado = null;
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", $"Error: {body}");
+            }
         }
-        
-        isProcessing = false;
+        catch (Exception ex) { await JS.InvokeVoidAsync("alert", $"Error de conexión: {ex.Message}"); }
+        finally { isProcessing = false; }
     }
 }

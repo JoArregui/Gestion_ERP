@@ -161,6 +161,7 @@ namespace ERP.API.Controllers
                     Descripcion = a.Descripcion,
                     StockActual = a.Stock,
                     StockAFecha = stockCalculado,
+                    PMP = a.PrecioCompra,
                     PrecioCosto = a.PrecioCompra,
                     ValoracionAFecha = stockCalculado * a.PrecioCompra
                 };

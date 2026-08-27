@@ -5,6 +5,7 @@
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NotificationService NotificationService
+@inject NavigationManager Navigation
 
 <div class="max-w-7xl mx-auto">
     @* CABECERA *@
@@ -14,10 +15,10 @@
             <p class="text-slate-500 mt-1">Gestión integral de facturas, presupuestos y albaranes.</p>
         </div>
         <div class="flex gap-3">
-            <button class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-all shadow-sm">
+            <button @onclick="ExportarExcel" class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-all shadow-sm">
                 Exportar Excel
             </button>
-            <button class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+            <button @onclick="NuevoDocumento" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
                 + Nuevo Documento
             </button>
         </div>
@@ -196,4 +197,20 @@
             NotificationService.ShowNotification("Error de red", NotificationType.Error);
         }
     }
+
+    private async Task ExportarExcel()
+    {
+        try
+        {
+            var data = DocumentosFiltrados.Select(d => new { d.NumeroDocumento, Fecha = d.Fecha.ToString("dd/MM/yyyy"), Cliente = d.Cliente?.RazonSocial ?? "—", d.Total, d.Tipo });
+            await JS.InvokeVoidAsync("exportToExcel", data, "DocumentosComerciales");
+            NotificationService.ShowNotification("Excel generado", NotificationType.Success);
+        }
+        catch
+        {
+            NotificationService.ShowNotification("No se pudo exportar", NotificationType.Error);
+        }
+    }
+
+    private void NuevoDocumento() => Navigation.NavigateTo("/ventas/editor");
 }

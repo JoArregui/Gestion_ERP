@@ -77,7 +77,14 @@ namespace ERP.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserDto model)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            // Validación manual para devolver mensaje limpio en lugar de ProblemDetails con "errors.Password"
+            if (!ModelState.IsValid)
+            {
+                var firstError = ModelState.Values.SelectMany(v => v.Errors).FirstOrDefault()?.ErrorMessage ?? "Datos de usuario inválidos";
+                return BadRequest(new { Message = firstError });
+            }
+            if (string.IsNullOrWhiteSpace(model.Password) || model.Password.Length < 8)
+                return BadRequest(new { Message = "La política de administración exige un mínimo de 8 caracteres." });
 
             var existingUser = await _userManager.FindByEmailAsync(model.Email);
             if (existingUser != null)
@@ -123,6 +130,14 @@ namespace ERP.Api.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(string id, [FromBody] CreateUserDto model)
         {
+            if (!ModelState.IsValid)
+            {
+                var firstError = ModelState.Values.SelectMany(v => v.Errors).FirstOrDefault()?.ErrorMessage ?? "Datos inválidos";
+                return BadRequest(new { Message = firstError });
+            }
+            if (!string.IsNullOrEmpty(model.Password) && model.Password.Length < 8)
+                return BadRequest(new { Message = "La política de administración exige un mínimo de 8 caracteres." });
+
             var user = await _userManager.FindByIdAsync(id);
             if (user == null) return NotFound(new { Message = "Usuario no encontrado" });
 

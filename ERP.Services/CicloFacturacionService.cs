@@ -42,6 +42,9 @@ namespace ERP.Services
             // 1) Numeración: usamos el correlativo robusto (mismo que ConvertirDocumento).
             doc.NumeroDocumento = await GenerarCorrelativo(doc.Tipo, doc.EmpresaId);
 
+            // 1b) Estado: presupuestos nacen en borrador, resto se emiten directamente (corrige "todo en borrador" en Home)
+            doc.Estado = doc.Tipo == TipoDocumento.Presupuesto ? EstadoDocumento.Borrador : EstadoDocumento.Emitido;
+
             // 2) Totales: base, IVA y total.
             doc.BaseImponible = doc.Lineas.Sum(l => l.Cantidad * l.PrecioUnitario);
             doc.TotalIva = doc.Lineas.Sum(l => (l.Cantidad * l.PrecioUnitario) * (decimal)(l.PorcentajeIva / 100m));
@@ -107,6 +110,7 @@ namespace ERP.Services
                 var nuevoDoc = new DocumentoComercial
                 {
                     Tipo = nuevoTipo,
+                    Estado = nuevoTipo == TipoDocumento.Presupuesto ? EstadoDocumento.Borrador : EstadoDocumento.Emitido,
                     EsCompra = origen.EsCompra,
                     EmpresaId = origen.EmpresaId,
                     ClienteId = origen.ClienteId,

@@ -115,12 +115,12 @@ namespace ERP.Api.Controllers
                     .ThenInclude(d => d!.Cliente)
                     .Where(v => v.Estado != "Pagado" && v.FechaVencimiento < DateTime.Today)
                     .Select(v => new ItemDetalle {
-                        IdRelacionado = v.DocumentoId,
-                        Principal = v.Documento != null ? v.Documento.NumeroDocumento : "S/N",
-                        Secundario = (v.Documento != null && v.Documento.Cliente != null) ? v.Documento.Cliente.RazonSocial : "Sin Cliente",
+                        IdRelacionado = v.DocumentoId ?? 0,
+                        Principal = v.Documento != null ? v.Documento.NumeroDocumento : (v.DocumentoId == null ? "NÓMINA" : "S/N"),
+                        Secundario = (v.Documento != null && v.Documento.Cliente != null) ? v.Documento.Cliente.RazonSocial : (v.DocumentoId == null ? "Nómina interna" : "Sin Cliente"),
                         Valor = v.Importe.ToString("C2"),
                         Estado = "Vencido",
-                        TipoEnlace = "factura"
+                        TipoEnlace = v.DocumentoId == null ? "nomina" : "factura"
                     }).ToListAsync();
             }
 

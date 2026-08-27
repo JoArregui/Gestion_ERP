@@ -32,7 +32,8 @@ namespace ERP.Services
                 if (factura.Lineas == null || !factura.Lineas.Any())
                     throw new Exception("La factura no tiene líneas.");
 
-                // 2. Guardar el documento (Cabecera y Líneas)
+                // 2. Estado y guardado
+                factura.Estado = EstadoDocumento.Emitido;
                 _context.Documentos.Add(factura);
                 await _context.SaveChangesAsync();
 

@@ -64,7 +64,7 @@
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 }
-                                <button class="p-2 text-slate-400 hover:text-white transition-colors"><i class="bi bi-eye"></i></button>
+                                <button @onclick="() => VerPresupuesto(presu.Id)" title="Ver detalle" class="p-2 text-slate-400 hover:text-white transition-colors"><i class="bi bi-eye"></i></button>
                             </td>
                         </tr>
                     }
@@ -119,4 +119,6 @@
             await CargarDatos();
         }
     }
+
+    private void VerPresupuesto(int id) => Nav.NavigateTo($"/ventas/editor/{id}");
 }

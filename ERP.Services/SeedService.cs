@@ -92,6 +92,52 @@ namespace ERP.Services
                 await context.ConfiguracionesGenerales.AddRangeAsync(configs);
                 await context.SaveChangesAsync();
             }
+
+            // 5. DATOS DE MUESTRA PARA MAESTROS (evita "Sin datos" tras reset de BD el 26/08 por migración Estado)
+            // Se crean solo si las tablas están vacías, por lo que no duplica en BD con datos reales.
+            if (!await context.Familias.AnyAsync())
+            {
+                var f1 = new Familia { Nombre = "GENERAL", CodigoInterno = "GEN", Descripcion = "Familia por defecto", IsActiva = true, FechaCreacion = DateTime.Now };
+                var f2 = new Familia { Nombre = "ELECTRÓNICA", CodigoInterno = "ELEC", Descripcion = "Material electrónico", IsActiva = true, FechaCreacion = DateTime.Now };
+                context.Familias.AddRange(f1, f2);
+                await context.SaveChangesAsync();
+            }
+            if (!await context.Articulos.AnyAsync())
+            {
+                var famId = await context.Familias.Select(f => f.Id).FirstOrDefaultAsync();
+                if (famId == 0) famId = 1;
+                var arts = new List<Articulo>
+                {
+                    new Articulo { Codigo = "ART-001", Descripcion = "Artículo demo 1", FamiliaId = famId, EmpresaId = empresaPrincipal.Id, PrecioCompra = 10, PrecioVenta = 15, Stock = 100, StockMinimo = 10, PorcentajeIva = 21, IsDescatalogado = false },
+                    new Articulo { Codigo = "ART-002", Descripcion = "Artículo demo 2", FamiliaId = famId, EmpresaId = empresaPrincipal.Id, PrecioCompra = 20, PrecioVenta = 30, Stock = 50, StockMinimo = 5, PorcentajeIva = 21, IsDescatalogado = false }
+                };
+                context.Articulos.AddRange(arts);
+                await context.SaveChangesAsync();
+            }
+            if (!await context.Clientes.AnyAsync())
+            {
+                var cli = new Cliente { CodigoCliente = "CLI-001", RazonSocial = "CLIENTE DEMO S.L.", NombreComercial = "Cliente Demo", CIF = "12345678Z", Direccion = "Calle Ejemplo 1", Poblacion = "Madrid", Provincia = "Madrid", CodigoPostal = "28001", Telefono = "600000001", Email = "demo@cliente.com", EmpresaId = empresaPrincipal.Id, FechaAlta = DateTime.Now, IsActivo = true, FormaPago = "Transferencia", DiaPagoHabitual = 1 };
+                context.Clientes.Add(cli);
+                await context.SaveChangesAsync();
+            }
+            if (!await context.Proveedores.AnyAsync())
+            {
+                var prov = new Proveedor { CIF = "A12345678", RazonSocial = "PROVEEDOR DEMO S.L.", NombreContacto = "Juan Pérez", Email = "proveedor@demo.com", Telefono = "600000002", EsAcreedor = false, IsActivo = true, FechaAlta = DateTime.Now };
+                context.Proveedores.Add(prov);
+                await context.SaveChangesAsync();
+            }
+            if (!await context.Acreedores.AnyAsync())
+            {
+                var acre = new Acreedor { CIF = "B87654321", RazonSocial = "ACREEDOR DEMO S.L.", NombreContacto = "Ana López", Email = "acreedor@demo.com", Telefono = "600000003", EsAcreedor = true, IsActivo = true, FechaAlta = DateTime.Now };
+                context.Acreedores.Add(acre);
+                await context.SaveChangesAsync();
+            }
+            if (!await context.Empleados.AnyAsync())
+            {
+                var emp = new Empleado { DNI = "12345678A", Nombre = "Demo", Apellidos = "Empleado", NumeroSeguridadSocial = "123456789012", PinAcceso = "1234", EmpresaId = empresaPrincipal.Id, Cargo = "Operario", Departamento = "General", Email = "demo@empleado.com", Telefono = "600000004", SalarioBaseMensual = 1500, SalarioBrutoAnual = 18000, FechaAlta = DateTime.Now, VacacionesTotales = 22, VacacionesDisfrutadas = 0 };
+                context.Empleados.Add(emp);
+                await context.SaveChangesAsync();
+            }
         }
     }
 }

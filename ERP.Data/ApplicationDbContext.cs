@@ -29,6 +29,10 @@ namespace ERP.Data
         public DbSet<CierreCaja> CierresCaja { get; set; }
         public DbSet<MovimientoStock> MovimientosStock { get; set; }
         public DbSet<ConfiguracionGeneral> ConfiguracionesGenerales { get; set; }
+        
+        // Entidades para Tareas y Llamadas
+        public DbSet<Tarea> Tareas { get; set; }
+        public DbSet<Llamada> Llamadas { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -58,7 +62,6 @@ namespace ERP.Data
             // --- 3. RELACIONES (Solución a Warnings de EF Core) ---
             
             // Relación Articulo -> DocumentoLinea
-            // Marcamos IsRequired(false) para que EF no se queje si el filtro oculta el artículo
             modelBuilder.Entity<DocumentoLinea>()
                 .HasOne(l => l.Articulo)
                 .WithMany()
@@ -122,8 +125,6 @@ namespace ERP.Data
                 .HasForeignKey(d => d.ProveedorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // La referencia comercial debe ser única dentro de cada empresa. Es la
-            // última barrera de integridad frente a peticiones concurrentes.
             modelBuilder.Entity<DocumentoComercial>()
                 .HasIndex(d => new { d.EmpresaId, d.NumeroDocumento })
                 .IsUnique();

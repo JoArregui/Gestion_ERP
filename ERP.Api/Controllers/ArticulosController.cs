@@ -196,13 +196,16 @@ namespace ERP.API.Controllers
                     a.PrecioCompra,
                     a.PrecioVenta,
                     a.Stock,
+                    a.StockMinimo,
+                    a.StockReservado,
                     a.PorcentajeIva,
                     a.IsDescatalogado,
                     a.EmpresaId,
                     a.FamiliaId,
                     FamiliaNombre = a.Familia != null ? a.Familia.Nombre : null,
                     a.ProveedorHabitualId,
-                    ProveedorNombre = a.ProveedorHabitual != null ? a.ProveedorHabitual.RazonSocial : null
+                    ProveedorNombre = a.ProveedorHabitual != null ? a.ProveedorHabitual.RazonSocial : null,
+                    a.ImagenUrl
                 })
                 .ToListAsync();
 

@@ -1,118 +1,165 @@
 @page "/llamadas"
+@using System.Net.Http.Json
 @inject HttpClient Http
+@inject NavigationManager Navigation
 
 <div class="max-w-[1200px] mx-auto p-6 sm:p-8 lg:p-8 animate-in fade-in duration-500">
 
-    @* CABECERA CON ESTADO DE CARGA *@
+    @* CABECERA *@
     <div class="flex justify-between items-end mb-6 sm:mb-8 border-b-2 border-slate-200 pb-6 sm:pb-8">
         <div>
             <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter sm:text-4xl">Central de Comunicaciones</h1>
-            <p class="text-slate-500 font-bold text-[10px] sm:text-[11px] uppercase tracking-[0.3em] sm:text-base">Gestión de contactos y seguimiento telefónico</p>
+            <p class="text-slate-500 font-bold text-[10px] sm:text-[11px] uppercase tracking-[0.3em]">Gestión de contactos y seguimiento telefónico</p>
         </div>
         <div class="flex items-center gap-3">
-            <button class="bg-emerald-600 text-white px-4 sm:px-5 py-2 sm:rounded-xl sm:text-base font-black tracking-widest sm:uppercase hover:bg-emerald-700 transition shadow-lg sm:shadow-emerald-900/20">
+            <button @onclick="AbrirModal" class="bg-emerald-600 text-white px-4 sm:px-5 py-3 rounded-xl font-black text-xs uppercase hover:bg-emerald-700 transition shadow-lg">
                 <i class="bi bi-telephone-plus-fill"></i> Nueva Llamada
             </button>
         </div>
     </div>
 
-    @* ESTADÍSTICAS DESDE LA API *@
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mb-6">
-        <div class="bg-emerald-600 p-4 sm:p-5 rounded-[2rem] text-white shadow-xl sm:shadow-emerald-900/20" id="estadistica1">
-            <div class="text-xs sm:text-base uppercase opacity-80 mb-1 sm:mb-1">Total Llamadas</div>
-            <div class="text-2xl sm:text-3xl font-black" id="totalLlamadas">Cargando...</div>
+    @* ESTADÍSTICAS *@
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-6">
+        <div class="bg-emerald-600 p-4 sm:p-5 rounded-[2rem] text-white shadow-xl">
+            <div class="text-xs uppercase opacity-80">Total Llamadas</div>
+            <div class="text-2xl sm:text-3xl font-black">@(cargando ? "..." : llamadas.Count.ToString())</div>
         </div>
-        <div class="bg-white p-4 sm:p-5 rounded-[2rem] border border-slate-100 shadow-sm" id="estadistica2">
-            <div class="text-xs sm:text-base uppercase opacity-80 mb-1 sm:mb-1">Urgentes</div>
-            <div class="text-2xl sm:text-3xl font-black text-rose-400" id="urgentes">Cargando...</div>
+        <div class="bg-white p-4 sm:p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+            <div class="text-xs uppercase opacity-80">Urgentes</div>
+            <div class="text-2xl sm:text-3xl font-black text-rose-500">@(cargando ? "..." : llamadas.Count(l=>l.Urgente).ToString())</div>
         </div>
-        <div class="bg-rose-500 p-4 sm:p-5 rounded-[2rem] text-white shadow-xl sm:shadow-rose-900/20" id="estadistica3">
-            <div class="text-xs sm:text-base uppercase opacity-80 mb-1 sm:mb-1">Hoy</div>
-            <div class="text-2xl sm:text-3xl font-black" id="hoy">Cargando...</div>
+        <div class="bg-rose-500 p-4 sm:p-5 rounded-[2rem] text-white shadow-xl">
+            <div class="text-xs uppercase opacity-80">Hoy</div>
+            <div class="text-2xl sm:text-3xl font-black">@(cargando ? "..." : llamadas.Count.ToString())</div>
         </div>
     </div>
 
-    @* LISTADO DE LLAMADAS DESDE LA API *@>
+    @* LISTADO *@
     <div class="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
         <div class="p-5 sm:p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
-            <span class="text-xs sm:text-base font-black uppercase tracking-widest sm:text-sm">Lista de Llamadas</span>
+            <span class="text-xs font-black uppercase tracking-widest">Lista de Llamadas</span>
         </div>
         
-        <div class="divide-y divide-slate-100" id="listaLlamadas">
-            <!-- Llamadas se cargarán dinámicamente via JavaScript -->
-            <div class="p-6 text-center text-slate-500">
-                <i class="bi bi-spinner text-3xl animate-spin mb-3"></i>
-                <p class="text-base">Cargando llamadas...</p>
-            </div>
+        <div class="divide-y divide-slate-100">
+            @if (cargando)
+            {
+                <div class="p-6 text-center text-slate-500"><i class="bi bi-arrow-repeat animate-spin text-2xl"></i><p class="text-sm mt-2">Cargando llamadas...</p></div>
+            }
+            else if (errorCarga)
+            {
+                <div class="p-6 text-center text-red-600"><p class="text-sm">Error al cargar. Recargue la página.</p></div>
+            }
+            else if (!llamadas.Any())
+            {
+                <div class="p-10 text-center text-slate-400"><i class="bi bi-telephone-x text-4xl mb-2 block opacity-20"></i><p class="text-sm italic">Sin llamadas registradas</p></div>
+            }
+            else
+            {
+                @foreach (var call in llamadas)
+                {
+                    var urgenteClass = call.Urgente ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-400";
+                    var urgenteIcon = call.Urgente ? "bi-telephone-exclamation-fill" : "bi-telephone-fill";
+                    <div class="p-5 sm:p-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-sm @urgenteClass"><i class="bi @urgenteIcon"></i></div>
+                            <div>
+                                <h3 class="font-black text-slate-800 uppercase text-sm tracking-tight">@call.Empresa</h3>
+                                <p class="text-sm text-slate-400 font-bold">@call.Motivo • <span class="text-blue-500">@call.Telefono</span></p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="text-right mr-3 hidden sm:block">
+                                <span class="block text-[10px] font-black text-slate-300 uppercase">Hace</span>
+                                <span class="text-xs font-bold text-slate-600">@call.Tiempo</span>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-[9px] font-black border @(call.Urgente ? "bg-rose-50 text-rose-600 border-rose-200" : "bg-slate-50 text-slate-500 border-slate-200")">@(call.Urgente ? "Urgente" : "Normal")</span>
+                        </div>
+                    </div>
+                }
+            }
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', async function() {
-            try {
-                const response = await fetch('api/llamadas');
-                if (!response.ok) throw new Error('Error al cargar datos');
-                
-                const data = await response.json();
-                
-                // Actualizar estadísticas
-                const totalLlamadas = document.getElementById('totalLlamadas');
-                const urgentes = document.getElementById('urgentes');
-                const hoy = document.getElementById('hoy');
-                
-                totalLlamadas.textContent = data.length;
-                
-                const urgentesCount = data.filter(l => l.Urgente).length;
-                urgentes.textContent = urgentesCount;
-                
-                // Llamadas de hoy (simplificado: todas las de la lista)
-                hoy.textContent = data.length;
-                
-                // Renderizar lista de llamadas
-                const listaLlamadas = document.getElementById('listaLlamadas');
-                listaLlamadas.innerHTML = '';
-                
-                data.forEach((call, index) => {
-                    const urgenteClass = call.Urgente ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400';
-                    const urgenteIcon = call.Urgente ? 'bi-telephone-exclamation-fill' : 'bi-telephone-fill';
-                    
-                    const llamadaHTML = `
-                        <div class="p-5 sm:p-6 flex items-center justify-between hover:bg-slate-50 transition-colors group">
-                            <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 rounded-sm flex items-center justify-center text-xs ${urgenteClass}">
-                                    <i class="${urgenteIcon}"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-black text-slate-800 uppercase text-sm sm:text-base tracking-tight">${call.Empresa}</h3>
-                                    <p class="text-sm sm:text-base text-slate-400 font-bold">${call.Motivo} • <span class="text-blue-500">${call.Telefono}</span></p>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center gap-3">
-                                <div class="text-right mr-3">
-                                    <span class="block text-xs sm:text-sm font-black text-slate-300 uppercase">Hace</span>
-                                    <span class="text-xs sm:text-base font-bold text-slate-600">${call.Tiempo}</span>
-                                </div>
-                                <button class="flex-1 sm:flex-0 sm:py-3 sm:px-5 rounded-sm sm:rounded-lg sm:text-base sm:py-4 sm:px-6 bg-emerald-500 text-white sm:text-white uppercase tracking-widest sm:tracking-wider hover:bg-emerald-600 transition-all shadow-lg">
-                                    <i class="bi bi-telephone-outbound"></i> Llamar Ahora
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    
-                    listaLlamadas.innerHTML += llamadaHTML;
-                });
-            } catch (error) {
-                console.error('Error al cargar llamadas:', error);
-                const listaLlamadas = document.getElementById('listaLlamadas');
-                listaLlamadas.innerHTML = `
-                    <div class="p-6 text-center text-red-600">
-                        <i class="bi bi-exclamation-triangle text-3xl mb-3"></i>
-                        <p>Error al cargar las comunicaciones. Por favor, recargue la página.</p>
+    @* MODAL NUEVA LLAMADA *@
+    @if (mostrarModal)
+    {
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-200">
+                <div class="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <div>
+                        <h2 class="text-xl font-black uppercase tracking-tighter">Nueva Llamada</h2>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registro de comunicación</p>
                     </div>
-                `;
-            }
-        });
-    </script>
+                    <button @onclick="CerrarModal" class="h-10 w-10 flex items-center justify-center border border-slate-200 rounded-full font-black text-slate-400 hover:bg-white hover:text-red-500 transition">✕</button>
+                </div>
+                <div class="p-8 space-y-4">
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">Empresa *</label>
+                        <input @bind="edicion.Empresa" placeholder="Ej. Acme S.L." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-sm" />
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">Motivo</label>
+                        <input @bind="edicion.Motivo" placeholder="Ej. Seguimiento pedido..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">Teléfono</label>
+                            <input @bind="edicion.Telefono" placeholder="600 000 000" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-mono" />
+                        </div>
+                        <div class="flex flex-col justify-end">
+                            <label class="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl cursor-pointer">
+                                <input type="checkbox" @bind="edicion.Urgente" class="rounded" />
+                                <span class="text-[10px] font-black uppercase text-rose-600">Urgente</span>
+                            </label>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(modalError)) { <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold">@modalError</div> }
+                    <div class="flex gap-3 pt-2">
+                        <button @onclick="Guardar" disabled="@guardando" class="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-900 transition shadow-xl disabled:opacity-50">@(guardando ? "Guardando..." : "Registrar Llamada")</button>
+                        <button @onclick="CerrarModal" class="px-8 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase hover:bg-slate-200 transition">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 
 </div>
+
+@code {
+    private List<Llamada> llamadas = new();
+    private bool cargando = true, errorCarga = false;
+    private bool mostrarModal = false, guardando = false;
+    private string modalError = "";
+    private Llamada edicion = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (uri.Query.Contains("nueva=1")) AbrirModal();
+    }
+
+    private async Task Cargar()
+    {
+        try { cargando = true; errorCarga = false; var r = await Http.GetFromJsonAsync<List<Llamada>>("api/llamadas"); if (r!=null) llamadas = r; }
+        catch { errorCarga = true; }
+        finally { cargando = false; }
+    }
+
+    private void AbrirModal() { edicion = new Llamada(); modalError=""; mostrarModal = true; }
+    private void CerrarModal() { mostrarModal=false; var uri=Navigation.ToAbsoluteUri(Navigation.Uri); if(uri.Query.Contains("nueva")) Navigation.NavigateTo("/llamadas", replace:true); }
+
+    private async Task Guardar()
+    {
+        if(string.IsNullOrWhiteSpace(edicion.Empresa)){ modalError="Empresa es obligatoria"; return; }
+        guardando=true; modalError="";
+        try {
+            var resp = await Http.PostAsJsonAsync("api/llamadas", edicion);
+            if(resp.IsSuccessStatusCode){ await Cargar(); CerrarModal(); }
+            else { var t=await resp.Content.ReadAsStringAsync(); modalError= string.IsNullOrWhiteSpace(t) ? "Error al guardar" : t; }
+        } catch(Exception ex){ modalError = $"Error de conexión: {ex.Message}"; }
+        finally{ guardando=false; }
+    }
+
+    public class Llamada { public int Id {get;set;} public string Empresa{get;set;}="" ; public string Motivo{get;set;}="" ; public string Telefono{get;set;}="" ; public string Tiempo{get;set;}="Ahora"; public bool Urgente{get;set;} }
+}

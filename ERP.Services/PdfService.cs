@@ -319,6 +319,73 @@ namespace ERP.Services
 
         #endregion
 
+        #region Generación de Nómina
+
+        public byte[] GenerarNominaPdf(Nomina nomina, Empleado empleado, Empresa empresa)
+        {
+            var colorMarca = string.IsNullOrWhiteSpace(empresa.ColorHex) ? "#1e293b" : empresa.ColorHex;
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(1.5f, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Helvetica"));
+
+                    page.Header().Row(row =>
+                    {
+                        row.RelativeItem().Column(col =>
+                        {
+                            col.Item().Text(empresa.NombreComercial?.ToUpper() ?? "ERP SYSTEM").FontSize(22).ExtraBold().FontColor(colorMarca);
+                            col.Item().Text(empresa.RazonSocial).FontSize(10).SemiBold();
+                            col.Item().Text($"CIF: {empresa.CIF}  |  {empresa.Direccion}").FontSize(8);
+                        });
+                        row.RelativeItem().AlignRight().Column(col =>
+                        {
+                            col.Item().Background(colorMarca).Padding(10).Text("NÓMINA").FontSize(20).ExtraBold().FontColor(Colors.White).AlignCenter();
+                            col.Item().PaddingTop(8).Text($"Mes: {nomina.Mes:D2}/{nomina.Anio}").Bold().FontSize(11).AlignRight();
+                            col.Item().Text($"Emisión: {nomina.FechaEmision:dd/MM/yyyy}").FontSize(8).AlignRight();
+                        });
+                    });
+
+                    page.Content().PaddingVertical(1, Unit.Centimetre).Column(col =>
+                    {
+                        col.Item().Border(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(12).Column(c =>
+                        {
+                            c.Item().Text("DATOS DEL TRABAJADOR").FontSize(8).ExtraBold().FontColor(colorMarca);
+                            c.Item().PaddingTop(6).Row(r =>
+                            {
+                                r.RelativeItem().Column(cc => { cc.Item().Text($"{empleado.Nombre} {empleado.Apellidos}").Bold().FontSize(12); cc.Item().Text($"DNI: {empleado.DNI}  |  NSS: {empleado.NumeroSeguridadSocial}").FontSize(9); cc.Item().Text($"Cargo: {empleado.Cargo}  |  Depto: {empleado.Departamento}").FontSize(9); });
+                                r.RelativeItem().AlignRight().Column(cc => { cc.Item().Text($"ID: #{empleado.Id}").FontSize(9).AlignRight(); cc.Item().Text($"IBAN: {empleado.IBAN ?? "—"}").FontSize(8).AlignRight(); });
+                            });
+                        });
+
+                        col.Item().PaddingTop(20).Table(table =>
+                        {
+                            table.ColumnsDefinition(columns => { columns.RelativeColumn(3); columns.RelativeColumn(1.5f); });
+                            table.Header(h => { h.Cell().Element(HeaderStyle).Text("CONCEPTO"); h.Cell().Element(HeaderStyle).AlignRight().Text("IMPORTE"); IContainer HeaderStyle(IContainer c) => c.PaddingVertical(8).BorderBottom(2).BorderColor(colorMarca).DefaultTextStyle(s => s.Bold()); });
+                            table.Cell().Element(RowStyle).Text("Salario Base"); table.Cell().Element(RowStyle).AlignRight().Text($"{nomina.SalarioBase:N2} €");
+                            table.Cell().Element(RowStyle).Text("Complementos (H. Extra)"); table.Cell().Element(RowStyle).AlignRight().Text($"+{nomina.Complementos:N2} €").FontColor(Colors.Green.Darken1);
+                            table.Cell().Element(RowStyle).Text("Deducciones (15% SS/IRPF)"); table.Cell().Element(RowStyle).AlignRight().Text($"-{nomina.Deducciones:N2} €").FontColor(Colors.Red.Medium);
+                            table.Cell().Background(Colors.Grey.Lighten4).Padding(10).Text("TOTAL NETO").ExtraBold(); table.Cell().Background(colorMarca).Padding(10).AlignRight().Text($"{nomina.TotalNeto:N2} €").FontColor(Colors.White).ExtraBold().FontSize(12);
+                            IContainer RowStyle(IContainer c) => c.PaddingVertical(8).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3);
+                        });
+
+                        col.Item().PaddingTop(20).Row(r =>
+                        {
+                            r.RelativeItem().Column(c => { c.Item().Text("ESTADO").FontSize(8).Bold().FontColor(colorMarca); c.Item().Text(nomina.EstaPagada ? "PAGADA" : "PENDIENTE").FontSize(11).ExtraBold().FontColor(nomina.EstaPagada ? Colors.Green.Medium : Colors.Amber.Medium); });
+                            r.RelativeItem().AlignRight().Column(c => { c.Item().Text("Vencimiento").FontSize(8).Bold().FontColor(colorMarca).AlignRight(); c.Item().Text(new DateTime(nomina.Anio, nomina.Mes, DateTime.DaysInMonth(nomina.Anio, nomina.Mes)).ToString("dd/MM/yyyy")).AlignRight(); });
+                        });
+                    });
+
+                    page.Footer().AlignCenter().Text($"Documento generado por {empresa.NombreComercial} el {DateTime.Now:dd/MM/yyyy HH:mm}").FontSize(7).FontColor(Colors.Grey.Medium);
+                });
+            }).GeneratePdf();
+        }
+
+        #endregion
+
         private byte[] GenerarQrByte(string content)
         {
             using var qrGenerator = new QRCodeGenerator();

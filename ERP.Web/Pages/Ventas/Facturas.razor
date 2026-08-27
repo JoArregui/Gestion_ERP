@@ -155,12 +155,29 @@
     
     private void IrARectificar(int id) => Nav.NavigateTo($"/ventas/rectificar/{id}");
 
-    private void VerDetalle(int id) => Nav.NavigateTo($"/ventas/detalle-factura/{id}");
+    private void VerDetalle(int id) => Nav.NavigateTo($"/ventas/editor/{id}");
 
     private async Task DescargarPdf(int id)
     {
-        // Implementación de descarga
-        await Task.CompletedTask;
+        try
+        {
+            var response = await Http.GetAsync($"api/facturacion/descargar-pdf/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                var fileName = $"FACTURA_{id}.pdf";
+                await JS.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(bytes));
+            }
+            else
+            {
+                var msg = await response.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", string.IsNullOrWhiteSpace(msg) ? "No se pudo generar el PDF" : msg);
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error de descarga: {ex.Message}");
+        }
     }
 
     private async Task ExportarExcel()

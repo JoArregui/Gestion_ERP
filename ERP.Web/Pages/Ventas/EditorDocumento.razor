@@ -1,101 +1,158 @@
 @page "/ventas/editor/{Id:int?}"
-@using ERP.Domain
+@page "/ventas/detalle-factura/{Id:int?}"
 @using ERP.Domain.Entities
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject IJSRuntime JS
-@inject NotificationService Notify
 
-<div class="max-w-2xl mx-auto p-6 animate-in fade-in duration-500">
+<div class="max-w-3xl mx-auto p-6 animate-in fade-in duration-500">
 
-    <div class="bg-slate-950/30 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/30 mb-6">
-        <div class="flex flex-col sm:flex-row gap-4 mb-4">
-            <NavLink class="flex-1 bg-slate-800/50 rounded-xl px-4 py-3 text-sm font-black text-slate-300 uppercase tracking-widest"
-                     href="ventas/facturas" Match="NavLinkMatch.Prefix"
-                     ActiveClass="bg-slate-800 text-slate-100">
-                Listado de Documentos
-            </NavLink>
-            <button @onclick="NuevoDocumento" class="bg-slate-800 rounded-xl px-4 py-3 text-sm font-black uppercase tracking-widest hover:bg-slate-700 transition-all">
-                <i class="bi bi-plus-lg mr-2"></i> Nuevo Documento
-            </button>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-widest">Tipo</label>
-                <select @onchange="cambiarTipo" class="w-full p-3 bg-slate-800 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-blue-500/20 focus:border-transparent transition">
-                    <option value="">-- Seleccionar --</option>
-                    <option value="Presupuesto">Presupuesto</option>
-                    <option value="Pedido">Pedido</option>
-                    <option value="Albaran">Albarán</option>
-                    <option value="Factura">Factura</option>
-                    <option value="FacturaRectificativa">Rectificativa</option>
-                </select>
-            </div>
-            <div>
-                <label class="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-widest">Número</label>
-                <InputText class="w-full p-3 bg-slate-800 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-blue-500/20 focus:border-transparent transition" />
-            </div>
-            <div>
-                <label class="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-widest">Fecha</label>
-                <InputText class="w-full p-3 bg-slate-800 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-blue-500/20 focus:border-transparent transition" placeholder="AAAA-MM-DD" />
-            </div>
+    <div class="flex items-center gap-3 mb-6">
+        <button @onclick='() => Nav.NavigateTo("/ventas/presupuestos")' class="h-10 w-10 rounded-xl bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700"><i class="bi bi-arrow-left"></i></button>
+        <div>
+            <h1 class="text-2xl font-black text-white uppercase tracking-tighter">Detalle Documento</h1>
+            <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">@(Documento.NumeroDocumento ?? "—") · @Documento.Tipo · @Documento.Fecha.ToString("dd/MM/yyyy")</p>
         </div>
     </div>
 
-    <div class="bg-slate-950/30 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/30 mb-6">
-        <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest">Lineas (@(Documento.Lineas.Count))</span>
-        @if (Documento.Lineas.Any())
-        {
-            <table class="w-full text-sm"><thead class="bg-slate-800/50"><tr><th class="p-3">Artículo</th><th class="p-3 text-center">Cantidad</th><th class="p-3 text-end">Precio</th><th class="p-3 text-end">Subtotal</th></tr></thead><tbody><tr><td class="p-3"></td><td class="p-3 text-center"><input type="number" min="1" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" /></td><td class="p-3 text-end"><input type="number" step="0.01" min="0" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" /></td><td class="p-3 text-end"><span>0,00€</span></td></tr></tbody></table>
-        }
-        else { <div class="p-8 text-center text-slate-500"><i class="bi bi-grid text-3xl mb-3"></i><p>No hay líneas.</p></div> }
-    </div>
-
-    <div class="bg-slate-950/30 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/30">
-        <div class="grid grid-cols-2 gap-4 flex flex-wrap">
-            @if (Documento.Estado == EstadoDocumento.Borrador && Documento.Tipo != 0)
-            {
-                <button class="col-span-2 bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl active:scale-95">
-                    <i class="bi bi-save mr-2"></i> Guardar Como Borrador
-                </button>
-            }
-            @if (Documento.Estado == EstadoDocumento.Borrador && Documento.Tipo != 0)
-            {
-                <button class="col-span-2 bg-blue-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl active:scale-95">
-                    <i class="bi bi-arrow-up-circle mr-2"></i> Convertir y Continuar
-                </button>
-            }
-            @if (Documento.Estado == EstadoDocumento.Emitido)
-            {
-                <button class="col-span-2 bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl active:scale-95">
-                    <i class="bi bi-file-pdf mr-2"></i> Descargar PDF
-                </button>
-            }
-            @if (Documento.Estado == EstadoDocumento.Emitido)
-            {
-                <button class="col-span-2 bg-rose-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 transition-all shadow-xl active:scale-95">
-                    <i class="bi bi-x-circle mr-2"></i> Anular Documento
-                </button>
-            }
+    @if (cargando)
+    {
+        <div class="p-10 text-center text-slate-500">Cargando documento...</div>
+    }
+    else if (Documento.Id == 0 && Id.HasValue)
+    {
+        <div class="p-10 text-center text-rose-400">Documento no encontrado</div>
+    }
+    else
+    {
+        <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 mb-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Tipo</label>
+                    <div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@Documento.Tipo</div>
+                </div>
+                <div>
+                    <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Número</label>
+                    <div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white font-mono">@Documento.NumeroDocumento</div>
+                </div>
+                <div>
+                    <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Fecha</label>
+                    <div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@Documento.Fecha.ToString("dd/MM/yyyy")</div>
+                </div>
+                <div>
+                    <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Cliente</label>
+                    <div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@(Documento.Cliente?.RazonSocial ?? $"ID {Documento.ClienteId}")</div>
+                </div>
+                <div>
+                    <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Estado</label>
+                    <div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@Documento.Estado</div>
+                </div>
+                <div>
+                    <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Total</label>
+                    <div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-emerald-400 font-black">@Documento.Total.ToString("N2") €</div>
+                </div>
+            </div>
         </div>
-    </div>
+
+        <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 mb-6">
+            <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest">Líneas (@Documento.Lineas.Count)</span>
+            @if (Documento.Lineas.Any())
+            {
+                <table class="w-full text-sm mt-3">
+                    <thead class="bg-slate-800/50 text-slate-400 text-[10px] uppercase">
+                        <tr><th class="p-3 text-left">Artículo</th><th class="p-3 text-center">Cant.</th><th class="p-3 text-end">Precio</th><th class="p-3 text-end">Subtotal</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        @foreach (var l in Documento.Lineas)
+                        {
+                            <tr class="text-white">
+                                <td class="p-3">@l.DescripcionArticulo</td>
+                                <td class="p-3 text-center">@l.Cantidad</td>
+                                <td class="p-3 text-end">@l.PrecioUnitario.ToString("N2") €</td>
+                                <td class="p-3 text-end font-bold">@l.Subtotal.ToString("N2") €</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else { <div class="p-8 text-center text-slate-500"><i class="bi bi-grid text-3xl mb-3 block"></i><p>No hay líneas.</p></div> }
+        </div>
+
+        <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800">
+            <div class="grid grid-cols-1 gap-3">
+                @if (Documento.Tipo == TipoDocumento.Presupuesto && Documento.Estado != EstadoDocumento.Emitido)
+                {
+                    <button @onclick="ConvertirAAlbaran" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition shadow-xl"><i class="bi bi-box-seam mr-2"></i> Convertir a Albarán</button>
+                }
+                @if (Documento.Tipo == TipoDocumento.Factura || Documento.Tipo == TipoDocumento.FacturaRectificativa)
+                {
+                    <button @onclick="DescargarPdf" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition shadow-xl"><i class="bi bi-file-earmark-pdf mr-2"></i> Descargar PDF</button>
+                }
+                @if (Documento.Estado == EstadoDocumento.Borrador)
+                {
+                    <button @onclick="Eliminar" class="w-full bg-rose-600 text-white py-3 rounded-xl font-black text-xs uppercase">Eliminar</button>
+                }
+                <button @onclick="Volver" class="w-full bg-slate-800 text-white py-3 rounded-xl font-black text-xs uppercase">Volver</button>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
     [Parameter] public int? Id { get; set; }
     public DocumentoComercial Documento = new();
-    private void cambiarTipo() { }
-    private void cambiarEstado() { }
+    private bool cargando = false;
 
-    private void NuevoDocumento() { Documento = new(); Nav.NavigateTo("/ventas/editor"); }
-
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         if (Id.HasValue)
         {
-            var task = Http.GetFromJsonAsync<DocumentoComercial>($"api/CicloFacturacion/{Id}");
-            task.Wait();
-            Documento = task.Result ?? new DocumentoComercial();
+            cargando = true;
+            try { var doc = await Http.GetFromJsonAsync<DocumentoComercial>($"api/CicloFacturacion/{Id.Value}"); if (doc != null) Documento = doc; }
+            catch (Exception ex) { Console.WriteLine(ex.Message); }
+            finally { cargando = false; }
         }
+    }
+
+    private async Task ConvertirAAlbaran()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Convertir presupuesto a albarán?")) return;
+        var res = await Http.PostAsync($"api/CicloFacturacion/{Documento.Id}/convertir?nuevoTipo={TipoDocumento.Albaran}", null);
+        if (res.IsSuccessStatusCode) Nav.NavigateTo("/ventas/albaranes");
+        else { var msg = await res.Content.ReadAsStringAsync(); await JS.InvokeVoidAsync("alert", msg); }
+    }
+
+    private async Task Eliminar()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Eliminar documento?")) return;
+        var res = await Http.DeleteAsync($"api/CicloFacturacion/albaran/{Documento.Id}");
+        if (res.IsSuccessStatusCode) Volver();
+        else { var msg = await res.Content.ReadAsStringAsync(); await JS.InvokeVoidAsync("alert", msg); }
+    }
+
+    private async Task DescargarPdf()
+    {
+        try
+        {
+            var resp = await Http.GetAsync($"api/facturacion/descargar-pdf/{Documento.Id}");
+            if (resp.IsSuccessStatusCode)
+            {
+                var bytes = await resp.Content.ReadAsByteArrayAsync();
+                await JS.InvokeVoidAsync("downloadFile", $"{Documento.Tipo}_{Documento.NumeroDocumento}.pdf", Convert.ToBase64String(bytes));
+            }
+            else { var msg = await resp.Content.ReadAsStringAsync(); await JS.InvokeVoidAsync("alert", msg); }
+        }
+        catch (Exception ex) { await JS.InvokeVoidAsync("alert", ex.Message); }
+    }
+
+    private void Volver()
+    {
+        var dest = Documento.Tipo switch
+        {
+            TipoDocumento.Factura or TipoDocumento.FacturaRectificativa => "/ventas/facturas",
+            TipoDocumento.Albaran => "/ventas/albaranes",
+            _ => "/ventas/presupuestos"
+        };
+        Nav.NavigateTo(dest);
     }
 }

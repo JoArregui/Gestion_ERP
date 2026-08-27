@@ -75,7 +75,7 @@ namespace ERP.Services
 
             var obligacionPago = new Vencimiento
             {
-                DocumentoId = 0, // 0 indica que es un gasto interno (Nómina)
+                DocumentoId = null, // null indica gasto interno (Nómina) - evita FK a Documento 0
                 FechaVencimiento = new DateTime(anio, mes, DateTime.DaysInMonth(anio, mes)),
                 Importe = importeNeto,
                 Estado = "Pendiente",
@@ -107,9 +107,9 @@ namespace ERP.Services
                 // Marcar como pagada en RRHH
                 nomina.EstaPagada = true;
 
-                // Buscar y actualizar el vencimiento asociado en Tesorería
+                // Buscar y actualizar el vencimiento asociado en Tesorería (DocumentoId null = nómina)
                 var vencimiento = await _context.Vencimientos
-                    .FirstOrDefaultAsync(v => v.DocumentoId == 0 
+                    .FirstOrDefaultAsync(v => v.DocumentoId == null 
                                          && v.EmpresaId == nomina.Empleado.EmpresaId 
                                          && v.FechaVencimiento.Month == nomina.Mes 
                                          && v.FechaVencimiento.Year == nomina.Anio

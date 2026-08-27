@@ -8,105 +8,112 @@
 
 <div class="container-fluid p-4 animate__animated animate__fadeIn">
     <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="/configuracion/seguridad">Seguridad</a></li>
-            <li class="breadcrumb-item active">Matriz de Permisos</li>
+        <ol class="breadcrumb mb-0 small">
+            <li class="breadcrumb-item"><a href="/configuracion/seguridad" class="text-decoration-none fw-bold" style="color:#60a5fa;">Seguridad</a></li>
+            <li class="breadcrumb-item"><a href="/configuracion/seguridad/permisos" class="text-decoration-none text-muted">Roles</a></li>
+            <li class="breadcrumb-item active text-white" aria-current="page">@(model?.RoleName ?? "...")</li>
         </ol>
     </nav>
 
-    <div class="card border-0 shadow-sm rounded-4">
-        <div class="card-header bg-white py-3 border-bottom">
-            <div class="row align-items-center">
-                <div class="col">
-                    <h5 class="mb-0 fw-bold text-primary">
-                        <i class="bi bi-shield-lock-fill me-2"></i>
-                        Gestionar Permisos: @(model?.RoleName ?? "Cargando...")
-                    </h5>
-                    <small class="text-muted">Asigne los accesos granulares para este perfil</small>
-                </div>
-                <div class="col-auto">
-                    <button class="btn btn-outline-secondary btn-sm me-2" @onclick='() => Navigation.NavigateTo("/configuracion/seguridad")'>
-                        Cancelar
-                    </button>
-                    <button class="btn btn-primary btn-sm px-4 shadow-sm" @onclick="GuardarPermisos" disabled="@isSaving">
-                        @if (isSaving) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                        else { <i class="bi bi-save2 me-1"></i> }
-                        Guardar Cambios
-                    </button>
+    <div class="row align-items-center mb-4">
+        <div class="col-md-7">
+            <div class="d-flex gap-3 align-items-center">
+                <div class="rounded-4 d-flex align-items-center justify-content-center flex-shrink-0" style="width:56px;height:56px; background:linear-gradient(135deg,#2563eb,#1d4ed8); box-shadow:0 10px 30px rgba(37,99,235,.4);"><i class="bi bi-shield-lock-fill text-white fs-4"></i></div>
+                <div>
+                    <h1 class="fw-black text-white m-0 text-uppercase tracking-tighter" style="font-size:1.8rem; letter-spacing:-1px;">Matriz <span style="background:linear-gradient(90deg,#60a5fa,#2563eb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">@(model?.RoleName ?? "Rol")</span></h1>
+                    <p class="text-muted small mb-0">Control granular RBAC · <b class="text-white">@(model?.Permissions.Count(p=>p.IsSelected) ?? 0)</b> de <b class="text-white">@(model?.Permissions.Count ?? 0)</b> permisos activos</p>
                 </div>
             </div>
         </div>
+        <div class="col-md-5 text-end mt-3 mt-md-0">
+            <button class="btn btn-outline-light rounded-pill px-3 me-2" @onclick="@(() => Navigation.NavigateTo("/configuracion/seguridad/permisos"))"><i class="bi bi-grid me-1"></i> Roles</button>
+            <button class="btn btn-outline-secondary rounded-pill px-3 me-2" @onclick="@(() => Navigation.NavigateTo("/configuracion/seguridad"))">Cancelar</button>
+            <button class="btn btn-premium rounded-pill px-4 fw-black" @onclick="GuardarPermisos" disabled="@(isSaving || model==null)" style="background:linear-gradient(135deg,#2563eb,#1d4ed8); border:none;">
+                @if (isSaving) { <span class="spinner-border spinner-border-sm me-2"></span> } <i class="bi bi-check2-circle me-1"></i> Guardar
+            </button>
+        </div>
+    </div>
 
-        <div class="card-body bg-light p-4">
-            @if (model == null)
+    @if (model == null)
+    {
+        <div class="glass-container p-5 text-center">
+            <div class="spinner-grow text-primary"></div>
+            <p class="text-muted small mt-3 tracking-widest text-uppercase">Cargando matriz...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var grupo in model.Permissions.GroupBy(p => p.Group))
             {
-                <div class="text-center py-5">
-                    <div class="spinner-grow text-primary" role="status"></div>
-                </div>
-            }
-            else
-            {
-                <div class="row">
-                    @foreach (var grupo in model.Permissions.GroupBy(p => p.Group))
-                    {
-                        <div class="col-12 col-xl-4 col-md-6 mb-4">
-                            <div class="card border-0 shadow-sm h-100">
-                                <div class="card-header bg-white border-0 py-3">
-                                    <h6 class="fw-bold mb-0 text-dark">
-                                        <i class="bi bi-folder-fill text-warning me-2"></i> @grupo.Key
-                                    </h6>
-                                </div>
-                                <div class="card-body pt-0">
-                                    <hr class="mt-0 mb-3 opacity-25">
-                                    @foreach (var p in grupo)
-                                    {
-                                        <div class="d-flex align-items-center justify-content-between py-2 border-bottom border-light">
-                                            <div>
-                                                <div class="fw-semibold small">@p.Description</div>
-                                                <code class="x-small text-muted">@p.Value</code>
-                                            </div>
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input custom-switch" type="checkbox" @bind="p.IsSelected">
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
+                var sel = grupo.Count(g => g.IsSelected);
+                var total = grupo.Count();
+                <div class="col-12 col-xl-6">
+                    <div class="card card-industrial-glass border-0 h-100 overflow-hidden">
+                        <div class="p-3 d-flex justify-content-between align-items-center" style="background:rgba(255,255,255,0.02); border-bottom:1px solid rgba(255,255,255,0.06);">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-folder-fill text-warning"></i>
+                                <h6 class="fw-black text-white mb-0 text-uppercase small">@grupo.Key</h6>
+                                <span class="badge @(sel==total ? "bg-success" : sel>0 ? "bg-warning text-dark" : "bg-secondary")" style="font-size:.65rem;">@sel/@total</span>
                             </div>
+                            <button class="btn btn-sm btn-outline-light rounded-pill" style="font-size:.65rem;" @onclick="() => ToggleGrupo(grupo.Key, sel!=total)">@(sel==total ? "Quitar todo" : "Dar todo")</button>
                         </div>
-                    }
+                        <div class="p-2">
+                            @foreach (var p in grupo)
+                            {
+                                <label class="d-flex align-items-center justify-content-between p-3 mb-2 rounded-3 @(p.IsSelected ? "bg-primary bg-opacity-10 border border-primary border-opacity-25" : "bg-dark bg-opacity-30 border border-white border-opacity-5")" style="cursor:pointer;">
+                                    <div>
+                                        <div class="fw-bold text-white small">@p.Description</div>
+                                        <div class="text-muted x-small">@p.Group</div>
+                                    </div>
+                                    <div class="form-check form-switch m-0 ms-3">
+                                        <input class="form-check-input" type="checkbox" checked="@p.IsSelected" @onchange="() => p.IsSelected = !p.IsSelected" style="width:3em; height:1.6em; cursor:pointer;">
+                                    </div>
+                                </label>
+                            }
+                        </div>
+                    </div>
                 </div>
             }
         </div>
-    </div>
+        <div class="d-flex justify-content-end gap-2 mt-4">
+            <button class="btn btn-outline-light rounded-pill px-4" @onclick="@(() => Navigation.NavigateTo("/configuracion/seguridad/permisos"))">Volver</button>
+            <button class="btn btn-primary rounded-pill px-5 fw-black" @onclick="GuardarPermisos" disabled="@isSaving" style="background:linear-gradient(135deg,#2563eb,#1d4ed8); border:none;">Guardar Matriz</button>
+        </div>
+    }
 </div>
 
 <style>
-    .custom-switch { width: 3rem !important; height: 1.5rem !important; cursor: pointer; }
-    .x-small { font-size: 0.75rem; }
-    .card { transition: transform 0.2s ease; }
-    .card:hover { transform: translateY(-2px); }
+    .card-industrial-glass{background:rgba(17,24,39,0.7); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.08)!important; border-radius:1.25rem;}
+    .glass-container{background:rgba(17,24,39,0.4); border:1px solid rgba(255,255,255,0.08); border-radius:1.5rem; overflow:hidden;}
+    .fw-black{font-weight:900;} .x-small{font-size:.7rem;}
 </style>
 
 @code {
     [Parameter] public string RoleId { get; set; } = string.Empty;
     private RolePermissionDto? model;
     private bool isSaving = false;
-
     protected override async Task OnInitializedAsync() => await CargarPermisos();
-
     private async Task CargarPermisos() {
         try { model = await Http.GetFromJsonAsync<RolePermissionDto>($"api/users/roles/{RoleId}/permissions"); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        catch (Exception ex) { Console.WriteLine(ex.Message); await JS.InvokeVoidAsync("alert", "No se pudo cargar la matriz."); }
     }
-
+    private void ToggleGrupo(string grupo, bool activar)
+    {
+        if (model==null) return;
+        foreach (var p in model.Permissions.Where(p=>p.Group==grupo)) p.IsSelected = activar;
+    }
     private async Task GuardarPermisos() {
         if (model == null) return;
         isSaving = true;
         try {
             var response = await Http.PostAsJsonAsync("api/users/roles/permissions", model);
             if (response.IsSuccessStatusCode) {
-                await JS.InvokeVoidAsync("alert", "Configuración actualizada.");
-                Navigation.NavigateTo("/configuracion/seguridad");
+                await JS.InvokeVoidAsync("alert", $"Matriz '{model.RoleName}' guardada.");
+                Navigation.NavigateTo("/configuracion/seguridad/permisos");
+            } else {
+                var t = await response.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", string.IsNullOrWhiteSpace(t) ? "Error al guardar" : t);
             }
         } finally { isSaving = false; }
     }

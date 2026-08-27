@@ -1,9 +1,10 @@
 ﻿@page "/"
+@using System.Net.Http.Json
+@using ERP.Domain.DTOs
+@using ERP.Domain.Entities
 @inject NavigationManager Navigation
+@inject HttpClient Http
 
-@* Nota: El script de Tailwind se incluye aquí para asegurar que los estilos 
-   se apliquen correctamente incluso si hay cambios en el index.html.
-*@
 <script src="https://cdn.tailwindcss.com"></script>
 
 <div class="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500">
@@ -15,12 +16,9 @@
             <p class="text-slate-500 text-lg font-medium italic">Gestión operativa y control de tareas del sistema</p>
         </div>
         <div class="flex gap-4">
-            @* Botón de Configuración *@
             <NavLink href="configuracion" class="bg-slate-700 hover:bg-slate-800 text-white px-8 py-4 rounded-md font-bold text-xs transition shadow-lg border-b-4 border-slate-900 no-underline text-center">
                 CONFIGURACIÓN
             </NavLink>
-            
-            @* Botón Nueva Operación - Azul fuerte para máxima legibilidad *@
             <NavLink href="ventas/nueva" class="bg-blue-800 hover:bg-blue-900 text-white px-10 py-4 rounded-md font-bold text-xs transition shadow-xl border-b-4 border-blue-950 no-underline text-center">
                 + NUEVA OPERACIÓN
             </NavLink>
@@ -31,15 +29,18 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-white p-6 rounded-lg border-l-8 border-blue-600 shadow-sm">
             <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Facturación Total</span>
-            <p class="text-3xl font-mono font-bold text-slate-800 mt-1">14.250,00 €</p>
+            @if (cargandoKpis) { <p class="text-sm text-slate-400 mt-2">Cargando...</p> }
+            else { <p class="text-3xl font-mono font-bold text-slate-800 mt-1">@dashboard.TotalVentas.ToString("N2") €</p> <span class="text-[10px] text-slate-400">@dashboard.FacturasPendientesCobro fact. pendientes</span> }
         </div>
         <div class="bg-white p-6 rounded-lg border-l-8 border-red-600 shadow-sm">
             <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Gastos Mensuales</span>
-            <p class="text-3xl font-mono font-bold text-red-700 mt-1">8.900,45 €</p>
+            @if (cargandoKpis) { <p class="text-sm text-slate-400 mt-2">Cargando...</p> }
+            else { <p class="text-3xl font-mono font-bold text-red-700 mt-1">@((dashboard.TotalCompras + dashboard.TotalNominas).ToString("N2")) €</p> <span class="text-[10px] text-slate-400">Compras @dashboard.TotalCompras.ToString("N0")€ + Nóminas @dashboard.TotalNominas.ToString("N0")€</span> }
         </div>
         <div class="bg-white p-6 rounded-lg border-l-8 border-green-600 shadow-sm">
             <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Resultado Bruto</span>
-            <p class="text-3xl font-mono font-bold text-green-700 mt-1">+5.349,55 €</p>
+            @if (cargandoKpis) { <p class="text-sm text-slate-400 mt-2">Cargando...</p> }
+            else { <p class="text-3xl font-mono font-bold @(dashboard.BeneficioNeto >=0 ? "text-green-700" : "text-red-600") mt-1">@dashboard.BeneficioNeto.ToString("N2") €</p> <span class="text-[10px] text-slate-400">Vencidas: @dashboard.FacturasVencidas · Stock bajo: @dashboard.ArticulosStockBajo</span> }
         </div>
     </div>
 
@@ -50,17 +51,38 @@
         <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
             <div class="bg-slate-900 text-white px-6 py-4 font-black text-sm uppercase flex justify-between items-center">
                 <span>📅 Mi Agenda para hoy</span>
-                <NavLink href="agenda" class="text-blue-400 text-xs hover:underline uppercase">Ver Todo</NavLink>
+                <div class="flex items-center gap-3">
+                    <NavLink href="agenda" class="text-blue-400 text-xs hover:underline uppercase">Ver Todo</NavLink>
+                    <NavLink href="agenda?nueva=1" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition shadow">+ Cita</NavLink>
+                </div>
             </div>
-            <div class="p-6 space-y-4">
-                <div class="flex items-center gap-4 p-4 bg-blue-50 rounded border-l-4 border-blue-600">
-                    <span class="font-mono font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded text-xs">09:00</span>
-                    <span class="font-bold text-slate-800">Reunión de equipo - Revisión Ventas</span>
-                </div>
-                <div class="flex items-center gap-4 p-4 bg-slate-50 rounded border-l-4 border-slate-300">
-                    <span class="font-mono font-bold text-slate-500 bg-slate-200 px-2 py-1 rounded text-xs">11:30</span>
-                    <span class="font-bold text-slate-800 uppercase tracking-tight">Visita Cliente: Comercial Arandina S.L.</span>
-                </div>
+            <div class="p-6 space-y-3">
+                @if (cargandoAgenda)
+                {
+                    <div class="text-center text-slate-400 text-sm py-4">Cargando agenda...</div>
+                }
+                else if (agendaHoy.Any())
+                {
+                    @foreach (var t in agendaHoy)
+                    {
+                        var prioClass = t.Prioridad == "ALTA" ? "bg-rose-100 text-rose-700 border-rose-200" : t.Prioridad == "MEDIA" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-slate-100 text-slate-500 border-slate-200";
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <div class="flex items-center gap-3">
+                                <span class="font-mono font-black text-blue-600 text-xs">@t.Hora</span>
+                                <span class="font-bold text-slate-800 text-sm uppercase truncate max-w-[180px]">@t.Titulo</span>
+                            </div>
+                            <span class="px-2 py-1 rounded-lg text-[9px] font-black border @prioClass">@t.Prioridad</span>
+                        </div>
+                    }
+                    @if (tareasPendientesCount > agendaHoy.Count())
+                    {
+                        <NavLink href="agenda" class="block text-center text-[10px] font-black text-blue-600 hover:underline uppercase">+ @(tareasPendientesCount - agendaHoy.Count()) más</NavLink>
+                    }
+                }
+                else
+                {
+                    <div class="text-center text-slate-400 text-sm py-4">Sin citas programadas</div>
+                }
             </div>
         </div>
 
@@ -68,37 +90,49 @@
         <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
             <div class="bg-slate-900 text-white px-6 py-4 font-black text-sm uppercase flex justify-between items-center">
                 <span>📞 Control de Llamadas</span>
-                <span class="bg-red-600 text-white px-3 py-1 rounded text-[10px] font-black italic">2 URGENTES</span>
+                <NavLink href="llamadas?nueva=1" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition shadow">+ Llamada</NavLink>
             </div>
             <div class="p-0">
-                <table class="w-full text-left">
-                    <tbody class="divide-y divide-slate-100">
-                        <tr class="hover:bg-slate-50 transition">
-                            <td class="px-6 py-4 font-bold text-slate-700 text-sm uppercase tracking-tighter">Construcciones Ruiz S.A.</td>
-                            <td class="px-6 py-4 text-right">
-                                <button class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded text-[10px] font-black transition uppercase">
-                                    Llamar ahora
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-slate-50 transition">
-                            <td class="px-6 py-4 font-bold text-slate-700 text-sm uppercase tracking-tighter">Proveedor Metales S.L.</td>
-                            <td class="px-6 py-4 text-right">
-                                <button class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded text-[10px] font-black transition uppercase">
-                                    Llamar ahora
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                @if (cargandoLlamadas)
+                {
+                    <div class="px-6 py-8 text-center text-slate-400 text-sm">Cargando llamadas...</div>
+                }
+                else if (llamadasHoy.Any())
+                {
+                    <table class="w-full text-left">
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var l in llamadasHoy)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-4 py-3">
+                                        <div class="font-bold text-slate-800 text-sm uppercase">@l.Empresa</div>
+                                        <div class="text-[11px] text-slate-500">@l.Motivo · <span class="text-blue-600 font-mono">@l.Telefono</span></div>
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        <span class="text-[10px] font-black @(l.Urgente ? "text-rose-600 bg-rose-50 border-rose-200" : "text-slate-400 bg-slate-50 border-slate-200") border px-2 py-1 rounded-full uppercase">@(l.Urgente ? "Urgente" : l.Tiempo)</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    @if (llamadas.Count > llamadasHoy.Count())
+                    {
+                        <NavLink href="llamadas" class="block text-center py-2 text-[10px] font-black text-blue-600 hover:underline uppercase">Ver todas (@llamadas.Count)</NavLink>
+                    }
+                }
+                else
+                {
+                    <div class="px-6 py-8 text-center text-slate-400 text-sm">Sin llamadas pendientes</div>
+                }
             </div>
         </div>
     </div>
 
     @* --- TABLA DE DOCUMENTOS RECIENTES --- *@
     <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <div class="bg-slate-50 px-6 py-4 border-b border-slate-200">
+        <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
             <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest">Últimos Documentos Registrados</h3>
+            <NavLink href="ventas/documentos" class="text-[10px] font-black text-blue-600 hover:underline uppercase">Ver todo</NavLink>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm font-mono">
@@ -108,17 +142,35 @@
                         <th class="px-6 py-3 font-bold uppercase text-[11px]">Entidad / Cliente</th>
                         <th class="px-6 py-3 font-bold uppercase text-[11px] text-right">Importe</th>
                         <th class="px-6 py-3 font-bold uppercase text-[11px] text-center">Estado</th>
+                        <th class="px-6 py-3 font-bold uppercase text-[11px] text-center">Acción</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                    <tr class="hover:bg-blue-50 transition">
-                        <td class="px-6 py-4 text-blue-700 font-bold">FAC2026-001</td>
-                        <td class="px-6 py-4 text-slate-700 font-bold uppercase">Comercial Arandina S.L.</td>
-                        <td class="px-6 py-4 text-right font-bold text-slate-900">1.210,00 €</td>
-                        <td class="px-6 py-4 text-center">
-                            <span class="border-2 border-green-600 text-green-700 px-3 py-1 rounded text-[10px] font-black uppercase">Liquidada</span>
-                        </td>
-                    </tr>
+                    @if (cargandoDocs)
+                    {
+                        <tr><td colspan="5" class="px-6 py-8 text-center text-slate-400 text-sm">Cargando documentos...</td></tr>
+                    }
+                    else if (documentos.Any())
+                    {
+                        @foreach (var d in documentos)
+                        {
+                            <tr class="hover:bg-slate-50 group">
+                                <td class="px-6 py-3 font-bold text-slate-900">@d.NumeroDocumento</td>
+                                <td class="px-6 py-3 font-sans text-slate-700">@(d.Cliente?.RazonSocial ?? d.Proveedor?.RazonSocial ?? "—") <span class="text-[10px] text-slate-400 block">@d.Tipo</span></td>
+                                <td class="px-6 py-3 text-right font-bold">@d.Total.ToString("N2") €</td>
+                                <td class="px-6 py-3 text-center"><span class="px-2 py-1 rounded-full text-[10px] font-black uppercase @(d.Estado==EstadoDocumento.Emitido ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")">@d.Estado</span></td>
+                                <td class="px-6 py-3 text-center">
+                                    <button @onclick="() => VerDocumento(d.Id)" title="Visualizar documento" class="w-8 h-8 rounded-full bg-slate-900 text-white hover:bg-blue-600 flex items-center justify-center mx-auto opacity-0 group-hover:opacity-100 transition-all shadow">
+                                        <i class="bi bi-eye text-xs"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="5" class="px-6 py-4 text-center text-slate-400 text-sm">Sin documentos registrados</td></tr>
+                    }
                 </tbody>
             </table>
         </div>
@@ -126,5 +178,51 @@
 </div>
 
 @code {
-    // En el futuro, aquí inyectaremos los servicios para traer datos reales.
+    private List<TareaHome> tareas = new();
+    private List<LlamadaHome> llamadas = new();
+    private List<DocumentoComercial> documentos = new();
+    private DashboardDTO dashboard = new();
+    private bool cargandoAgenda = true, cargandoLlamadas = true, cargandoDocs = true, cargandoKpis = true;
+
+    private IEnumerable<TareaHome> agendaHoy => tareas.Where(t => !t.Completada).OrderBy(t => t.Hora).Take(4);
+    private int tareasPendientesCount => tareas.Count(t => !t.Completada);
+    private IEnumerable<LlamadaHome> llamadasHoy => llamadas.Take(4);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var t1 = CargarAgenda();
+        var t2 = CargarLlamadas();
+        var t3 = CargarDocs();
+        var t4 = CargarKpis();
+        await Task.WhenAll(t1,t2,t3,t4);
+    }
+
+    private async Task CargarAgenda()
+    {
+        try { var res = await Http.GetFromJsonAsync<List<TareaHome>>("api/tareas"); if (res != null) tareas = res; } catch { } finally { cargandoAgenda = false; }
+    }
+    private async Task CargarLlamadas()
+    {
+        try { var res = await Http.GetFromJsonAsync<List<LlamadaHome>>("api/llamadas"); if (res != null) llamadas = res; } catch { } finally { cargandoLlamadas = false; }
+    }
+    private async Task CargarDocs()
+    {
+        try { 
+            var res = await Http.GetFromJsonAsync<List<DocumentoComercial>>("api/CicloFacturacion");
+            if (res != null) documentos = res.OrderByDescending(d => d.Fecha).Take(5).ToList();
+            else {
+                var res2 = await Http.GetFromJsonAsync<List<DocumentoComercial>>("api/facturacion/listado");
+                if (res2 != null) documentos = res2.OrderByDescending(d => d.Fecha).Take(5).ToList();
+            }
+        } catch { } finally { cargandoDocs = false; }
+    }
+    private async Task CargarKpis()
+    {
+        try { var res = await Http.GetFromJsonAsync<DashboardDTO>("api/dashboard/resumen-financiero"); if (res != null) dashboard = res; } catch { } finally { cargandoKpis = false; }
+    }
+
+    private void VerDocumento(int id) => Navigation.NavigateTo($"/ventas/editor/{id}");
+
+    public class TareaHome { public int Id { get; set; } public string Hora { get; set; } = ""; public string Titulo { get; set; } = ""; public string Prioridad { get; set; } = "MEDIA"; public bool Completada { get; set; } }
+    public class LlamadaHome { public int Id { get; set; } public string Empresa { get; set; } = ""; public string Motivo { get; set; } = ""; public string Telefono { get; set; } = ""; public string Tiempo { get; set; } = ""; public bool Urgente { get; set; } }
 }

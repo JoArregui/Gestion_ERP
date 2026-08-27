@@ -3,6 +3,9 @@
 @using ERP.Web.Services
 @inject TesoreriaWebService TesoreriaService
 @inject NotificationService Notification
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@inject IJSRuntime JS
 
 <div class="space-y-6">
     @* CABECERA DE SECCIÓN *@
@@ -77,7 +80,7 @@
                             </td>
                             <td class="p-5">
                                 <span class="px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-mono">
-                                    @v.Documento?.NumeroDocumento
+                                    @(v.Documento?.NumeroDocumento ?? (v.DocumentoId == null ? $"NÓMINA {v.FechaVencimiento:MM/yyyy}" : "—"))
                                 </span>
                             </td>
                             <td class="p-5">
@@ -103,10 +106,16 @@
                                 </span>
                             </td>
                             <td class="p-5 text-center">
-                                <button @onclick="() => Liquidar(v)" 
-                                        class="p-2 bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-lg hover:shadow-blue-900/20">
-                                    <i class="bi bi-cash-stack"></i> Liquidar
-                                </button>
+                                <div class="flex items-center justify-center gap-1">
+                                    <button @onclick="() => VerDocumento(v)" title="Visualizar documento"
+                                            class="p-2 bg-slate-800 text-slate-400 hover:bg-white hover:text-slate-900 rounded-xl transition-all">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button @onclick="() => Liquidar(v)" 
+                                            class="p-2 bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-lg hover:shadow-blue-900/20">
+                                        <i class="bi bi-cash-stack"></i> Liquidar
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     }
@@ -155,6 +164,35 @@
         else
         {
             Notification.Error("Error al procesar el pago");
+        }
+    }
+
+    private async Task VerDocumento(Vencimiento v)
+    {
+        try
+        {
+            // Unifica visualización: el backend decide si es factura o nómina y genera el PDF
+            var resp = await Http.GetAsync($"api/tesoreria/vencimiento/{v.Id}/pdf");
+            if (resp.IsSuccessStatusCode)
+            {
+                var bytes = await resp.Content.ReadAsByteArrayAsync();
+                var fileName = v.DocumentoId.HasValue ? $"DOC_{v.Documento?.NumeroDocumento ?? v.Id.ToString()}.pdf" : $"NOMINA_{v.FechaVencimiento:yyyy_MM}.pdf";
+                await JS.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(bytes));
+                // Además, si es documento comercial, ofrece navegación al editor
+                if (v.DocumentoId.HasValue) Notification.Info($"PDF generado. También puede ver el detalle en el editor.");
+            }
+            else
+            {
+                // Fallback a navegación si no hay PDF (ej. nómina sin empleado)
+                if (v.DocumentoId.HasValue) Navigation.NavigateTo($"/ventas/editor/{v.DocumentoId.Value}");
+                else Navigation.NavigateTo("/rrhh/nominas");
+                var msg = await resp.Content.ReadAsStringAsync();
+                if (!string.IsNullOrWhiteSpace(msg)) Notification.Error(msg);
+            }
+        }
+        catch (Exception ex)
+        {
+            Notification.Error($"Error al visualizar: {ex.Message}");
         }
     }
 }

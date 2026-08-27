@@ -9,8 +9,7 @@ namespace ERP.Domain.Entities
         [Key]
         public int Id { get; set; }
 
-        [Required]
-        public int DocumentoId { get; set; }
+        public int? DocumentoId { get; set; }
         [ForeignKey("DocumentoId")]
         public virtual DocumentoComercial? Documento { get; set; }
 

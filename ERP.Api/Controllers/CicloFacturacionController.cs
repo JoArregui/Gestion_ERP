@@ -29,6 +29,40 @@ namespace ERP.Api.Controllers
                 .ToListAsync();
         }
 
+        [HttpGet("{id}")]
+        public async Task<ActionResult<DocumentoComercial>> GetDocumento(int id)
+        {
+            var doc = await _context.Documentos
+                .Include(d => d.Cliente)
+                .Include(d => d.Lineas)
+                .FirstOrDefaultAsync(d => d.Id == id);
+            if (doc == null) return NotFound();
+            return doc;
+        }
+
+        [HttpPost("guardar")]
+        public async Task<ActionResult<DocumentoComercial>> Guardar([FromBody] DocumentoComercial doc)
+        {
+            try
+            {
+                // Si no viene EmpresaId (Web no lo envía), lo tomamos del JWT
+                if (doc.EmpresaId == 0)
+                {
+                    var claim = User.FindFirst("EmpresaId")?.Value;
+                    if (int.TryParse(claim, out var eid)) doc.EmpresaId = eid;
+                    else doc.EmpresaId = await _context.Empresas.Select(e => e.Id).FirstOrDefaultAsync();
+                }
+                // El frontend envía Tipo según la ruta (Presupuesto/Factura/Albarán)
+                if (doc.Tipo == 0) doc.Tipo = TipoDocumento.Presupuesto;
+                var creado = await _cicloService.CrearDocumento(doc);
+                return Ok(creado);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
+
         [HttpPost("{id}/convertir")]
         public async Task<ActionResult<DocumentoComercial>> Convertir(int id, [FromQuery] TipoDocumento nuevoTipo)
         {

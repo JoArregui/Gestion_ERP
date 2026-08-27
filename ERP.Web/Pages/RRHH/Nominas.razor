@@ -2,6 +2,7 @@
 @using ERP.Domain.Entities
 @using ERP.Web.Services
 @inject HttpClient Http
+@inject IJSRuntime JS
 
 <div class="space-y-6">
     @* CABECERA *@
@@ -43,8 +44,8 @@
     <div class="bg-[#0f172a] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
         <div class="p-6 border-b border-slate-800 bg-slate-900/30 flex justify-between items-center">
             <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Registros de @(new DateTime(AnioSeleccionado, MesSeleccionado, 1).ToString("MMMM yyyy"))</h3>
-            <button @onclick="GenerarNominasMasivas" class="text-[10px] font-black bg-white text-black px-4 py-2 rounded-xl uppercase hover:bg-blue-500 hover:text-white transition-all">
-                Generar Remesa Mensual
+            <button @onclick="GenerarNominasMasivas" disabled="@generando" class="text-[10px] font-black bg-white text-black px-4 py-2 rounded-xl uppercase hover:bg-blue-500 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                @(generando ? "Generando..." : "Generar Remesa Mensual")
             </button>
         </div>
         <table class="w-full text-left">
@@ -146,10 +147,45 @@
         }
     }
 
+    private bool generando = false;
+
     private async Task GenerarNominasMasivas()
     {
-        // Esta lógica llamaría al backend para generar las de todos los empleados activos
-        await CargarNominas();
+        if (generando) return;
+        generando = true;
+        try
+        {
+            // 1. Obtener empleados activos (misma fuente que /rrhh/empleados)
+            var empleados = await Http.GetFromJsonAsync<List<Empleado>>("api/empleados");
+            if (empleados == null || !empleados.Any())
+            {
+                await JS.InvokeVoidAsync("alert", "No hay empleados activos para generar nóminas.");
+                return;
+            }
+            int creadas = 0, omitidas = 0, errores = 0;
+            foreach (var emp in empleados)
+            {
+                try
+                {
+                    var resp = await Http.PostAsync($"api/nominas/generar/{emp.Id}?mes={MesSeleccionado}&anio={AnioSeleccionado}", null);
+                    if (resp.IsSuccessStatusCode) creadas++;
+                    else
+                    {
+                        var msg = await resp.Content.ReadAsStringAsync();
+                        if (msg.Contains("Ya existe")) omitidas++;
+                        else errores++;
+                    }
+                }
+                catch { errores++; }
+            }
+            await JS.InvokeVoidAsync("alert", $"Remesa: {creadas} creadas, {omitidas} ya existían, {errores} errores.");
+            await CargarNominas();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error al generar remesa: {ex.Message}");
+        }
+        finally { generando = false; }
     }
 
     private async Task ConfirmarPago(Nomina nomina)

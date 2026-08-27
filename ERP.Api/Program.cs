@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -99,7 +100,7 @@ builder.Services.AddScoped<CicloFacturacionService>();
 builder.Services.AddScoped<FacturacionService>();
 builder.Services.AddScoped<VerifactuService>();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
 
 // --- 7. SWAGGER ---
@@ -137,10 +138,19 @@ using (var scope = app.Services.CreateScope())
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         
-        if (useSqlite)
-            await context.Database.EnsureCreatedAsync();
-        else
+        // FIX 26/08: EnsureCreated no aplica migraciones -> SQLite quedaba sin columna Estado (AddEstadoDocumento)
+        // y provocaba SQLite Error 1: 'no such column: d.Estado' en api/facturacion/listado y api/CicloFacturacion
+        // Se usa MigrateAsync para ambos proveedores; EnsureCreated solo como fallback si no hay historial.
+        try
+        {
             await context.Database.MigrateAsync();
+        }
+        catch (Exception migrateEx)
+        {
+            var loggerMigrate = services.GetRequiredService<ILogger<Program>>();
+            loggerMigrate.LogWarning(migrateEx, "MigrateAsync falló, intentando EnsureCreated como fallback.");
+            await context.Database.EnsureCreatedAsync();
+        }
         await SeedService.SeedAsync(context, userManager, roleManager);
     }
     catch (Exception ex)
