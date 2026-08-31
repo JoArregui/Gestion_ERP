@@ -204,7 +204,7 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
     private async Task<int> CrearFamiliaAsync()
     {
         var familia = new Familia { Nombre = $"Familia-{Guid.NewGuid():N}" };
-        _context.Familias.Add(familia);
+        _context.Familia.Add(familia);
         await _context.SaveChangesAsync();
         return familia.Id;
     }

@@ -34,6 +34,13 @@ namespace ERP.Domain.Entities
 
         public bool IsActivo { get; set; } = true;
 
+        // --- FACTURA ELECTRÓNICA / VIES ---
+        [StringLength(20)]
+        public string? NIF_UE { get; set; }
+        [StringLength(2)]
+        public string? PaisISO { get; set; } = "ES";
+        public bool EsAdministracionPublica { get; set; } = false;
+
         // Auditoría básica
         public DateTime FechaAlta { get; set; } = DateTime.Now;
     }

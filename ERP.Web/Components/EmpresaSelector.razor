@@ -1,0 +1,40 @@
+﻿@using ERP.Domain.Entities
+@using ERP.Web.Services
+@inject EmpresaService EmpresaService
+
+<div class="flex items-center gap-2">
+    @if (EmpresaService.IsLoaded && EmpresaService.EmpresaActual != null)
+    {
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700">
+            <div class="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-black"
+                 style="background-color: @(string.IsNullOrEmpty(EmpresaService.EmpresaActual.ColorHex) ? "#3b82f6" : EmpresaService.EmpresaActual.ColorHex)">
+                @(EmpresaService.EmpresaActual.NombreComercial.Substring(0, 1))
+            </div>
+            <span class="text-[10px] font-black text-white uppercase tracking-widest truncate max-w-[120px]">
+                @EmpresaService.EmpresaActual.NombreComercial
+            </span>
+        </div>
+    }
+    <select @onchange="OnChanged"
+            class="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-500 max-w-[160px] truncate">
+        @if (!EmpresaService.IsLoaded)
+        {
+            <option value="">Cargando sedes...</option>
+        }
+        else
+        {
+            @foreach (var emp in EmpresaService.Empresas ?? new List<Empresa>())
+            {
+                <option value="@emp.Id" selected="@(emp.Id == EmpresaService.EmpresaId)">@emp.NombreComercial</option>
+            }
+        }
+    </select>
+</div>
+
+@code {
+    private async Task OnChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+            await EmpresaService.SelectEmpresaAsync(id);
+    }
+}

@@ -11,6 +11,7 @@ using ERP.Services;
 using ERP.Api.Hubs;
 using ERP.Api.Services; // IEmailService / EmailService siguen aquí (Api-specific infra)
 using ERP.Domain.Constants;
+using ERP.Services; // SeedService para seeding inicial
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -151,7 +152,7 @@ using (var scope = app.Services.CreateScope())
             loggerMigrate.LogWarning(migrateEx, "MigrateAsync falló, intentando EnsureCreated como fallback.");
             await context.Database.EnsureCreatedAsync();
         }
-        await SeedService.SeedAsync(context, userManager, roleManager);
+        await SeedService.SeedAsync(context);
     }
     catch (Exception ex)
     {

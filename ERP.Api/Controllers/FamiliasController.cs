@@ -26,7 +26,7 @@ namespace ERP.API.Controllers
         {
             try
             {
-                return await _context.Familias
+                return await _context.Familia
                     .OrderBy(f => f.Nombre)
                     .ToListAsync();
             }
@@ -40,7 +40,7 @@ namespace ERP.API.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Familia>> GetFamilia(int id)
         {
-            var familia = await _context.Familias
+            var familia = await _context.Familia
                 .Include(f => f.Articulos)
                 .FirstOrDefaultAsync(f => f.Id == id);
 
@@ -64,7 +64,7 @@ namespace ERP.API.Controllers
             try
             {
                 familia.FechaCreacion = DateTime.Now;
-                _context.Familias.Add(familia);
+                _context.Familia.Add(familia);
                 await _context.SaveChangesAsync();
 
                 return CreatedAtAction(nameof(GetFamilia), new { id = familia.Id }, familia);
@@ -84,7 +84,7 @@ namespace ERP.API.Controllers
                 return BadRequest("El ID proporcionado no coincide con la entidad.");
             }
 
-            var existente = await _context.Familias.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id);
+            var existente = await _context.Familia.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id);
             if (existente == null)
             {
                 return NotFound();
@@ -116,7 +116,7 @@ namespace ERP.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteFamilia(int id)
         {
-            var familia = await _context.Familias.FindAsync(id);
+            var familia = await _context.Familia.FindAsync(id);
             if (familia == null)
             {
                 return NotFound();
@@ -139,7 +139,7 @@ namespace ERP.API.Controllers
 
         private bool FamiliaExists(int id)
         {
-            return _context.Familias.Any(e => e.Id == id);
+            return _context.Familia.Any(e => e.Id == id);
         }
     }
 }

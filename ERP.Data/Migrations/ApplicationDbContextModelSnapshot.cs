@@ -202,6 +202,635 @@ namespace ERP.Data.Migrations
                     b.ToTable("Articulos");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.CuentaBancaria", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BIC")
+                        .HasMaxLength(11)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CodigoEntidad")
+                        .HasMaxLength(4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CodigoOficina")
+                        .HasMaxLength(4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreditorIdentifier")
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DigitosControl")
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EntidadBancaria")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("EsPrincipal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaModificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IBAN")
+                        .IsRequired()
+                        .HasMaxLength(34)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("LimiteDiarioAdeudos")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("LimiteDiarioTransferencias")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("NombreCuenta")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroCuenta")
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("PermiteAdeudosSEPA")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("PermiteTransferenciasInstant")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("PermiteTransferenciasSEPA")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("CuentasBancarias");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.ExtractoBancario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CuentaBancariaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaExtracto")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaProcesado")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaRecepcion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaValor")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HashXmlSHA256")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Procesado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReferenciaExtracto")
+                        .IsRequired()
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("SaldoFinal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SaldoInicial")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalAbonos")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalCargos")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("XmlOriginal")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CuentaBancariaId");
+
+                    b.ToTable("ExtractosBancarios");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.MandatoSEPA", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AcreedorBIC")
+                        .HasMaxLength(11)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcreedorCalle")
+                        .HasMaxLength(70)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcreedorCodigoPostal")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcreedorCreditorIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcreedorIBAN")
+                        .IsRequired()
+                        .HasMaxLength(34)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcreedorNombre")
+                        .IsRequired()
+                        .HasMaxLength(140)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcreedorNombreComercial")
+                        .HasMaxLength(140)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcreedorNumero")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcreedorPais")
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcreedorPoblacion")
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("BeneficiarioVerificado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ClienteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CreditorIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CuentaBancariaAcreedorId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CuentaBancariaDeudorId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DeudorBIC")
+                        .HasMaxLength(11)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorCalle")
+                        .HasMaxLength(70)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorCodigoPostal")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorIBAN")
+                        .IsRequired()
+                        .HasMaxLength(34)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorIdentificacionFiscal")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorNombre")
+                        .IsRequired()
+                        .HasMaxLength(140)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorNombreComercial")
+                        .HasMaxLength(140)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorNumero")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorPais")
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorPoblacion")
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Esquema")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaFirma")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaModificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaPrimeraPresentacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaUltimaPresentacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaVerificacionBeneficiario")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InformacionAdicional")
+                        .HasMaxLength(140)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MetodoVerificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ProveedorId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReferenciaUnicaMandato")
+                        .IsRequired()
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TipoSecuencia")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioModificacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CuentaBancariaAcreedorId");
+
+                    b.HasIndex("CuentaBancariaDeudorId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("MandatosSEPA");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.MovimientoExtracto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AsientoContableId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Concepto")
+                        .HasMaxLength(140)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Conciliado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContrapartidaIBAN")
+                        .HasMaxLength(34)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContrapartidaNombre")
+                        .HasMaxLength(140)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndToEndId")
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ExtractoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("FacturaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaConciliacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaContable")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaValor")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("MandateId")
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OperacionRemesaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReferenciaBanco")
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Secuencia")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExtractoId");
+
+                    b.ToTable("MovimientosExtracto");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.OperacionRemesaSEPA", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BeneficiarioBIC")
+                        .HasMaxLength(11)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BeneficiarioCalle")
+                        .HasMaxLength(70)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BeneficiarioCodigoPostal")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BeneficiarioIBAN")
+                        .HasMaxLength(34)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BeneficiarioNombre")
+                        .HasMaxLength(140)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BeneficiarioNumero")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BeneficiarioPais")
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BeneficiarioPoblacion")
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CodigoDevolucion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CodigoRespuestaBanco")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Concepto")
+                        .HasMaxLength(140)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DescripcionRespuestaBanco")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorBIC")
+                        .HasMaxLength(11)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorIBAN")
+                        .HasMaxLength(34)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeudorNombre")
+                        .HasMaxLength(140)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("EsDevolucion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaDevolucion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaRespuestaBanco")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("MandatoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("OrigenId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OrigenTipo")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenciaPropia")
+                        .HasMaxLength(140)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenciaUnicaMandato")
+                        .HasMaxLength(35)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RemesaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TipoSecuencia")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MandatoId");
+
+                    b.HasIndex("RemesaId");
+
+                    b.ToTable("OperacionesRemesaSEPA");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.RemesaSEPA", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Conciliada")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CuentaBancariaAcreedoraId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CuentaBancariaOrdenanteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Esquema")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaConciliacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaEjecucion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaEnvioBanco")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaModificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HashXmlSHA256")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ImporteTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("MandatoSEPAId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NombreArchivoXml")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("NumeroOperaciones")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Referencia")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenciaBanco")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RespuestaBanco")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("TamanoBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioConciliacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioEnvio")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioModificacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("XmlGenerado")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CuentaBancariaAcreedoraId");
+
+                    b.HasIndex("CuentaBancariaOrdenanteId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("MandatoSEPAId");
+
+                    b.ToTable("RemesasSEPA");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.CierreCaja", b =>
                 {
                     b.Property<int>("Id")
@@ -297,6 +926,18 @@ namespace ERP.Data.Migrations
                     b.Property<string>("CodigoPostal")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DIR3_OficinaContable")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DIR3_OrganoGestor")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DIR3_UnidadTramitadora")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal>("DescuentoFijo")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,2)");
@@ -311,6 +952,9 @@ namespace ERP.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsAdministracionPublica")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("FechaAlta")
@@ -328,8 +972,16 @@ namespace ERP.Data.Migrations
                     b.Property<string>("MotivoBloqueo")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("NIF_UE")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("NombreComercial")
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaisISO")
+                        .HasMaxLength(2)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Poblacion")
@@ -376,11 +1028,464 @@ namespace ERP.Data.Migrations
                     b.ToTable("ConfiguracionesGenerales");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.ApunteContable", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AsientoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CentroCosteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Concepto")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CuentaContableCodigo")
+                        .IsRequired()
+                        .HasMaxLength(9)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DocumentoReferencia")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ProyectoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AsientoId");
+
+                    b.HasIndex("CuentaContableCodigo");
+
+                    b.ToTable("ApuntesContables");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.AsientoContable", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Concepto")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaContabilizacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaModificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("LibroDiarioId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Numero")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("OrigenId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OrigenTipo")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Serie")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("TotalDebe")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TotalHaber")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("UsuarioContabilizacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioModificacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("LibroDiarioId");
+
+                    b.ToTable("AsientosContables");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.CuentaContable", b =>
+                {
+                    b.Property<string>("Codigo")
+                        .HasMaxLength(9)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CodigoPadre")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsDetalle")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsPGCOficial")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaModificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Grupo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Naturaleza")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Nivel")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Codigo");
+
+                    b.HasIndex("CodigoPadre");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("CuentasContables");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.EjercicioContable", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CierreTrimestral1")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CierreTrimestral2")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CierreTrimestral3")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CierreTrimestral4")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("CuentasDepositadas")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaCierre")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaDepositoCuentas")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaFin")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaInicio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaLegalizacionLibros")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("LibrosLegalizados")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NumeroDeposito")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCierre")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("EjerciciosContables");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.LibroDiario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EjercicioId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaDesde")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaGeneracion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaHasta")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaLegalizacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaPresentacionRM")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HashArchivo")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("NumeroApuntes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("NumeroAsientos")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NumeroLegalizacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("TotalDebe")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TotalHaber")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("UsuarioGeneracion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EjercicioId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("LibrosDiario");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.LibroInventariosCuentasAnuales", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BalanceInicialJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BalanceSituacionJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BalancesComprobacionTrimestralesJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CuentaPerdidasGananciasJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EjercicioId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsAbreviado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EstadoCambiosPatrimonioNetJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EstadoFlujosEfectivoJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaGeneracion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaLegalizacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaPresentacionRM")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HashArchivo")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InventarioCierreJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MemoriaJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroLegalizacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioGeneracion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EjercicioId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("LibrosInventariosCuentasAnuales");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.LibroMayor", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CuentaContableCodigo")
+                        .IsRequired()
+                        .HasMaxLength(9)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EjercicioId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaActualizacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("NumeroApuntes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("SaldoFinalDebe")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("SaldoFinalHaber")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("SaldoInicialDebe")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("SaldoInicialHaber")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TotalDebe")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TotalHaber")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CuentaContableCodigo");
+
+                    b.HasIndex("EjercicioId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("LibrosMayor");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.ControlHorario", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("DireccionIP")
+                        .HasMaxLength(45)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DispositivoId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("EmpleadoId")
                         .HasColumnType("INTEGER");
@@ -388,10 +1493,56 @@ namespace ERP.Data.Migrations
                     b.Property<DateTime>("Entrada")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaCorreccion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FirmaEmpleadoBase64")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Geolocalizacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HashAnterior")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Modalidad")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MotivoCorreccion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Origen")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime?>("Salida")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("TipoRegistro")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Ubicacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCorreccion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -420,17 +1571,38 @@ namespace ERP.Data.Migrations
                     b.Property<int>("EmpresaId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("EnviadaCliente")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("EsCompra")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsFacturaSimplificada")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsFacturaSinIdentifDestinatario")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Estado")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("FacturasRectificadasJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaEnvioCliente")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaPresentacionHacienda")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("FechaRecepcion")
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("IncidenciaVerifactu")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsContabilizado")
                         .HasColumnType("INTEGER");
@@ -457,11 +1629,18 @@ namespace ERP.Data.Migrations
                     b.Property<string>("Observaciones")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("PresentadaHacienda")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("ProveedorId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Tipo")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("TipoRectificativa")
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
 
                     b.Property<decimal>("Total")
                         .HasPrecision(18, 4)
@@ -515,9 +1694,20 @@ namespace ERP.Data.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(5,2)");
 
+                    b.Property<decimal>("PorcentajeRecargoEquivalencia")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("PorcentajeRetencionIRPF")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
                     b.Property<decimal>("PrecioUnitario")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("TipoIvaCatalogo")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -539,7 +1729,19 @@ namespace ERP.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CNAE")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Cargo")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CodigoCuentaCotizacion")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConvenioColectivo")
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("DNI")
@@ -559,8 +1761,14 @@ namespace ERP.Data.Migrations
                     b.Property<DateTime>("FechaAlta")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("FechaAntiguedad")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("FechaBaja")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("GrupoCotizacion")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("IBAN")
                         .HasMaxLength(34)
@@ -572,6 +1780,10 @@ namespace ERP.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NombreArchivoPdf")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroAfiliacionNAF")
+                        .HasMaxLength(12)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NumeroSeguridadSocial")
@@ -595,6 +1807,10 @@ namespace ERP.Data.Migrations
                         .HasColumnType("decimal(18,4)");
 
                     b.Property<string>("Telefono")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoContrato")
+                        .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("VacacionesDisfrutadas")
@@ -621,6 +1837,9 @@ namespace ERP.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("CertificadoVerifactuId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("CodigoPostal")
                         .HasColumnType("TEXT");
 
@@ -634,10 +1853,20 @@ namespace ERP.Data.Migrations
                     b.Property<string>("Email")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("EsSII")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Eslogan")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("FechaAlta")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaAltaVerifactu")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IdSistemaInformatico")
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsActiva")
@@ -653,9 +1882,20 @@ namespace ERP.Data.Migrations
                     b.Property<string>("LogoUrl")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("ModalidadVerifactu")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("NombreComercial")
                         .IsRequired()
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreSistemaInformatico")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroInstalacion")
+                        .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Poblacion")
@@ -679,18 +1919,122 @@ namespace ERP.Data.Migrations
                     b.Property<string>("Telefono")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("TerritorioFiscal")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime?>("UltimaModificacion")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("UltimoNumeroFactura")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("VersionSistemaInformatico")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Web")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CertificadoVerifactuId");
+
                     b.ToTable("Empresas");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FacturaElectronica", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AcuseReciboB2BJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CertificadoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CodigoRegistroFACe")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DIR3_OficinaContable")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DIR3_OrganoGestor")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DIR3_UnidadTramitadora")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DocumentoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaAcuseRecibo")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaLimitePago")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaModificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaRegistro")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FirmaXAdESBase64")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Formato")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("HashSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MensajeEstado")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlataformaB2B")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PuntoEntrada")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("XmlBase64")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CertificadoId");
+
+                    b.HasIndex("DocumentoId")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("FacturasElectronicas");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Familia", b =>
@@ -723,7 +2067,1028 @@ namespace ERP.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Familias");
+                    b.ToTable("Familia", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FirmaDigital.CertificadoDigital", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AlgoritmoClave")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AlgoritmoFirma")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Almacenamiento")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CRLUrl")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CadenaCertificadosPem")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaModificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaRevoca")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IssuerDN")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MotivoRevoca")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("NotAfter")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("NotBefore")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroAutorizacionQTSP")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OCSPUrl")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PoliticaFirmaOID")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PublicKeyPem")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QTSP")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Revocado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SerialNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubjectDN")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TamanoClave")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ThumbprintSHA1")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ThumbprintSHA256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Uso")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioModificacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("CertificadosDigitales");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FirmaDigital.ComunicacionCertificada", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AdjuntosJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Asunto")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Contenido")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DestinatariosJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaAcuseRecibo")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaEntrega")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaEnvio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaLimiteEntrega")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PruebaContenidoBase64")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PruebaEntregaBase64")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Referencia")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemitenteEmail")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemitenteNombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RequiereAcuseRecibo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RequiereEntregaPersonal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("ComunicacionesCertificadas");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FirmaDigital.FirmaElectronica", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ArchivoFirmadoBase64")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CertificadoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DetalleVerificacion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DireccionIP")
+                        .HasMaxLength(45)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DocumentoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DocumentoReferencia")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DocumentoTipo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EstadoVerificacion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaFirma")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaUltimaVerificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FirmaBase64")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FirmaEstructurada")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FirmanteCargo")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FirmanteEmail")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FirmanteNIF")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FirmanteNombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Formato")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Geolocalizacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HashDocumentoSHA1")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HashDocumentoSHA256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreArchivoFirmado")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PoliticaFirmaOID")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TSPUrl")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TimestampTokenBase64")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CertificadoId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("FirmasElectronicas");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FirmaDigital.SelloTiempo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaGeneracion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaTimestamp")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HashDatosSHA256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PoliticaTSA_OID")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenciaDocumento")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TSACertThumbprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TSAName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TSAUrl")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TokenBase64")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("SellosTiempo");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FirmaDigital.SolicitudFirma", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DocumentoBase64")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaExpiracion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("FirmaElectronicaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FirmantesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FormatoSalida")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("HashDocumentoSHA256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreArchivo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RecordatoriosEnviados")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Referencia")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TipoFirmaRequerida")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UltimoRecordatorio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("FirmaElectronicaId");
+
+                    b.ToTable("SolicitudesFirma");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.ConfiguracionIVA", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AplicaIVACaja")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AplicaProrrataEspecial")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AplicaProrrataGeneral")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AutoliquidacionRectificativaAnual")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DetalleProrrataEspecialJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EjercicioId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaFinIVACaja")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaInicioIVACaja")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaModificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("InversionSujetoPasivoHabitual")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal?>("LimiteVolumenOperacionesIVACaja")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PorcentajeProrrataGeneral")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal?>("PorcentajeProrrataGeneralRedondeado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("RecargoGeneral")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("RecargoReducido")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("RecargoSuperreducido")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("RecargoTabaco")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<bool>("RegimenAgenciasViajes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RegimenBienesUsados")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RegimenObjetosArte")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RegimenOroInversion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RegimenServiciosElectronicos")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SectoresJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("SujetoRecargoEquivalencia")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("TieneSectoresDiferenciados")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioModificacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EjercicioId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("ConfiguracionesIVA");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.DetalleLiquidacionIVA", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AsientoContableId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("BaseImponible")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CuotaDeducible")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CuotaIVA")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("DocumentoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsDeducible")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaOperacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("InversionSujetoPasivo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LiquidacionIVAId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NumeroDocumento")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("PorcentajeDeduccion")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RegimenEspecial")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SectorDiferenciadoIVAId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("SectorDiferenciadoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TipoDocumento")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TipoIVA")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("TipoImpositivo")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("TipoOperacion")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LiquidacionIVAId");
+
+                    b.HasIndex("SectorDiferenciadoIVAId");
+
+                    b.ToTable("DetallesLiquidacionIVA");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.LibroRegistroIVA", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("BaseImponible")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ClaveOperacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("CuotaIVA")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CuotaRecargo")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("EjercicioId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsDeducible")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaOperacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NIFContraparte")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreContraparte")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroFactura")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("TipoImpositivo")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("TipoLibro")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EjercicioId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("LibrosRegistroIVA");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.LiquidacionIVA", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Año")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("BaseExenta")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BaseGeneral")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BaseInversionSujetoPasivo")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BaseNoSujeta")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BaseReducida")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BaseSuperreducida")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("DetalleProrrataAplicadaJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetalleSectoresJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EjercicioId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCalculo")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaDesde")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaHasta")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaPago")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaPresentacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("IVAAIngresar")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVAAgenciasViajes")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVABienesUsados")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVACaja")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVACompensar")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVADeducibleGeneral")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVADeducibleReducido")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVADeducibleSuperreducido")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVADeducibleTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVADevengadoTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVADevolver")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVAGeneralRepercutido")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVAGeneralSoportado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVAObjetosArte")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVAOroInversion")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVARecargoEquivalencia")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVARecargoEquivalenciaSoportado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVAReducidoRepercutido")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVAReducidoSoportado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVAServiciosElectronicos")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVASuperreducidoRepercutido")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IVASuperreducidoSoportado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Periodo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("PorcentajeProrrataAplicada")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("ReferenciaPresentacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("RegularizacionAnual")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("UsaProrrataEspecial")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("UsaSectoresDiferenciados")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCalculo")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EjercicioId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("LiquidacionesIVA");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.SectorDiferenciadoIVA", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaModificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("PorcentajeDeduccion")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("VolumenOperacionesAnual")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("SectoresDiferenciadosIVA");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.TarifaImpuesto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaDesde")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaHasta")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Porcentaje")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("RecargoEquivalencia")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("Territorio")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TipoIVA")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Vigente")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TarifasImpuesto");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Llamada", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Empresa")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Motivo")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Telefono")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tiempo")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Urgente")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("Llamadas");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.MovimientoStock", b =>
@@ -781,7 +3146,27 @@ namespace ERP.Data.Migrations
                     b.Property<int>("Anio")
                         .HasColumnType("INTEGER");
 
+                    b.Property<decimal>("BaseContingenciasComunes")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("BaseContingenciasProfesionales")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("BaseHorasExtra")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("CodigoCuentaCotizacion")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal>("Complementos")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CuotaSegSocialTrabajador")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
@@ -798,18 +3183,95 @@ namespace ERP.Data.Migrations
                     b.Property<DateTime>("FechaEmision")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("GrupoCotizacion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("HorasExtra")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
                     b.Property<int>("Mes")
                         .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("PagasExtraProrrateadas")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("RemesaSEPAId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("RetencionIRPF")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<decimal>("SalarioBase")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("TipoIRPF")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EmpleadoId");
 
+                    b.HasIndex("RemesaSEPAId");
+
                     b.ToTable("Nominas");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.PoliticaControlHorario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AniosConservacion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ConvenioReferencia")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaModificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HorasExtraMaxMes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MargenToleranciaMinutos")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("PermiteAutoCorreccion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RequiereFirmaCorreccion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RequiereGeolocalizacion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioModificacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId")
+                        .IsUnique();
+
+                    b.ToTable("PoliticasControlHorario");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Proveedor", b =>
@@ -830,14 +3292,25 @@ namespace ERP.Data.Migrations
                     b.Property<bool>("EsAcreedor")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("EsAdministracionPublica")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("FechaAlta")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsActivo")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("NIF_UE")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("NombreContacto")
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaisISO")
+                        .HasMaxLength(2)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("RazonSocial")
@@ -854,11 +3327,154 @@ namespace ERP.Data.Migrations
                     b.ToTable("Proveedores");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.RGPD.LiquidacionSeguridadSocial", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Anio")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CodigoCuentaCotizacion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CodigoRespuestaTGSS")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaConfirmacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaIngreso")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ImporteTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Mes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("PeriodoDesde")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PeriodoHasta")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("XmlRlcBase64")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("XmlRntBase64")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("LiquidacionesSeguridadSocial");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.RGPD.RegistroTratamiento", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BaseJuridica")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CategoriasDatos")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CategoriasInteresados")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DelegadoProteccionDatos")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Destinatarios")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaEIPD")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Finalidad")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MedidasTecnicas")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreTratamiento")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlazoConservacion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RequiereEIPD")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("TieneEncargadoTratamiento")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("RegistrosTratamiento");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.RegistroVerifactu", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("BaseImponible")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CodigoErrorAeat")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("CuotaRecargoEquivalencia")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("CuotaTotal")
                         .HasPrecision(18, 4)
@@ -868,6 +3484,10 @@ namespace ERP.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DescripcionOperacion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("DocumentoId")
                         .HasColumnType("INTEGER");
 
@@ -875,6 +3495,130 @@ namespace ERP.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("EsPrimerRegistro")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EstadoRemision")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FacturasRectificadasJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FacturasSustituidasJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaExpedicion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("FechaHoraHusoGeneracion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("FechaRemision")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FirmaRegistroBase64")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Huella")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HuellaAnterior")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IdSistemaInformatico")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ImporteTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("Incidencia")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("IntentosRemision")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NifEmisor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreRazonEmisor")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreSistemaInformatico")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroFactura")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroInstalacion")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RechazoPrevio")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RefExterna")
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RespuestaAeat")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoFactura")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoHuella")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoRectificativa")
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UrlQr")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VersionSistemaInformatico")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentoId")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId", "FechaHoraHusoGeneracion");
+
+                    b.ToTable("RegistrosVerifactu");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.RegistroVerifactuAnulacion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DatosRegistroJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("EstadoRemision")
@@ -900,10 +3644,6 @@ namespace ERP.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("ImporteTotal")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<int>("IntentosRemision")
                         .HasColumnType("INTEGER");
 
@@ -917,27 +3657,415 @@ namespace ERP.Data.Migrations
                         .HasMaxLength(60)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("RegistroAltaId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("RespuestaAeat")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TipoFactura")
-                        .IsRequired()
-                        .HasMaxLength(2)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UrlQr")
-                        .IsRequired()
-                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DocumentoId")
+                    b.HasIndex("RegistroAltaId")
                         .IsUnique();
 
-                    b.HasIndex("EmpresaId", "FechaHoraHusoGeneracion");
+                    b.ToTable("RegistrosVerifactuAnulacion");
+                });
 
-                    b.ToTable("RegistrosVerifactu");
+            modelBuilder.Entity("ERP.Domain.Entities.Tarea", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Completada")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Hora")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Prioridad")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("Tareas");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.AlertaTrazabilidad", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AccionCorrectiva")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaAlerta")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaLectura")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaResolucion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Leida")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LoteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Resuelta")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Severidad")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioLectura")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioResolucion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("LoteId");
+
+                    b.ToTable("AlertasTrazabilidad");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.LoteTrazabilidad", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ArticuloId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("CantidadActual")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CantidadInicial")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("CantidadReservada")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("CodigoLote")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CondicionesAlmacenamiento")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DocumentoOrigen")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsPCC")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaAnalisis")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaCaducidad")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaConsumoPreferente")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaModificacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaProduccion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaRecepcion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LaboratorioAnalisis")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LoteProveedor")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroCertificadoAnalisis")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParametrosCriticos")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ProveedorId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("PuntoControlCriticoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal?>("TemperaturaMaxima")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal?>("TemperaturaMinima")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<bool>("TieneAnalisisOficial")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioModificacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticuloId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("ProveedorId");
+
+                    b.ToTable("LotesTrazabilidad");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.MovimientoLote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AlmacenDestinoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AlmacenOrigenId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Cantidad")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("ClienteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("DocumentoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaEntrega")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaSalidaTransporte")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LoteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("LoteOrigenId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("LoteResultadoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MatriculaVehiculo")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroDocumento")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParametrosControlJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ProveedorId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Responsable")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TemperaturaTransporte")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TipoDocumento")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Transportista")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("LoteId");
+
+                    b.HasIndex("LoteOrigenId");
+
+                    b.HasIndex("LoteResultadoId");
+
+                    b.HasIndex("ProveedorId");
+
+                    b.ToTable("MovimientosLote");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.RetiradaLote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AccionesCorrectivas")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("CantidadAfectada")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CantidadDestruida")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CantidadRetirada")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("ClientesAfectados")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaCierre")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaDeteccion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaNotificacionAutoridades")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaNotificacionClientes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LoteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Motivo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("NotificadosClientes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("NotificadosProveedores")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NumeroExpedienteAESAN")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroNotificacionRASFF")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Severidad")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioResponsable")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("LoteId");
+
+                    b.ToTable("RetiradasLote");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Vencimiento", b =>
@@ -946,7 +4074,7 @@ namespace ERP.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("DocumentoId")
+                    b.Property<int?>("DocumentoId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("EmpresaId")
@@ -1135,6 +4263,111 @@ namespace ERP.Data.Migrations
                     b.Navigation("ProveedorHabitual");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.CuentaBancaria", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.ExtractoBancario", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Bancario.CuentaBancaria", "CuentaBancaria")
+                        .WithMany()
+                        .HasForeignKey("CuentaBancariaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CuentaBancaria");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.MandatoSEPA", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Bancario.CuentaBancaria", "CuentaBancariaAcreedor")
+                        .WithMany("MandatosAcreedor")
+                        .HasForeignKey("CuentaBancariaAcreedorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.Bancario.CuentaBancaria", "CuentaBancariaDeudor")
+                        .WithMany("MandatosDeudor")
+                        .HasForeignKey("CuentaBancariaDeudorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CuentaBancariaAcreedor");
+
+                    b.Navigation("CuentaBancariaDeudor");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.MovimientoExtracto", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Bancario.ExtractoBancario", "Extracto")
+                        .WithMany("Movimientos")
+                        .HasForeignKey("ExtractoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Extracto");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.OperacionRemesaSEPA", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Bancario.MandatoSEPA", "Mandato")
+                        .WithMany()
+                        .HasForeignKey("MandatoId");
+
+                    b.HasOne("ERP.Domain.Entities.Bancario.RemesaSEPA", "Remesa")
+                        .WithMany("Operaciones")
+                        .HasForeignKey("RemesaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Mandato");
+
+                    b.Navigation("Remesa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.RemesaSEPA", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Bancario.CuentaBancaria", "CuentaBancariaAcreedora")
+                        .WithMany("RemesasBeneficiaria")
+                        .HasForeignKey("CuentaBancariaAcreedoraId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.Bancario.CuentaBancaria", "CuentaBancariaOrdenante")
+                        .WithMany("RemesasOrdenante")
+                        .HasForeignKey("CuentaBancariaOrdenanteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Bancario.MandatoSEPA", null)
+                        .WithMany("Remesas")
+                        .HasForeignKey("MandatoSEPAId");
+
+                    b.Navigation("CuentaBancariaAcreedora");
+
+                    b.Navigation("CuentaBancariaOrdenante");
+
+                    b.Navigation("Empresa");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.CierreCaja", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
@@ -1153,6 +4386,133 @@ namespace ERP.Data.Migrations
                         .HasForeignKey("EmpresaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.ApunteContable", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.AsientoContable", "Asiento")
+                        .WithMany("Apuntes")
+                        .HasForeignKey("AsientoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.CuentaContable", "CuentaContable")
+                        .WithMany()
+                        .HasForeignKey("CuentaContableCodigo")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Asiento");
+
+                    b.Navigation("CuentaContable");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.AsientoContable", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.LibroDiario", null)
+                        .WithMany("Asientos")
+                        .HasForeignKey("LibroDiarioId");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.CuentaContable", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.CuentaContable", "Padre")
+                        .WithMany("Subcuentas")
+                        .HasForeignKey("CodigoPadre");
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("Padre");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.EjercicioContable", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.LibroDiario", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.EjercicioContable", "Ejercicio")
+                        .WithMany()
+                        .HasForeignKey("EjercicioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ejercicio");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.LibroInventariosCuentasAnuales", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.EjercicioContable", "Ejercicio")
+                        .WithMany()
+                        .HasForeignKey("EjercicioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ejercicio");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.LibroMayor", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.CuentaContable", "CuentaContable")
+                        .WithMany()
+                        .HasForeignKey("CuentaContableCodigo")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.EjercicioContable", "Ejercicio")
+                        .WithMany()
+                        .HasForeignKey("EjercicioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CuentaContable");
+
+                    b.Navigation("Ejercicio");
 
                     b.Navigation("Empresa");
                 });
@@ -1221,6 +4581,202 @@ namespace ERP.Data.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Empresa", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.FirmaDigital.CertificadoDigital", "CertificadoVerifactu")
+                        .WithMany()
+                        .HasForeignKey("CertificadoVerifactuId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CertificadoVerifactu");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FacturaElectronica", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.FirmaDigital.CertificadoDigital", "Certificado")
+                        .WithMany()
+                        .HasForeignKey("CertificadoId");
+
+                    b.HasOne("ERP.Domain.Entities.DocumentoComercial", "Documento")
+                        .WithMany()
+                        .HasForeignKey("DocumentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Certificado");
+
+                    b.Navigation("Documento");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FirmaDigital.CertificadoDigital", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FirmaDigital.ComunicacionCertificada", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FirmaDigital.FirmaElectronica", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.FirmaDigital.CertificadoDigital", "Certificado")
+                        .WithMany("FirmasRealizadas")
+                        .HasForeignKey("CertificadoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Certificado");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FirmaDigital.SelloTiempo", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FirmaDigital.SolicitudFirma", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.FirmaDigital.FirmaElectronica", "FirmaResultado")
+                        .WithMany()
+                        .HasForeignKey("FirmaElectronicaId");
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("FirmaResultado");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.ConfiguracionIVA", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.EjercicioContable", "Ejercicio")
+                        .WithMany()
+                        .HasForeignKey("EjercicioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ejercicio");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.DetalleLiquidacionIVA", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Fiscal.LiquidacionIVA", "Liquidacion")
+                        .WithMany()
+                        .HasForeignKey("LiquidacionIVAId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Fiscal.SectorDiferenciadoIVA", null)
+                        .WithMany("DetallesLiquidacion")
+                        .HasForeignKey("SectorDiferenciadoIVAId");
+
+                    b.Navigation("Liquidacion");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.LibroRegistroIVA", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.EjercicioContable", "Ejercicio")
+                        .WithMany()
+                        .HasForeignKey("EjercicioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ejercicio");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.LiquidacionIVA", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.EjercicioContable", "Ejercicio")
+                        .WithMany()
+                        .HasForeignKey("EjercicioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ejercicio");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.SectorDiferenciadoIVA", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Llamada", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "EmpresaRelacion")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId");
+
+                    b.Navigation("EmpresaRelacion");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.MovimientoStock", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.Articulo", "Articulo")
@@ -1246,7 +4802,47 @@ namespace ERP.Data.Migrations
                         .HasForeignKey("EmpleadoId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("ERP.Domain.Entities.Bancario.RemesaSEPA", "RemesaSEPA")
+                        .WithMany()
+                        .HasForeignKey("RemesaSEPAId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Empleado");
+
+                    b.Navigation("RemesaSEPA");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.PoliticaControlHorario", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.RGPD.LiquidacionSeguridadSocial", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.RGPD.RegistroTratamiento", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.RegistroVerifactu", b =>
@@ -1260,13 +4856,139 @@ namespace ERP.Data.Migrations
                     b.Navigation("Documento");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.RegistroVerifactuAnulacion", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.RegistroVerifactu", "RegistroAlta")
+                        .WithMany()
+                        .HasForeignKey("RegistroAltaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RegistroAlta");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Tarea", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.AlertaTrazabilidad", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Trazabilidad.LoteTrazabilidad", "Lote")
+                        .WithMany("Alertas")
+                        .HasForeignKey("LoteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("Lote");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.LoteTrazabilidad", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Articulo", "Articulo")
+                        .WithMany()
+                        .HasForeignKey("ArticuloId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Proveedor", "Proveedor")
+                        .WithMany()
+                        .HasForeignKey("ProveedorId");
+
+                    b.Navigation("Articulo");
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("Proveedor");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.MovimientoLote", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId");
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Trazabilidad.LoteTrazabilidad", "Lote")
+                        .WithMany("MovimientosEntrada")
+                        .HasForeignKey("LoteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Trazabilidad.LoteTrazabilidad", "LoteOrigen")
+                        .WithMany("MovimientosSalida")
+                        .HasForeignKey("LoteOrigenId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.Trazabilidad.LoteTrazabilidad", "LoteResultado")
+                        .WithMany()
+                        .HasForeignKey("LoteResultadoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.Proveedor", "Proveedor")
+                        .WithMany()
+                        .HasForeignKey("ProveedorId");
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("Lote");
+
+                    b.Navigation("LoteOrigen");
+
+                    b.Navigation("LoteResultado");
+
+                    b.Navigation("Proveedor");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.RetiradaLote", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Trazabilidad.LoteTrazabilidad", "Lote")
+                        .WithMany("Retiradas")
+                        .HasForeignKey("LoteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("Lote");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Vencimiento", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.DocumentoComercial", "Documento")
                         .WithMany()
-                        .HasForeignKey("DocumentoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("DocumentoId");
 
                     b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
                         .WithMany()
@@ -1330,6 +5052,47 @@ namespace ERP.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.CuentaBancaria", b =>
+                {
+                    b.Navigation("MandatosAcreedor");
+
+                    b.Navigation("MandatosDeudor");
+
+                    b.Navigation("RemesasBeneficiaria");
+
+                    b.Navigation("RemesasOrdenante");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.ExtractoBancario", b =>
+                {
+                    b.Navigation("Movimientos");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.MandatoSEPA", b =>
+                {
+                    b.Navigation("Remesas");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Bancario.RemesaSEPA", b =>
+                {
+                    b.Navigation("Operaciones");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.AsientoContable", b =>
+                {
+                    b.Navigation("Apuntes");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.CuentaContable", b =>
+                {
+                    b.Navigation("Subcuentas");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.LibroDiario", b =>
+                {
+                    b.Navigation("Asientos");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.DocumentoComercial", b =>
                 {
                     b.Navigation("Lineas");
@@ -1345,6 +5108,27 @@ namespace ERP.Data.Migrations
             modelBuilder.Entity("ERP.Domain.Entities.Familia", b =>
                 {
                     b.Navigation("Articulos");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.FirmaDigital.CertificadoDigital", b =>
+                {
+                    b.Navigation("FirmasRealizadas");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Fiscal.SectorDiferenciadoIVA", b =>
+                {
+                    b.Navigation("DetallesLiquidacion");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.LoteTrazabilidad", b =>
+                {
+                    b.Navigation("Alertas");
+
+                    b.Navigation("MovimientosEntrada");
+
+                    b.Navigation("MovimientosSalida");
+
+                    b.Navigation("Retiradas");
                 });
 #pragma warning restore 612, 618
         }

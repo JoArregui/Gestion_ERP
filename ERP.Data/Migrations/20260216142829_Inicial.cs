@@ -14,12 +14,12 @@ namespace ERP.Data.Migrations
                 name: "Articulos",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Codigo = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    Descripcion = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Codigo = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
+                    Descripcion = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
                     Precio = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    IsDescatalogado = table.Column<bool>(type: "bit", nullable: false)
+                    IsDescatalogado = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -30,12 +30,12 @@ namespace ERP.Data.Migrations
                 name: "Clientes",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CIF = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    Nombre = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    IsActivo = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    CIF = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
+                    Nombre = table.Column<string>(type: "TEXT", maxLength: 150, nullable: false),
+                    Email = table.Column<string>(type: "TEXT", nullable: true),
+                    IsActivo = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -46,16 +46,16 @@ namespace ERP.Data.Migrations
                 name: "Empresas",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    NombreComercial = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    RazonSocial = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
-                    CIF = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    Direccion = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Email = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    SerieFacturacion = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    UltimoNumeroFactura = table.Column<int>(type: "int", nullable: false),
-                    IsActiva = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    NombreComercial = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    RazonSocial = table.Column<string>(type: "TEXT", maxLength: 150, nullable: false),
+                    CIF = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
+                    Direccion = table.Column<string>(type: "TEXT", nullable: true),
+                    Email = table.Column<string>(type: "TEXT", nullable: true),
+                    SerieFacturacion = table.Column<string>(type: "TEXT", nullable: false),
+                    UltimoNumeroFactura = table.Column<int>(type: "INTEGER", nullable: false),
+                    IsActiva = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {

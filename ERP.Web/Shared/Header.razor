@@ -1,15 +1,18 @@
-@using ERP.Web.Services
+﻿@using ERP.Web.Services
+@using ERP.Web.Components
 @using Microsoft.AspNetCore.Components.Authorization
 @inject AuthService AuthService
+@inject EmpresaService EmpresaService
 @inject NotificationService NotificationService
 @inject NavigationManager NavigationManager
 @implements IDisposable
 
 <header class="h-20 bg-[#0f172a] border-b border-slate-800/50 flex items-center justify-between px-8 shadow-sm">
     
-    @* BUSCADOR GLOBAL O TÍTULO *@
+    @* BUSCADOR GLOBAL O TÃTULO *@
     <div class="flex items-center">
         <h2 class="text-slate-400 font-bold text-xs uppercase tracking-[0.2em]">Panel de Control <span class="text-slate-600 mx-2">/</span> <span class="text-white">Escritorio</span></h2>
+        <div class="ml-6"><EmpresaSelector /></div>
     </div>
 
     @* INFO USUARIO Y ACCIONES *@
@@ -67,10 +70,10 @@
                         <span class="text-blue-500 font-bold text-[9px] uppercase tracking-widest mt-1">Conectado</span>
                     </div>
                     
-                    @* BOTÓN CERRAR SESIÓN *@
+                    @* BOTÃ“N CERRAR SESIÃ“N *@
                     <button @onclick="HandleLogout" 
                             class="w-10 h-10 bg-slate-800/50 hover:bg-red-500/10 border border-slate-700/50 hover:border-red-500/50 text-slate-400 hover:text-red-500 rounded-xl transition-all flex items-center justify-center group shadow-lg"
-                            title="Cerrar Sesión">
+                            title="Cerrar SesiÃ³n">
                         <i class="bi bi-power text-xl group-hover:scale-110 transition-transform"></i>
                     </button>
                 </div>
@@ -89,11 +92,12 @@
 @code {
     private bool showNotifications;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        await EmpresaService.LoadAsync();
+        EmpresaService.OnChange += () => InvokeAsync(StateHasChanged);
         NotificationService.OnShow += HandleNotification;
     }
-
     private void HandleNotification(string _, NotificationType __)
     {
         InvokeAsync(StateHasChanged);

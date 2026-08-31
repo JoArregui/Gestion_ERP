@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -57,7 +57,24 @@ namespace ERP.Domain.Entities
 
         public bool IsContabilizado { get; set; } = false;
 
-        // --- ESTADO SEMÁNTICO PARA USUARIO ---
+        // --- VERI*FACTU (RD 1007/2023) ---
+        public bool IncidenciaVerifactu { get; set; } = false;
+        public bool EsFacturaSimplificada { get; set; } = false;
+        public bool EsFacturaSinIdentifDestinatario { get; set; } = false;
+        [StringLength(2)]
+        public string? TipoRectificativa { get; set; } // I,S
+        public string? FacturasRectificadasJson { get; set; }
+
+        // --- TRAZABILIDAD FISCAL: emisión formal ---
+        public bool EnviadaCliente { get; set; } = false;
+        public DateTime? FechaEnvioCliente { get; set; }
+        public bool PresentadaHacienda { get; set; } = false;
+        public DateTime? FechaPresentacionHacienda { get; set; }
+
+        [NotMapped]
+        public bool EstaEmitidaFormalmente => EnviadaCliente || PresentadaHacienda;
+
+        // --- ESTADO SEMÃNTICO PARA USUARIO ---
         public EstadoDocumento Estado { get; set; } = EstadoDocumento.Borrador;
 
         public string MetodoPago { get; set; } = "Efectivo";
@@ -71,7 +88,7 @@ namespace ERP.Domain.Entities
         // --- PROPIEDAD REQUERIDA POR EL COMPONENTE (Error CS1061) ---
         public string? NotasInternas { get; set; }
 
-        // Cambiamos a List para permitir la instanciación directa en el componente (Error CS0144)
+        // Cambiamos a List para permitir la instanciaciÃ³n directa en el componente (Error CS0144)
         public virtual List<DocumentoLinea> Lineas { get; set; } = new List<DocumentoLinea>();
     }
 }

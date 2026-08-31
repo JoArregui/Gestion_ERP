@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Components.Web;
+﻿using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Net.Http;
@@ -19,7 +19,7 @@ builder.Services.AddAuthorizationCore(options =>
             policy.RequireClaim("Permission", permission));
     }
 });
-builder.Services.AddScoped<CustomAuthenticationProvider>();
+    builder.Services.AddScoped<CustomAuthenticationProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<CustomAuthenticationProvider>());
 
@@ -49,9 +49,11 @@ builder.Services.AddScoped(sp =>
 
 // --- 3. SERVICIOS ADICIONALES ---
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<EmpresaService>();
 builder.Services.AddScoped<ComprasWebService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<TesoreriaWebService>();
 builder.Services.AddScoped<EmpleadoService>();
 
 await builder.Build().RunAsync();
+

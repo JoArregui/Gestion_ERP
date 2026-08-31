@@ -1,143 +1,131 @@
-using ERP.Data;
+﻿using ERP.Data;
 using ERP.Domain.Entities;
-using ERP.Domain.Constants; // Importante para acceder a AppPermissions
-using Microsoft.AspNetCore.Identity;
+using ERP.Domain.Entities.Fiscal;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims; // Necesario para los permisos
-using System.Threading.Tasks;
 
 namespace ERP.Services
 {
     public static class SeedService
     {
-        public static async Task SeedAsync(ApplicationDbContext context, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
+        /// <summary>
+        /// Llena datos maestros y configuraciones por defecto una vez la BD está creada/migrada.
+        /// </summary>
+        public static async Task SeedAsync(ApplicationDbContext ctx)
         {
-            // 1. ASEGURAR ROLES DEL SISTEMA
-            string[] roles = { "Admin", "Usuario", "Almacen", "Contabilidad" };
-            foreach (var roleName in roles)
+            // 1. Tarifas IVA/IGIC/IPSI 2026 (si tabla vacía)
+            if (!await ctx.TarifasImpuesto.AnyAsync())
             {
-                if (!await roleManager.RoleExistsAsync(roleName))
-                {
-                    await roleManager.CreateAsync(new IdentityRole(roleName));
-                }
+                // Crear objetos base sin enum para evitar conversión implícita en inicializador
+                var t0 = new TarifaImpuesto { Nombre = "IVA General", Porcentaje = 21m, RecargoEquivalencia = 5.2m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+                var t1 = new TarifaImpuesto { Nombre = "IVA Reducido", Porcentaje = 10m, RecargoEquivalencia = 1.4m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+                var t2 = new TarifaImpuesto { Nombre = "IVA Superreducido", Porcentaje = 4m, RecargoEquivalencia = 0.5m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+                var igic0 = new TarifaImpuesto { Nombre = "IGIC General", Porcentaje = 7m, RecargoEquivalencia = 0m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+                var igic1 = new TarifaImpuesto { Nombre = "IGIC Reducido", Porcentaje = 3m, RecargoEquivalencia = 0m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+                var igic2 = new TarifaImpuesto { Nombre = "IGIC Superreducido", Porcentaje = 0m, RecargoEquivalencia = 0m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+                var igic3 = new TarifaImpuesto { Nombre = "IGIC Incrementado", Porcentaje = 9.5m, RecargoEquivalencia = 0m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+                var igic4 = new TarifaImpuesto { Nombre = "IGIC Especial", Porcentaje = 13.5m, RecargoEquivalencia = 1.75m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+                var igic5 = new TarifaImpuesto { Nombre = "IGIC Petróleo nuevo 2026", Porcentaje = 1m, RecargoEquivalencia = 0m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+                var ipsi0 = new TarifaImpuesto { Nombre = "IPSI 0.5%", Porcentaje = 0.5m, RecargoEquivalencia = 0m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+                var ipsi1 = new TarifaImpuesto { Nombre = "IPSI 10%", Porcentaje = 10m, RecargoEquivalencia = 0m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+                var exento = new TarifaImpuesto { Nombre = "IVA Exento 20 LIVA", Porcentaje = 0m, RecargoEquivalencia = 0m, Vigente = true, FechaDesde = new DateTime(2026, 1, 1) };
+
+                // Asignar enum explícitos después de la creación
+                t0.Territorio = (TerritorioFiscal)0; t0.TipoIVA = (TipoIVA)0;
+                t1.Territorio = (TerritorioFiscal)0; t1.TipoIVA = (TipoIVA)1;
+                t2.Territorio = (TerritorioFiscal)0; t2.TipoIVA = (TipoIVA)2;
+
+                igic0.Territorio = (TerritorioFiscal)1; igic0.TipoIVA = (TipoIVA)0;
+                igic1.Territorio = (TerritorioFiscal)1; igic1.TipoIVA = (TipoIVA)1;
+                igic2.Territorio = (TerritorioFiscal)1; igic2.TipoIVA = (TipoIVA)2;
+                igic3.Territorio = (TerritorioFiscal)1; igic3.TipoIVA = (TipoIVA)3;
+                igic4.Territorio = (TerritorioFiscal)1; igic4.TipoIVA = (TipoIVA)4;
+                igic5.Territorio = (TerritorioFiscal)1; igic5.TipoIVA = (TipoIVA)5;
+
+                ipsi0.Territorio = (TerritorioFiscal)2; ipsi0.TipoIVA = (TipoIVA)0;
+                ipsi1.Territorio = (TerritorioFiscal)2; ipsi1.TipoIVA = (TipoIVA)1;
+
+                exento.Territorio = (TerritorioFiscal)4; exento.TipoIVA = (TipoIVA)5;
+
+                ctx.TarifasImpuesto.AddRange(t0, t1, t2, igic0, igic1, igic2, igic3, igic4, igic5, ipsi0, ipsi1, exento);
+                await ctx.SaveChangesAsync();
             }
 
-            // 2. ASEGURAR EXISTENCIA DE EMPRESA (Requisito para ApplicationUser)
-            var empresaPrincipal = await context.Empresas.FirstOrDefaultAsync();
-            if (empresaPrincipal == null)
+            // 2. Política control horario por defecto por empresa existente
+            if (!await ctx.PoliticasControlHorario.AnyAsync())
             {
-                empresaPrincipal = new Empresa 
-                { 
-                    NombreComercial = "SISTEMA ERP GENERICO",
-                    CIF = "B00000000",
-                    FechaAlta = DateTime.Now,
-                    IsActiva = true
-                };
-                context.Empresas.Add(empresaPrincipal);
-                await context.SaveChangesAsync();
-            }
-
-            // 3. ASEGURAR USUARIO ADMINISTRADOR
-            var adminEmail = "admin@erp.com";
-            var adminUser = await userManager.FindByEmailAsync(adminEmail);
-
-            if (adminUser == null)
-            {
-                adminUser = new ApplicationUser
+                var emp = await ctx.Empresas.FirstOrDefaultAsync();
+                if (emp != null)
                 {
-                    UserName = adminEmail,
-                    Email = adminEmail,
-                    FullName = "Administrador del Sistema",
-                    IsActivo = true,
-                    EmailConfirmed = true,
-                    EmpresaId = empresaPrincipal.Id,
-                    UltimoAcceso = DateTime.Now
-                };
-
-                var result = await userManager.CreateAsync(adminUser, "Admin123!");
-
-                if (result.Succeeded)
-                {
-                    // Asignar Rol
-                    await userManager.AddToRoleAsync(adminUser, "Admin");
-
-                    // --- ASIGNACIÓN DE PERMISOS (CLAIMS) ---
-                    // Esto es lo que hace que el NavMenu se llene de opciones
-                    var existingClaims = await userManager.GetClaimsAsync(adminUser);
-                    foreach (var permission in AppPermissions.All)
+                    ctx.PoliticasControlHorario.Add(new PoliticaControlHorario
                     {
-                        if (!existingClaims.Any(c => c.Type == "Permission" && c.Value == permission))
-                        {
-                            await userManager.AddClaimAsync(adminUser, new Claim("Permission", permission));
-                        }
-                    }
+                        EmpresaId = emp.Id,
+                        RequiereGeolocalizacion = false,
+                        PermiteAutoCorreccion = true,
+                        MargenToleranciaMinutos = 5,
+                        HorasExtraMaxMes = 80,
+                        RequiereFirmaCorreccion = true,
+                        AniosConservacion = 4,
+                        ConvenioReferencia = null,
+                        FechaCreacion = DateTime.Now
+                    });
+                    await ctx.SaveChangesAsync();
                 }
             }
 
-            // 4. CONFIGURACIÓN INICIAL DE PARÁMETROS GENERALES
-            if (!await context.ConfiguracionesGenerales.AnyAsync())
+            // 3. Config IVA por empresa si no existe
+            if (!await ctx.ConfiguracionesIVA.AnyAsync())
             {
-                var configs = new List<ConfiguracionGeneral>
+                var e = await ctx.Empresas.FirstOrDefaultAsync();
+                if (e != null)
                 {
-                    new ConfiguracionGeneral { Clave = "SMTP_Server", Valor = "smtp.gmail.com", Descripcion = "Servidor de correo outgoing", UltimaModificacion = DateTime.Now },
-                    new ConfiguracionGeneral { Clave = "SMTP_Port", Valor = "587", Descripcion = "Puerto SMTP TLS/SSL", UltimaModificacion = DateTime.Now },
-                    new ConfiguracionGeneral { Clave = "SMTP_User", Valor = "tu-email@gmail.com", Descripcion = "Usuario para autenticación SMTP", UltimaModificacion = DateTime.Now },
-                    new ConfiguracionGeneral { Clave = "SMTP_Pass", Valor = "tu-password", Descripcion = "Contraseña cifrada o de aplicación", UltimaModificacion = DateTime.Now },
-                    new ConfiguracionGeneral { Clave = "Empresa_Logo", Valor = "/img/logo.png", Descripcion = "Ruta virtual del logo de la empresa", UltimaModificacion = DateTime.Now }
-                };
-
-                await context.ConfiguracionesGenerales.AddRangeAsync(configs);
-                await context.SaveChangesAsync();
+                    ctx.ConfiguracionesIVA.Add(new ConfiguracionIVA
+                    {
+                        EmpresaId = e.Id,
+                        EjercicioId = 1,
+                        AplicaProrrataGeneral = true,
+                        PorcentajeProrrataGeneral = 100m,
+                        PorcentajeProrrataGeneralRedondeado = 100m,
+                        AplicaIVACaja = false,
+                        FechaCreacion = DateTime.Now
+                    });
+                    await ctx.SaveChangesAsync();
+                }
             }
 
-            // 5. DATOS DE MUESTRA PARA MAESTROS (evita "Sin datos" tras reset de BD el 26/08 por migración Estado)
-            // Se crean solo si las tablas están vacías, por lo que no duplica en BD con datos reales.
-            if (!await context.Familias.AnyAsync())
+            // 4. Datos maestros cliente/proveedor: DIR3 y UE (solo si vienen vacíos)
+            if (!await ctx.Clientes.AnyAsync(c => c.DIR3_OficinaContable != null || c.DIR3_OrganoGestor != null || c.DIR3_UnidadTramitadora != null || !string.IsNullOrEmpty(c.NIF_UE) || c.EsAdministracionPublica.HasValue))
             {
-                var f1 = new Familia { Nombre = "GENERAL", CodigoInterno = "GEN", Descripcion = "Familia por defecto", IsActiva = true, FechaCreacion = DateTime.Now };
-                var f2 = new Familia { Nombre = "ELECTRÓNICA", CodigoInterno = "ELEC", Descripcion = "Material electrónico", IsActiva = true, FechaCreacion = DateTime.Now };
-                context.Familias.AddRange(f1, f2);
-                await context.SaveChangesAsync();
-            }
-            if (!await context.Articulos.AnyAsync())
-            {
-                var famId = await context.Familias.Select(f => f.Id).FirstOrDefaultAsync();
-                if (famId == 0) famId = 1;
-                var arts = new List<Articulo>
+                var clientes = await ctx.Clientes.ToListAsync();
+                foreach (var c in clientes)
                 {
-                    new Articulo { Codigo = "ART-001", Descripcion = "Artículo demo 1", FamiliaId = famId, EmpresaId = empresaPrincipal.Id, PrecioCompra = 10, PrecioVenta = 15, Stock = 100, StockMinimo = 10, PorcentajeIva = 21, IsDescatalogado = false },
-                    new Articulo { Codigo = "ART-002", Descripcion = "Artículo demo 2", FamiliaId = famId, EmpresaId = empresaPrincipal.Id, PrecioCompra = 20, PrecioVenta = 30, Stock = 50, StockMinimo = 5, PorcentajeIva = 21, IsDescatalogado = false }
-                };
-                context.Articulos.AddRange(arts);
-                await context.SaveChangesAsync();
+                    c.DIR3_OficinaContable = "";
+                    c.DIR3_OrganoGestor = "";
+                    c.DIR3_UnidadTramitadora = "";
+                    c.NIF_UE = "ES";
+                    c.PaisISO = "ES";
+                    c.EsAdministracionPublica = false;
+                }
+                await ctx.SaveChangesAsync();
             }
-            if (!await context.Clientes.AnyAsync())
+
+            if (!await ctx.Proveedores.AnyAsync(p => p.DIR3_OficinaContable != null || p.DIR3_OrganoGestor != null || p.DIR3_UnidadTramitadora != null || !string.IsNullOrEmpty(p.NIF_UE) || p.EsAdministracionPublica.HasValue))
             {
-                var cli = new Cliente { CodigoCliente = "CLI-001", RazonSocial = "CLIENTE DEMO S.L.", NombreComercial = "Cliente Demo", CIF = "12345678Z", Direccion = "Calle Ejemplo 1", Poblacion = "Madrid", Provincia = "Madrid", CodigoPostal = "28001", Telefono = "600000001", Email = "demo@cliente.com", EmpresaId = empresaPrincipal.Id, FechaAlta = DateTime.Now, IsActivo = true, FormaPago = "Transferencia", DiaPagoHabitual = 1 };
-                context.Clientes.Add(cli);
-                await context.SaveChangesAsync();
+                var provs = await ctx.Proveedores.ToListAsync();
+                foreach (var p in provs)
+                {
+                    p.DIR3_OficinaContable = "";
+                    p.DIR3_OrganoGestor = "";
+                    p.DIR3_UnidadTramitadora = "";
+                    p.NIF_UE = "ES";
+                    p.PaisISO = "ES";
+                    p.EsAdministracionPublica = false;
+                }
+                await ctx.SaveChangesAsync();
             }
-            if (!await context.Proveedores.AnyAsync())
-            {
-                var prov = new Proveedor { CIF = "A12345678", RazonSocial = "PROVEEDOR DEMO S.L.", NombreContacto = "Juan Pérez", Email = "proveedor@demo.com", Telefono = "600000002", EsAcreedor = false, IsActivo = true, FechaAlta = DateTime.Now };
-                context.Proveedores.Add(prov);
-                await context.SaveChangesAsync();
-            }
-            if (!await context.Acreedores.AnyAsync())
-            {
-                var acre = new Acreedor { CIF = "B87654321", RazonSocial = "ACREEDOR DEMO S.L.", NombreContacto = "Ana López", Email = "acreedor@demo.com", Telefono = "600000003", EsAcreedor = true, IsActivo = true, FechaAlta = DateTime.Now };
-                context.Acreedores.Add(acre);
-                await context.SaveChangesAsync();
-            }
-            if (!await context.Empleados.AnyAsync())
-            {
-                var emp = new Empleado { DNI = "12345678A", Nombre = "Demo", Apellidos = "Empleado", NumeroSeguridadSocial = "123456789012", PinAcceso = "1234", EmpresaId = empresaPrincipal.Id, Cargo = "Operario", Departamento = "General", Email = "demo@empleado.com", Telefono = "600000004", SalarioBaseMensual = 1500, SalarioBrutoAnual = 18000, FechaAlta = DateTime.Now, VacacionesTotales = 22, VacacionesDisfrutadas = 0 };
-                context.Empleados.Add(emp);
-                await context.SaveChangesAsync();
-            }
+
+            // 5. Certificado Verifactu por defecto: dejaremos al admin, aquí solo aseguramos nullable.
+
+            await Task.CompletedTask;
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using ERP.Domain.Entities.Fiscal;
 
 namespace ERP.Domain.Entities
 {
@@ -49,6 +50,25 @@ namespace ERP.Domain.Entities
         public decimal IvaDefecto { get; set; } = 21m;
 
         public bool IsActiva { get; set; } = true;
+
+        // --- VERI*FACTU (RD 1007/2023 + Orden HAC/1177/2024) ---
+        public ModalidadVerifactu ModalidadVerifactu { get; set; } = ModalidadVerifactu.Verifactu;
+        public DateTime? FechaAltaVerifactu { get; set; }
+        public int? CertificadoVerifactuId { get; set; }
+        [ForeignKey(nameof(CertificadoVerifactuId))]
+        public virtual FirmaDigital.CertificadoDigital? CertificadoVerifactu { get; set; }
+        [StringLength(100)]
+        public string? NombreSistemaInformatico { get; set; } = "ERP.NET";
+        [StringLength(20)]
+        public string? VersionSistemaInformatico { get; set; } = "1.0.0";
+        [StringLength(100)]
+        public string? IdSistemaInformatico { get; set; }
+        [StringLength(20)]
+        public string? NumeroInstalacion { get; set; }
+
+        // --- TERRITORIO FISCAL (IVA/IGIC/IPSI) ---
+        public TerritorioFiscal TerritorioFiscal { get; set; } = TerritorioFiscal.PeninsulaBaleares;
+        public bool EsSII { get; set; } = false; // Suministro Inmediato Información
 
         // --- AUDITORÍA ---
         public DateTime FechaAlta { get; set; } = DateTime.Now;

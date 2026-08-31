@@ -50,6 +50,19 @@ namespace ERP.Domain.Entities
         public bool IsBloqueado { get; set; } = false; 
         public string? MotivoBloqueo { get; set; }
 
+        // --- FACTURA ELECTRÓNICA / DIR3 (FACe) ---
+        public bool EsAdministracionPublica { get; set; } = false;
+        [StringLength(20)]
+        public string? DIR3_OficinaContable { get; set; }
+        [StringLength(20)]
+        public string? DIR3_OrganoGestor { get; set; }
+        [StringLength(20)]
+        public string? DIR3_UnidadTramitadora { get; set; }
+        [StringLength(20)]
+        public string? NIF_UE { get; set; } // VIES
+        [StringLength(2)]
+        public string? PaisISO { get; set; } = "ES";
+
         // --- MULTI-TENANT ---
         public int EmpresaId { get; set; }
         [ForeignKey("EmpresaId")]

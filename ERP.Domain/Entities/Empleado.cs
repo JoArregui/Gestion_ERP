@@ -36,6 +36,18 @@ namespace ERP.Domain.Entities
         // --- DATOS CONTRACTUALES ---
         public string? Cargo { get; set; } 
         public string? Departamento { get; set; } 
+        public int GrupoCotizacion { get; set; } = 7; // 1-11
+        [StringLength(20)]
+        public string? CodigoCuentaCotizacion { get; set; } // CCC TGSS
+        [StringLength(50)]
+        public string? ConvenioColectivo { get; set; }
+        [StringLength(20)]
+        public string? TipoContrato { get; set; } // 100 Indef, 402 Temporal etc.
+        [StringLength(20)]
+        public string? CNAE { get; set; }
+        [StringLength(12)]
+        public string? NumeroAfiliacionNAF { get; set; }
+        public DateTime? FechaAntiguedad { get; set; }
         
         [Required]
         public DateTime FechaAlta { get; set; } = DateTime.Now;
