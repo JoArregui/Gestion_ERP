@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERP.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260831134254_AddLegal2026_Dossier")]
-    partial class AddLegal2026_Dossier
+    [Migration("20260901075936_Legal2026_Full")]
+    partial class Legal2026_Full
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
