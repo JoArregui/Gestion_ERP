@@ -1,0 +1,245 @@
+@page "/verifactu"
+@using ERP.Domain.Entities
+@using ERP.Web.Services
+@using ERP.Services
+@inject VerifactuService VerifactuService
+@inject EmpresaService EmpresaService
+@inject NotificationService Notification
+@inject NavigationManager Nav
+@implements IDisposable
+
+<h3>Verifactu - RD 1007/2023 (Antifraude)</h3>
+
+<div class="row">
+    <div class="col-12 col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Generar Registro Alta</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Empresa: @Empresa.RazonSocial</p>
+                <hr>
+                <div class="mb-2">
+                    <label>Fecha Alta</label>
+                    <input class="form-control" @bind="fechaAlta" placeholder="dd/MM/yyyy" />
+                </div>
+                <div class="mb-2">
+                    <label>Tipo Rectificativa</label>
+                    <select class="form-control" @bind="tipoRectificativa">
+                        <option value="">-- Seleccionar --</option>
+                        <option value="1">Rectificación simple</option>
+                        <option value="2">Rectificación por error material</option>
+                        <option value="3">Rectificación por requisito legal</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Operación</label>
+                    <input class="form-control" @bind="descripcionOperacion" placeholder="Descripción de la operación" />
+                </div>
+                <button class="btn btn-success w-100 mt-2" @onclick="GenerarAlta">
+                    <span class="oi oi-plus"></span> Generar Registro
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Generar Anulación</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Seleccionar registro base</p>
+                <hr>
+                <select class="form-control" @bind="registroAnulacionId">
+                    <option value="">-- Ningún registro --</option>
+                    @foreach (var reg in RegistrosAlta)
+                    {
+                        <option value="@reg.Id">@(reg.FechaHoraHusoGeneracion.ToString("dd/MM/yyyy HH:mm")) - @reg.NombreRazonEmisor</option>
+                    }
+                </select>
+            </div>
+            <div class="card-footer small">
+                <button class="btn btn-link text-danger w-100" @onclick="EliminarSeleccion">
+                    Quitar selección
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Última Huella</h5>
+            </div>
+            <div class="card-body">
+                @if (UltimaHuella == null)
+                {
+                    <p class="text-muted">Sin registros generados</p>
+                }
+                else
+                {
+                    <h6>Huella del último registro</h6>
+                    <pre class="small bg-light p-2" style="white-space: pre-wrap;">@UltimaHuella</pre>
+                    <p class="mt-2">
+                        <strong>Sistema:</strong> @UltimaHuellaNombreSistema<br/>
+                        <strong>Fecha:</strong> @UltimaHuellaFechaHora?.ToString("dd/MM/yyyy HH:mm")
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Registros de Verifactu (@(RegistrosAlta.Count + RegistrosAnulacion.Count) total)</h5>
+            </div>
+            <div class="card-body p-0" style="height: 400px; overflow-y: auto;">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Emisor</th>
+                            <th>Tipo</th>
+                            <th>Huella</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var reg in RegistrosAlta)
+                        {
+                            <tr style="background: @(reg.Estado == 2 ? "#ffeef0" : "")">
+                                <td>@reg.FechaHoraHusoGeneracion.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@reg.NombreRazonEmisor</td>
+                                <td>@(reg.TipoRectificativa == null ? "Alta" : "Rectif")</td>
+                                <td>@(reg.Hash.Length > 8 ? reg.Hash.Substring(0,8) + "..." : reg.Hash)</td>
+                                <td>@(reg.Estado == 0 ? "Activo" : reg.Estado == 1 ? "Anulado" : "Rechazado")</td>
+                            </tr>
+                        }
+                        @foreach (var reg in RegistrosAnulacion)
+                        {
+                            <tr style="background: #fff5e6;">
+                                <td>@reg.FechaRemision?.ToString("dd/MM/yyyy")</td>
+                                <td>@reg.NifEmisor</td>
+                                <td>Anulación</td>
+                                <td>@(reg.Hash.Length > 8 ? reg.Hash.Substring(0,8) + "..." : reg.Hash)</td>
+                                <td>@(reg.EstadoRemision == "ACEPTADA" ? "Aceptada" : reg.EstadoRemision)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    class AltaView
+    {
+        public int Id { get; set; }
+        public DateTimeOffset FechaHoraHusoGeneracion { get; set; }
+        public string NombreRazonEmisor { get; set; } = "";
+        public string? NifEmisor { get; set; }
+        public string? TipoRectificativa { get; set; }
+        public string DescripcionOperacion { get; set; } = "";
+        public string Hash { get; set; } = "";
+        public int Estado { get; set; } = 0;
+        public DateTimeOffset? FechaRemision { get; set; }
+        public string? EstadoRemision { get; set; }
+    }
+
+    private Empresa Empresa = new();
+    private DateTime fechaAlta = DateTime.Now;
+    private int? tipoRectificativa;
+    private string descripcionOperacion = "";
+
+    private int? registroAnulacionId;
+    private List<AltaView> RegistrosAlta = new();
+    private List<AltaView> RegistrosAnulacion = new();
+
+    private string? UltimaHuella;
+    private string? UltimaHuellaNombreSistema;
+    private DateTimeOffset? UltimaHuellaFechaHora;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var emp = await EmpresaService.GetEmpresaActualAsync();
+        Empresa = emp ?? new Empresa { RazonSocial = "Empresa sin configurar" };
+
+        var altaResult = await VerifactuService.GetRegistrosAltaAsync(Empresa.Id == 0 ? null : Empresa.Id);
+        var anulResult = await VerifactuService.GetRegistrosAnulacionAsync(Empresa.Id == 0 ? null : Empresa.Id);
+
+        RegistrosAlta = altaResult.Select(r => new AltaView
+        {
+            Id = r.Id,
+            FechaHoraHusoGeneracion = r.FechaHoraHusoGeneracion,
+            NombreRazonEmisor = r.NombreRazonEmisor ?? r.NifEmisor,
+            NifEmisor = r.NifEmisor,
+            TipoRectificativa = r.TipoRectificativa,
+            DescripcionOperacion = r.DescripcionOperacion ?? "",
+            Hash = r.Huella ?? "",
+            Estado = r.EstadoRemision == "Pendiente" ? 0 : r.EstadoRemision == "Aceptado" ? 1 : 0,
+            FechaRemision = r.FechaRemision,
+            EstadoRemision = r.EstadoRemision
+        }).ToList();
+
+        RegistrosAnulacion = anulResult.Select(r => new AltaView
+        {
+            Id = r.RegistroAltaId,
+            FechaHoraHusoGeneracion = r.FechaHoraHusoGeneracion,
+            NombreRazonEmisor = r.NifEmisor,
+            NifEmisor = r.NifEmisor,
+            TipoRectificativa = null,
+            DescripcionOperacion = $"Anulación factura {r.NumeroFactura}",
+            Hash = r.Huella ?? "",
+            Estado = 1,
+            FechaRemision = r.FechaRemision,
+            EstadoRemision = r.EstadoRemision
+        }).ToList();
+
+        if (RegistrosAlta.Any())
+        {
+            var ultimo = RegistrosAlta.OrderByDescending(r => r.FechaHoraHusoGeneracion).First();
+            UltimaHuella = ultimo.Hash;
+            UltimaHuellaNombreSistema = ultimo.DescripcionOperacion;
+            UltimaHuellaFechaHora = ultimo.FechaHoraHusoGeneracion;
+        }
+    }
+
+    private async Task GenerarAlta()
+    {
+        if (string.IsNullOrWhiteSpace(descripcionOperacion))
+        {
+            Notification.Error("La descripción de la operación es obligatoria");
+            return;
+        }
+
+        var exito = await VerifactuService.GenerarRegistroAltaAsync(
+           EmpresaId: Empresa.Id,
+           FechaHora: fechaAlta,
+           NombreRazonEmisor: Empresa.RazonSocial ?? "Sin nombre",
+           TipoRectificativa: tipoRectificativa ?? 0,
+           DescripcionOperacion: descripcionOperacion
+        );
+
+        if (exito)
+        {
+            Notification.Success("Registro VERI*FACTU generado correctamente");
+            await OnInitializedAsync();
+        }
+        else
+        {
+            Notification.Error("No se pudo generar el registro - verificar conexión SII");
+        }
+    }
+
+    private void EliminarSeleccion()
+    {
+        registroAnulacionId = null;
+    }
+
+    public void Dispose() { }
+}

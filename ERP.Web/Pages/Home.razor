@@ -1,4 +1,5 @@
 ﻿@page "/"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @using System.Net.Http.Json
 @using ERP.Domain.DTOs
 @using ERP.Domain.Entities
@@ -6,6 +7,7 @@
 @inject HttpClient Http
 
 <script src="https://cdn.tailwindcss.com"></script>
+<ERP.Web.Shared.Components.OnboardingWizard />
 
 <div class="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500">
     

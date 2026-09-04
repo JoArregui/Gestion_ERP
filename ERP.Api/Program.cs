@@ -153,6 +153,51 @@ using (var scope = app.Services.CreateScope())
             await context.Database.EnsureCreatedAsync();
         }
         await SeedService.SeedAsync(context);
+
+        // --- 8b. SEED BOOTSTRAP: credenciales iniciales para BBDD vacía ---
+        // No crea empresa demo. El primer usuario entra con credenciales iniciales
+        // y desde la UI crea la empresa, familias, artículos, etc.
+        if (!await roleManager.RoleExistsAsync("Admin"))
+            await roleManager.CreateAsync(new IdentityRole("Admin"));
+
+        var bootstrapEmail = "admin@erp.local";
+        var bootstrap = await userManager.FindByEmailAsync(bootstrapEmail);
+        if (bootstrap == null)
+        {
+            bootstrap = new ApplicationUser
+            {
+                UserName = bootstrapEmail,
+                Email = bootstrapEmail,
+                FullName = "Administrador Inicial",
+                EmpresaId = null, // bootstrap sin empresa; la creará tras el primer login
+                IsActivo = true,
+                EmailConfirmed = true
+            };
+            var createResult = await userManager.CreateAsync(bootstrap, "Admin123!");
+            if (createResult.Succeeded)
+            {
+                await userManager.AddToRoleAsync(bootstrap, "Admin");
+                foreach (var perm in AppPermissions.All)
+                    await userManager.AddClaimAsync(bootstrap, new System.Security.Claims.Claim("Permission", perm));
+            }
+            else
+            {
+                var loggerSeed = services.GetRequiredService<ILogger<Program>>();
+                loggerSeed.LogError("No se pudo crear usuario bootstrap: {Errors}", string.Join(", ", createResult.Errors.Select(e => e.Description)));
+            }
+        }
+
+        // --- 8c. DETECCIÓN DE ONBOARDING NECESARIO ---
+        // Si existe usuario bootstrap y no hay empresas, el próximo login forzará onboarding
+        if (bootstrap != null && !await context.Empresas.AnyAsync())
+        {
+            // Marcamos que el onboarding está pendiente usando una key en la configuración
+            // o simplemente dejamos el EmpresaId=null en el usuario bootstrap
+            // y el cliente Blazor detectará esta condición al cargar
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Onboarding necesario: usuario bootstrap existe, pero no hay empresas registradas.");
+            logger.LogInformation("El próximo login redirigirá al asistente de configuración de empresa.");
+        }
     }
     catch (Exception ex)
     {

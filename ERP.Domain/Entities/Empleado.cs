@@ -25,6 +25,12 @@ namespace ERP.Domain.Entities
         
         public string? Telefono { get; set; }
 
+        [StringLength(150)]
+        public string NombreCompleto { get; set; } = string.Empty; // Nombre + Apellidos
+
+        [StringLength(20)]
+        public string CCC { get; set; } = string.Empty; // Código Cuenta Cotización TGSS
+
         [Required(ErrorMessage = "El Nº de Seguridad Social es obligatorio")]
         public string NumeroSeguridadSocial { get; set; } = string.Empty;
 

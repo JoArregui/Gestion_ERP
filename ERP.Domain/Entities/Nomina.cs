@@ -52,6 +52,18 @@ namespace ERP.Domain.Entities
         [Column(TypeName = "decimal(18,4)")]
         public decimal TotalNeto => SalarioBase + Complementos + HorasExtra + PagasExtraProrrateadas - (CuotaSegSocialTrabajador + RetencionIRPF > 0 ? CuotaSegSocialTrabajador + RetencionIRPF : Deducciones);
 
+        // Propiedades para vista
+        [Column(TypeName = "decimal(18,4)")]
+        public decimal BaseTotal { get; set; } = 0m; // Suma de todas las bases
+
+        [Column(TypeName = "decimal(18,4)")]
+        public decimal CuotaSegSocialTrabajadorTotal { get; set; } = 0m; // Cuota completa
+
+        // Propiedades para pagas extra
+        public bool TienePagasExtra { get; set; } = false;
+        public decimal ImportePagasExtra { get; set; } = 0m;
+        public int NumeroPagasExtra { get; set; } = 0;
+
         public DateTime FechaEmision { get; set; } = DateTime.Now;
         
         public bool EstaPagada { get; set; } = false;
@@ -60,5 +72,29 @@ namespace ERP.Domain.Entities
         public int? RemesaSEPAId { get; set; }
         [ForeignKey(nameof(RemesaSEPAId))]
         public virtual Bancario.RemesaSEPA? RemesaSEPA { get; set; }
+
+        // --- Campos SLD SEPA 2026 ---
+        [StringLength(13)]
+        public string NumeroSeguridadSocial { get; set; } = string.Empty; // 12-13 dígitos TGSS
+
+        [StringLength(34)]
+        public string IBAN { get; set; } = string.Empty; // Cuenta bancaria del trabajador
+
+        public int DiasTrabajados { get; set; } = 0; // Días efectivamente trabajados en el período
+
+        [StringLength(200)]
+        public string ConceptoPago { get; set; } = "Nomina mensual"; // Descripción del pago
+
+        [StringLength(2)]
+        public string CodPais { get; set; } = "ES"; // ISO-2 país trabajador
+
+        public DateTime FechaPago { get; set; } = DateTime.Now; // Fecha de pago efectiva
+
+        public DateTime FechaValor { get; set; } = DateTime.Now; // Fecha de valor para banca
+
+        public int? TipoContratoId { get; set; } // FK catálogo tipos contrato
+
+        [StringLength(20)]
+        public string? TipoContrato { get; set; } // 100 Indef, 402 Temporal, etc.
     }
 }

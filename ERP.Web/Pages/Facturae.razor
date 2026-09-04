@@ -1,0 +1,200 @@
+@page "/facturae"
+@using ERP.Domain.Entities
+@using ERP.Web.Services
+@using ERP.Services
+@inject EmpresaService EmpresaService
+@inject FacturaeService FacturaeService
+@inject NotificationService Notification
+@inject NavigationManager Nav
+
+<h3>Factura Electrónica - FACe / B2B</h3>
+
+<div class="row">
+    <div class="col-12 col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5>Datos Empresa</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">@Empresa.RazonSocial</p>
+                <p class="text-muted tiny">NIF: @Empresa.CIF</p>
+                <hr>
+                <label>Modalidad Verifactu</label>
+                <select class="form-control" @bind="modalidadVerifactu">
+                    <option value="0">No configured</option>
+                    <option value="1">Consulta SII</option>
+                    <option value="2">Emisión directa</option>
+                </select>
+                <label class="mt-2">Territorio Fiscal</label>
+                <select class="form-control" @bind="territorioFiscal">
+                    <option value="0">Península/Baleares (IVA)</option>
+                    <option value="1">Canarias (IGIC)</option>
+                    <option value="2">Ceuta/Melilla (IPSI)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5>Estado Envío</h5>
+            </div>
+            <div class="card-body">
+                <select class="form-control" @bind="estadoEnvio">
+                    <option value="0">Sin enviar</option>
+                    <option value="1">Enviado FACe</option>
+                    <option value="2">Confirmado B2B</option>
+                    <option value="3">Error SII</option>
+                </select>
+                <br>
+                <label>Punto Entrada</label>
+                <select class="form-control" @bind="puntoEntrada">
+                    <option value="0">FACe (AEAT)</option>
+                    <option value="1">Hub Privado B2B</option>
+                    <option value="2">Acuerdo Directo</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5>Factura Actual</h5>
+            </div>
+            <div class="card-body">
+                <select class="form-control" @bind="facturaSeleccionada">
+                    <option value="">-- Seleccionar factura --</option>
+                    @foreach (var f in Facturas)
+                    {
+                        <option value="@f.Id">@(f.Documento?.NumeroDocumento ?? "-") - @f.EstadoTexto</option>
+                    }
+                </select>
+                <br>
+                <small>@(Facturas.FirstOrDefault()?.Documento?.Fecha.ToString("dd/MM/yyyy") ?? "Ninguna")</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5>Enviar a FACe</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-primary w-100" @onclick="EnviarFACe">
+                    <span class="oi oi-cloud-upload"></span> Registrar en FACe
+                </button>
+                <hr>
+                <p class="text-muted small">Formato: Facturae 3.2.2 / UBL</p>
+                <p class="text-muted small">DIR3 obligatorio para emisión</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Historial Facturas (@Facturas.Count)</h5>
+            </div>
+            <div class="card-body p-0" style="height: 450px; overflow-y: auto;">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Nº Doc</th>
+                            <th>Cliente/Prov</th>
+                            <th>Fecha</th>
+                            <th>Formato</th>
+                            <th>Estado</th>
+                            <th>Importe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var f in Facturas)
+                        {
+                            <tr>
+                                <td>@(f.Documento?.NumeroDocumento ?? "-")</td>
+                                <td>@(f.Documento?.Cliente?.RazonSocial ?? f.Documento?.Proveedor?.RazonSocial ?? "-")</td>
+                                <td>@(f.Documento?.Fecha.ToString("dd/MM/yyyy") ?? "-")</td>
+                                <td>@f.FormatoTexto</td>
+                                <td>@f.EstadoTexto</td>
+                                <td>@f.ImporteTotal.ToString("N2") €</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    public class FacturaElectronicaView
+    {
+        public int Id { get; set; }
+        public DocumentoComercial Documento { get; set; } = new();
+        public string FormatoTexto { get; set; } = "";
+        public string EstadoTexto { get; set; } = "";
+        public decimal ImporteTotal { get; set; }
+    }
+
+    enum EstadoFactura { SinEnviar = 0, EnviadoFACe = 1, ConfirmadoB2B = 2, ErrorSII = 3 }
+
+    private Empresa Empresa = new();
+    private int modalidadVerifactu;
+    private int territorioFiscal;
+    private int estadoEnvio;
+    private int puntoEntrada;
+    private int? facturaSeleccionada;
+
+    private List<FacturaElectronicaView> Facturas = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var emp = await EmpresaService.GetEmpresaActualAsync();
+        Empresa = emp ?? new Empresa { RazonSocial = "Empresa sin configurar", CIF = "-" };
+
+        try
+        {
+            var factResult = await FacturaeService.GetFacturasElectronicasAsync(Empresa.Id == 0 ? null : Empresa.Id);
+            Facturas = factResult.Select(f => new FacturaElectronicaView
+            {
+                Id = f.Id,
+                Documento = f.Documento ?? new DocumentoComercial { NumeroDocumento = "-", Fecha = f.FechaCreacion },
+                FormatoTexto = f.Formato switch { FormatoFacturaElectronica.Facturae32 => "Facturae 3.2.2", FormatoFacturaElectronica.UBL21 => "UBL", FormatoFacturaElectronica.CEFACT => "CEFACT", _ => "Desconocido" },
+                EstadoTexto = f.Estado switch { EstadoFacturaElectronica.Borrador => "Borrador", EstadoFacturaElectronica.Generada => "Generada", EstadoFacturaElectronica.Firmada => "Firmada", EstadoFacturaElectronica.Registrada => "Registrada", EstadoFacturaElectronica.Aceptada => "Aceptada", EstadoFacturaElectronica.Rechazada => "Rechazada", EstadoFacturaElectronica.Pagada => "Pagada", EstadoFacturaElectronica.Anulada => "Anulada", _ => f.Estado.ToString() },
+                ImporteTotal = f.Documento?.Total ?? 0m
+            }).ToList();
+        }
+        catch
+        {
+            Facturas = new();
+        }
+    }
+
+    private async Task EnviarFACe()
+    {
+        if (facturaSeleccionada == null)
+        {
+            Notification.Error("Seleccione una factura para enviar");
+            return;
+        }
+
+        var factura = Facturas.FirstOrDefault(f => f.Id == facturaSeleccionada.Value);
+        if (factura == null) return;
+
+        try
+        {
+            await FacturaeService.RegistrarEnFACeAsync(factura.Id);
+            Notification.Success("Factura registrada en FACe correctamente");
+            await OnInitializedAsync();
+        }
+        catch (Exception ex)
+        {
+            Notification.Error($"Error al registrar en FACe: {ex.Message}");
+        }
+    }
+}

@@ -96,6 +96,41 @@ public class VerifactuService
     public static string GenerarUrlQr(RegistroVerifactu registro) =>
         $"{UrlCotejoProduccion}?nif={Uri.EscapeDataString(registro.NifEmisor)}&numserie={Uri.EscapeDataString(registro.NumeroFactura)}&fecha={registro.FechaExpedicion:dd-MM-yyyy}&importe={FormatoImporte(registro.ImporteTotal)}";
 
+    public async Task<bool> GenerarRegistroAltaAsync(int EmpresaId, DateTime FechaHora, string NombreRazonEmisor, int TipoRectificativa, string DescripcionOperacion)
+    {
+        var facturaDummy = new DocumentoComercial
+        {
+            EmpresaId = EmpresaId,
+            NumeroDocumento = $"VF-{FechaHora:yyyyMMddHHmmss}",
+            Fecha = FechaHora,
+            Tipo = TipoDocumento.Factura,
+            EsCompra = false,
+            TipoRectificativa = TipoRectificativa == 0 ? null : TipoRectificativa.ToString(),
+            Observaciones = DescripcionOperacion,
+            BaseImponible = 0,
+            TotalIva = 0,
+            Total = 0
+        };
+        _context.Documentos.Add(facturaDummy);
+        await _context.SaveChangesAsync();
+        await GenerarRegistroAltaAsync(facturaDummy);
+        return true;
+    }
+
+    public async Task<List<RegistroVerifactu>> GetRegistrosAltaAsync(int? empresaId = null)
+    {
+        var q = _context.RegistrosVerifactu.AsQueryable();
+        if (empresaId.HasValue) q = q.Where(r => r.EmpresaId == empresaId.Value);
+        return await q.OrderByDescending(r => r.FechaHoraHusoGeneracion).ToListAsync();
+    }
+
+    public async Task<List<RegistroVerifactuAnulacion>> GetRegistrosAnulacionAsync(int? empresaId = null)
+    {
+        var q = _context.RegistrosVerifactuAnulacion.AsQueryable();
+        if (empresaId.HasValue) q = q.Where(r => r.EmpresaId == empresaId.Value);
+        return await q.OrderByDescending(r => r.FechaHoraHusoGeneracion).ToListAsync();
+    }
+
     public async Task<RegistroVerifactuAnulacion> GenerarRegistroAnulacionAsync(int registroAltaId)
     {
         var alta = await _context.RegistrosVerifactu.FindAsync(registroAltaId)

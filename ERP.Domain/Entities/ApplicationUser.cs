@@ -20,8 +20,8 @@ namespace ERP.Domain.Entities
 
         // --- CONFIGURACIÓN MULTI-TENANCY ---
         
-        // ID de la empresa a la que pertenece el usuario
-        public int EmpresaId { get; set; }
+        // ID de la empresa a la que pertenece el usuario (null = bootstrap sin empresa aún)
+        public int? EmpresaId { get; set; }
         
         // Propiedad de navegación virtual para permitir Lazy Loading si fuera necesario
         public virtual Empresa? Empresa { get; set; }

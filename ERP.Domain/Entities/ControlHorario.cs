@@ -48,6 +48,7 @@ namespace ERP.Domain.Entities
 
         // Firma / PIN validado
         public string? FirmaEmpleadoBase64 { get; set; }
+        public bool FirmaValidada { get; set; } = false; // Para auditoría validación firma
 
         // Correcciones trazables (proyecto RD 2026: autorización y trazabilidad)
         public EstadoRegistroHorario Estado { get; set; } = EstadoRegistroHorario.Valido;
@@ -59,8 +60,14 @@ namespace ERP.Domain.Entities
         public string? UsuarioCorreccion { get; set; }
         public DateTime? FechaCorreccion { get; set; }
 
+        // Jornada completa y horas totales
+        public bool JornadaCompleta { get; set; } = false;
+        [Column(TypeName = "decimal(18,4)")]
+        public decimal HorasTotales { get; set; } = 0m;
+
         // Auditoría y conservación 4 años (art. 34.9 ET)
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
+        public DateTime? FechaFinConservacion { get; set; } // 4 años art.34.9 ET
 
         [StringLength(100)]
         public string? UsuarioCreacion { get; set; }

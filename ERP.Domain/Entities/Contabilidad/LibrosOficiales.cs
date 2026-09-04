@@ -48,6 +48,12 @@ namespace ERP.Domain.Entities.Contabilidad
         [StringLength(500)]
         public string? HashArchivo { get; set; } // SHA256 del fichero XML/PDF generado
 
+        [StringLength(30)]
+        public string NumeroLibro { get; set; } = string.Empty; // Numero libro secuencial (ej: 1-2026)
+
+        [StringLength(64)]
+        public string? FirmaXAdESBase64 { get; set; } // Firma inalterabilidad archivo legalizado
+
         public DateTime? FechaPresentacionRM { get; set; }
 
         // Totales del periodo
@@ -243,6 +249,11 @@ namespace ERP.Domain.Entities.Contabilidad
 
         [StringLength(100)]
         public string? NumeroDeposito { get; set; }
+
+        // Datos actividad empresarial
+        public DateTime? FechaInicioActividad { get; set; } // Fecha inicio actividad empresa
+
+        public bool CierreDefinitivo { get; set; } = false; // Cierre bloquea nuevos asientos
     }
 
     public enum EstadoLibro

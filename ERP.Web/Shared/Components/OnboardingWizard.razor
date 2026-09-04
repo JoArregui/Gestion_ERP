@@ -1,0 +1,77 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@if (mostrar)
+{
+    <div class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-6">
+        <div class="w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in">
+            <div class="bg-[#020617] text-white p-8 text-center">
+                <div class="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-black">E</div>
+                <h2 class="text-2xl font-black uppercase tracking-tight">Bienvenido — Primer arranque</h2>
+                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Has entrado con credenciales por defecto</p>
+            </div>
+            <div class="p-8 space-y-6">
+                <div class="flex gap-4">
+                    <div class="flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                        <div class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Paso 1</div>
+                        <div class="font-black text-slate-800 mt-1">Crea tu empresa</div>
+                        <p class="text-xs text-slate-500 mt-2">Ve a <b>Maestros → Empresas</b> y registra CIF, razón social y serie de facturación. Sin empresa no podrás crear familias ni artículos.</p>
+                        <button @onclick='() => Nav.NavigateTo("/maestros/empresas")' class="mt-4 w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition">Ir a Empresas</button>
+                    </div>
+                    <div class="flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                        <div class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Paso 2</div>
+                        <div class="font-black text-slate-800 mt-1">Crea tu usuario</div>
+                        <p class="text-xs text-slate-500 mt-2">En <b>Configuración → Usuarios</b> crea tu usuario personal (email y contraseña propias) y asígnalo a la empresa creada.</p>
+                        <button @onclick='() => Nav.NavigateTo("/configuracion/usuarios")' class="mt-4 w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition">Ir a Usuarios</button>
+                    </div>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
+                    <b>Paso 3:</b> Cierra sesión y vuelve a entrar con <b>tus</b> credenciales. A partir de ahí el bootstrap <code>admin@erp.local / Admin123!</code> ya no será necesario. Marca abajo para no volver a mostrar este asistente.
+                </div>
+                <label class="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+                    <input type="checkbox" @bind="noVolverMostrar" class="rounded" /> No volver a mostrar
+                </label>
+                <div class="flex gap-3">
+                    <button @onclick="Cerrar" class="flex-1 bg-blue-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-500 transition">Entendido, empezar</button>
+                    <button @onclick="CerrarSesion" class="px-6 bg-slate-100 text-slate-600 py-4 rounded-xl font-black text-xs uppercase hover:bg-slate-200 transition">Cerrar sesión</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool mostrar = false;
+    private bool noVolverMostrar = false;
+    private const string StorageKey = "erp_onboarding_dismissed";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var dismissed = await JS.InvokeAsync<string>("localStorage.getItem", StorageKey);
+            if (!string.IsNullOrEmpty(dismissed) && dismissed == "1") return;
+
+            // Si no hay empresas, mostrar wizard (primer arranque)
+            var empresas = await Http.GetFromJsonAsync<List<ERP.Domain.Entities.Empresa>>("api/empresas");
+            if (empresas == null || empresas.Count == 0)
+                mostrar = true;
+        }
+        catch { /* si 401 u otro, no mostrar; el login ya redirige */ }
+    }
+
+    private async Task Cerrar()
+    {
+        if (noVolverMostrar)
+            await JS.InvokeVoidAsync("localStorage.setItem", StorageKey, "1");
+        mostrar = false;
+    }
+
+    private async Task CerrarSesion()
+    {
+        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        Nav.NavigateTo("/login", forceLoad:true);
+    }
+}

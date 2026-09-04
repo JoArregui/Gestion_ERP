@@ -1,0 +1,160 @@
+@page "/nominas"
+@using ERP.Web.Services
+@inject NominaService NominaService
+@inject EmpleadoService EmpleadoService
+@inject NavigationManager Nav
+<h3>Nóminas - SLD SEPA 2026</h3>
+
+<div class="row">
+    <div class="col-12 col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5>Datos Empleado</h5>
+            </div>
+            <div class="card-body">
+                <select class="form-control" @bind="empleadoId">
+                    <option value="">-- Seleccionar empleado --</option>
+                    @foreach (var emp in Empleados)
+                    {
+                        <option value="@emp.Id">@emp.NombreCompleto (@emp.CCC.Substring(0,4) + "...")</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5>Desglose Cotización</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr><td>Base CC (Comunes)</td><td>@BaseCC €</td></tr>
+                    <tr><td>Base AT (Accidentes Trabajo)</td><td>@BaseAT €</td></tr>
+                    <tr><td>Base Horas Extra</td><td>@BaseHorasExtra €</td></tr>
+                    <tr class="table-info"><td><strong>Cuota SG Social Trab.</strong></td><td><strong>@CuotaSGSocial €</strong></td></tr>
+                    <tr class="table-danger"><td><strong>Retención IRPF</strong></td><td><strong>@RetencionIRPF €</strong></td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5>Pagas Extra</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr><td>Paga Extra 1 (Junio)</td><td>@PagaExtra1 €</td></tr>
+                    <tr><td>Paga Extra 2 (Diciembre)</td><td>@PagaExtra2 €</td></tr>
+                    <tr class="table-success"><td><strong>Total Pagas Extra</strong></td><td><strong>@TotalPagasExtra €</strong></td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5>Remesa SEPA</h5>
+            </div>
+            <div class="card-body">
+                <select class="form-control" @bind="remesaId">
+                    <option value="">-- Seleccionar remesa --</option>
+                    @foreach (var r in RemesasSEPA)
+                    {
+                        <option value="@r.Id">Remesa @r.Fecha.ToString("dd/MM") - @r.Trabajadores.Count trabajadores</option>
+                    }
+                </select>
+                <br>
+                <button class="btn btn-link text-primary w-100 small" @onclick=GenerarSEPA>
+                    <span class="oi oi-download"></span> Generar XML SEPA
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Listado Nóminas (@lstNominas.Count)</h5>
+            </div>
+            <div class="card-body p-0" style="height: 500px; overflow-y: auto;">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Empleado</th>
+                            <th>Periodo</th>
+                            <td class="text-end">Base</td>
+                            <td class="text-end">IRPF</td>
+                            <td class="text-end">Cuota SG</td>
+                            <td class="text-end">Pagas Extra</td>
+                        </tr>
+                    </thead>
+                    <tbody>
+@foreach (var n in lstNominas)
+                        {
+                            <td>@n.Empleado.NombreCompleto</td>
+                                <td>@n.Mes.ToString("00")/@n.Año</td>
+                                <td class="text-end">@n.BaseTotal.ToString("N2") €</td>
+                                <td class="text-end">@n.RetencionIRPF.ToString("N2") €</td>
+                                <td class="text-end">@n.CuotaSegSocial.ToString("N2") €</td>
+<td class="text-end">@n.PagasExtra.ToString("N2") €</td>
+                        }
+                    }
+                </tr>
+            </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Estados
+    enum Mes { Ene=1, Feb=2, Mar=3, Abr=4, May=5, Jun=6, Jul=7, Ago=8, Sep=9, Oct=10, Nov=11, Dic=12 }
+
+    // Datos
+    private int empleadoId;
+    private List<Empleado> Empleados = new();
+    private List<Nomina> lstNominas = new();
+
+    // Desglose
+    decimal BaseCC => 1200m; // ejemplo
+    decimal BaseAT => 50m;
+    decimal BaseHorasExtra => 80m;
+    decimal CuotaSGSocial => Math.Round((BaseCC + BaseAT + BaseHorasExtra) * 28.3m / 100m, 2);
+    decimal RetencionIRPF => Math.Round(CuotaSGSocial * 15m / 100m, 2);
+
+    // Pagas extra
+    decimal PagaExtra1 => Math.Round(BaseCC * 20m / 100m, 2); // 20% base
+    decimal PagaExtra2 => Math.Round(BaseCC * 15m / 100m, 2);
+    decimal TotalPagasExtra => PagaExtra1 + PagaExtra2;
+
+    // Remesas
+    private int? remesaId;
+    private List<string> RemesasSEPA = new() { "01/2026", "02/2026", "03/2026" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Cargar empleados
+        var empResult = await EmpleadoService.GetEmpleadosAsync();
+        Empleados = empResult;
+
+        // Cargar nóminas (últimas 6)
+        var nomResult = await NominaService.GetNominasAsync();
+        lstNominas = nomResult.Take(6).ToList();
+    }
+
+    private async Task GenerarSEPA()
+    {
+        if (empleadoId == null) { Nav.Alert("Error", "Seleccione un empleado"); return; }
+        var exito = await NominaService.GenerarRemesaSEPAAsync(empleadoId.Value);
+        if (exito) Nav.Alert("Éxito", "Archivo SEPA generado correctamente");
+        else Nav.Alert("Error", "Error al generar remesa SEPA");
+    }
+}

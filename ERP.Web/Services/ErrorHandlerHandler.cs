@@ -31,7 +31,22 @@ namespace ERP.Web.Services
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            var response = await base.SendAsync(request, cancellationToken);
+            HttpResponseMessage response;
+            try
+            {
+                response = await base.SendAsync(request, cancellationToken);
+            }
+            catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Timeout real (servidor colgado) - este caso no lo cubren las páginas
+                _notify.Error($"Tiempo de espera agotado al conectar con {request.RequestUri}. Verifique que el API esté ejecutándose en {request.RequestUri?.Scheme}://{request.RequestUri?.Host}:{request.RequestUri?.Port}/");
+                throw new HttpRequestException($"Timeout hacia {request.RequestUri}", ex);
+            }
+            catch (HttpRequestException)
+            {
+                // Dejar que la página lo notifique (evita duplicado con MaestroArticulos.razor:258)
+                throw;
+            }
 
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {

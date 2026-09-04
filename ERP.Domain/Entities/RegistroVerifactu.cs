@@ -28,6 +28,13 @@ public class RegistroVerifactu
     [Required, StringLength(60)]
     public string NumeroFactura { get; set; } = string.Empty;
 
+    // --- Nuevos campos cumplimiento RD 1007/2023 ---
+    [StringLength(30)]
+    public string Serie { get; set; } = string.Empty; // Serie factura obligatoria en cadena ID
+
+    [StringLength(3)]
+    public string CodMoneda { get; set; } = "EUR"; // Moneda obligatoria
+
     public DateTime FechaExpedicion { get; set; }
 
     [Required, StringLength(2)]
@@ -144,6 +151,12 @@ public class RegistroVerifactuAnulacion
 
     [Required]
     public string DatosRegistroJson { get; set; } = string.Empty;
+
+    // --- Nuevo campo trazabilidad anulación ---
+    public DateTimeOffset? FechaAnulacion { get; set; }
+
+    // Relación con anulaciones previas para encadenamiento
+    public int? AnulacionPreviaId { get; set; }
 }
 
 public enum ModalidadVerifactu

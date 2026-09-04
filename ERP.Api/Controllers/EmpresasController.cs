@@ -21,22 +21,46 @@ namespace ERP.Api.Controllers
         }
 
         /// <summary>
-        /// Obtiene el listado completo de entidades jurídicas
+        /// Crea la primera empresa durante el onboarding inicial
         /// </summary>
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Empresa>>> GetEmpresas()
+        [HttpPost("crear-onboarding")]
+        public async Task<ActionResult<Empresa>> CrearParaOnboarding([FromBody] string nombreEmpresa)
         {
-            try
+            if (string.IsNullOrWhiteSpace(nombreEmpresa))
             {
-                return await _context.Empresas
-                    .OrderByDescending(e => e.IsActiva)
-                    .ThenBy(e => e.NombreComercial)
-                    .ToListAsync();
+                return BadRequest(new { Message = "El nombre de la empresa es obligatorio" });
             }
-            catch (Exception ex)
+
+            // Limpiar nombre: quitar caracteres especiales, tomar solo letras/números/guiones
+            var nombreLimpio = string.Join("-", nombreEmpresa.Split(new[] { ' ', '/', '\\', ':' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => string.Join("", s.Where(char.IsLetterOrDigit))));
+
+            // Asegurar que tenga un formato coherente
+            if (string.IsNullOrEmpty(nombreLimpio))
+                nombreLimpio = "Empresa";
+
+            var empresa = new Empresa
             {
-                return StatusCode(500, $"Error interno: {ex.Message}");
-            }
+                NombreComercial = nombreLimpio,
+                RazonSocial = nombreEmpresa,
+                CIF = $"B{Guid.NewGuid():N}"[..10],
+                SerieFacturacion = DateTime.Now.Year.ToString(),
+                IvaDefecto = 21m,
+                IsActiva = true,
+                ColorHex = "#3498db",
+                Eslogan = null,
+                LogoUrl = null,
+                LogoBase64 = null,
+                FechaAlta = DateTime.Now,
+                UltimaModificacion = null,
+                TerritorioFiscal = ERP.Domain.Entities.Fiscal.TerritorioFiscal.PeninsulaBaleares,
+                EsSII = false
+            };
+
+            _context.Empresas.Add(empresa);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
         }
 
         /// <summary>

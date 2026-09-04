@@ -2,6 +2,7 @@
 @using ERP.Domain.Entities
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 <div class="max-w-[1400px] mx-auto p-6 animate-in fade-in duration-700">
 
@@ -12,7 +13,7 @@
             <h1 class="text-4xl font-black text-slate-900 uppercase tracking-tighter italic">Cartera de Proveedores</h1>
         </div>
         <button @onclick="NuevoProveedor" class="bg-slate-900 hover:bg-rose-600 text-white px-8 py-3 rounded-xl font-black text-xs transition-all shadow-xl flex items-center gap-3 uppercase tracking-widest active:scale-95">
-            <span class="text-lg">＋</span> Alta Proveedor / Acreedor
+            <span class="text-lg">＋</span> Alta Proveedor
         </button>
     </div>
 
@@ -180,16 +181,31 @@
     private bool mostrarFormulario = false;
     private Proveedor proveedorActual = new();
 
-    protected override async Task OnInitializedAsync() => await CargarProveedores();
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProveedores();
+    }
 
     private async Task CargarProveedores()
     {
         try {
             proveedores = await Http.GetFromJsonAsync<List<Proveedor>>("api/proveedores");
             Filtrar();
-        } catch (Exception ex) { 
-            await Notificar($"Error de sincronización: {ex.Message}", "error");
+            if (proveedores == null || !proveedores.Any()) {
+                await Notificar("No hay proveedores en la base de datos.", "error");
+            }
+        } catch (HttpRequestException ex) when (ex.Message.Contains("401") || ex.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
+            await NavToLogin();
+        } catch (HttpRequestException ex) {
+            await Notificar($"Error de conexión: {ex.Message}", "error");
+        } catch {
+            await Notificar("Error inesperado al cargar proveedores", "error");
         }
+    }
+
+    private async Task NavToLogin() {
+        await Task.Delay(800);
+        Nav.NavigateTo("/login", forceLoad: true);
     }
 
     private void Filtrar()

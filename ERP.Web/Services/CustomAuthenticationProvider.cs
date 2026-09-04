@@ -50,6 +50,16 @@ namespace ERP.Web.Services
                     new AuthenticationHeaderValue("Bearer", token);
 
                 var identity = new ClaimsIdentity(claims, "jwt");
+
+// --- DETECCIÓN ONBOARDING ---
+                // Si EmpresaId es null o vacío, marcar que requiere onboarding
+                var empresaIdClaim = identity.FindFirst("EmpresaId");
+                if (empresaIdClaim == null || string.IsNullOrEmpty(empresaIdClaim.Value))
+                {
+                    identity.AddClaim(new Claim("OnboardingRequired", "true"));
+                }
+                // --- FIN DETECCIÓN ONBOARDING ---
+
                 return new AuthenticationState(new ClaimsPrincipal(identity));
             }
             catch

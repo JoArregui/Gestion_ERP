@@ -90,8 +90,8 @@ namespace ERP.Api.Controllers
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Email, user.Email!),
                 new Claim("FullName", user.FullName),
-                // CLAIM DE TENANCY: Vital para filtrar datos por empresa en los servicios
-                new Claim("EmpresaId", user.EmpresaId.ToString())
+                // CLAIM DE TENANCY: Vital para filtrar datos por empresa en los servicios (0 si bootstrap sin empresa)
+                new Claim("EmpresaId", (user.EmpresaId ?? 0).ToString())
             };
 
             // Mapeo de roles a claims de seguridad

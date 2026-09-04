@@ -250,6 +250,69 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
         }
     };
 
+    [Fact]
+    public async Task Verifactu_Registro_IncluyeSerieYMoneda()
+    {
+        var empresa = await CrearEmpresaAsync();
+        var articulo = await CrearArticuloAsync();
+        var factura = CrearFactura(empresa.Id, articulo.Id, esCompra: false);
+
+        var service = new VerifactuService(_context);
+        var registro = await service.GenerarRegistroAltaAsync(factura);
+
+        Assert.NotNull(registro.Serie);
+        Assert.Equal("EUR", registro.CodMoneda);
+        Assert.NotNull(registro.Huella);
+        Assert.False(string.IsNullOrEmpty(registro.UrlQr));
+        Assert.Equal("Pendiente", registro.EstadoRemision);
+    }
+
+    [Fact]
+    public async Task Verifactu_Registro_Anulacion_IncluyeFecha()
+    {
+        var empresa = await CrearEmpresaAsync();
+        var articulo = await CrearArticuloAsync();
+        var factura = CrearFactura(empresa.Id, articulo.Id, esCompra: false);
+
+        var service = new VerifactuService(_context);
+        var alta = await service.GenerarRegistroAltaAsync(factura);
+        var anulacion = await service.GenerarRegistroAnulacionAsync(alta.Id);
+
+        Assert.NotNull(anulacion.FechaAnulacion);
+        Assert.NotNull(anulacion.Huella);
+        Assert.Equal("Pendiente", anulacion.EstadoRemision);
+    }
+
+    [Fact]
+    public async Task FacturaElectronica_ConCamposCompletos()
+    {
+        var empresa = await CrearEmpresaAsync();
+        var articulo = await CrearArticuloAsync();
+        var factura = CrearFactura(empresa.Id, articulo.Id, esCompra: false);
+
+        var doc = new DocumentoComercial
+        {
+            EmpresaId = empresa.Id,
+            NumeroDocumento = "FAC-2026-00001",
+            Fecha = new DateTime(2026, 8, 21),
+            Tipo = TipoDocumento.Factura,
+            Lineas = factura.Lineas
+        };
+        _context.Documentos.Add(doc);
+        await _context.SaveChangesAsync();
+
+        var feService = new FacturaeService(_context);
+        var facturaElectronica = await feService.GenerarFacturaeAsync(doc.Id);
+
+        Assert.NotNull(facturaElectronica.Serie);
+        Assert.NotNull(facturaElectronica.NumeroExpedicion);
+        Assert.NotNull(facturaElectronica.CodMoneda);
+        Assert.Equal("EUR", facturaElectronica.CodMoneda);
+        Assert.NotNull(facturaElectronica.NIFCliente);
+        Assert.NotNull(facturaElectronica.NombreCliente);
+        Assert.NotNull(facturaElectronica.HashSha256);
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _context.DisposeAsync();

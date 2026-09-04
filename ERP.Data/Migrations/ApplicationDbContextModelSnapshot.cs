@@ -78,7 +78,7 @@ namespace ERP.Data.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("EmpresaId")
+                    b.Property<int?>("EmpresaId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("FullName")
@@ -1219,6 +1219,9 @@ namespace ERP.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("CierreDefinitivo")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("CierreTrimestral1")
                         .HasColumnType("INTEGER");
 
@@ -1255,6 +1258,9 @@ namespace ERP.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("FechaInicio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaInicioActividad")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("FechaLegalizacionLibros")
@@ -1308,6 +1314,10 @@ namespace ERP.Data.Migrations
                     b.Property<DateTime?>("FechaPresentacionRM")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("FirmaXAdESBase64")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("HashArchivo")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
@@ -1320,6 +1330,11 @@ namespace ERP.Data.Migrations
 
                     b.Property<string>("NumeroLegalizacion")
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroLibro")
+                        .IsRequired()
+                        .HasMaxLength(30)
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("TotalDebe")
@@ -1502,8 +1517,14 @@ namespace ERP.Data.Migrations
                     b.Property<DateTime>("FechaCreacion")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("FechaFinConservacion")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("FirmaEmpleadoBase64")
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("FirmaValidada")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Geolocalizacion")
                         .HasMaxLength(100)
@@ -1517,6 +1538,13 @@ namespace ERP.Data.Migrations
                     b.Property<string>("HashAnterior")
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
+
+                    b.Property<decimal>("HorasTotales")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<bool>("JornadaCompleta")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Modalidad")
                         .HasColumnType("INTEGER");
@@ -1729,6 +1757,11 @@ namespace ERP.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CCC")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CNAE")
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
@@ -1780,6 +1813,11 @@ namespace ERP.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NombreArchivoPdf")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreCompleto")
+                        .IsRequired()
+                        .HasMaxLength(150)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NumeroAfiliacionNAF")
@@ -1954,6 +1992,11 @@ namespace ERP.Data.Migrations
                     b.Property<int?>("CertificadoId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("CodMoneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CodigoRegistroFACe")
                         .HasColumnType("TEXT");
 
@@ -2006,11 +2049,32 @@ namespace ERP.Data.Migrations
                     b.Property<string>("MensajeEstado")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("NIFCliente")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreCliente")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroExpedicion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PlataformaB2B")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("PuntoEntrada")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Serie")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte?>("TipoOperacion")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("UsuarioCreacion")
@@ -2578,6 +2642,9 @@ namespace ERP.Data.Migrations
                     b.Property<DateTime?>("FechaModificacion")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("FechaUltimaActualizacion")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("InversionSujetoPasivoHabitual")
                         .HasColumnType("INTEGER");
 
@@ -2639,6 +2706,10 @@ namespace ERP.Data.Migrations
 
                     b.Property<string>("UsuarioModificacion")
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VersionConfig")
+                        .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -2828,6 +2899,9 @@ namespace ERP.Data.Migrations
                     b.Property<int>("EmpresaId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("EsLiquidacionDefinitiva")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Estado")
                         .HasColumnType("INTEGER");
 
@@ -2934,12 +3008,20 @@ namespace ERP.Data.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("Modelo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Periodo")
                         .HasColumnType("INTEGER");
 
                     b.Property<decimal>("PorcentajeProrrataAplicada")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(5,2)");
+
+                    b.Property<bool>("Presentado")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("ReferenciaPresentacion")
                         .HasColumnType("TEXT");
@@ -3158,6 +3240,15 @@ namespace ERP.Data.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("BaseTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("CodPais")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CodigoCuentaCotizacion")
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
@@ -3166,13 +3257,25 @@ namespace ERP.Data.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("ConceptoPago")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal>("CuotaSegSocialTrabajador")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CuotaSegSocialTrabajadorTotal")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
                     b.Property<decimal>("Deducciones")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("DiasTrabajados")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("EmpleadoId")
                         .HasColumnType("INTEGER");
@@ -3183,6 +3286,12 @@ namespace ERP.Data.Migrations
                     b.Property<DateTime>("FechaEmision")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime>("FechaPago")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaValor")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("GrupoCotizacion")
                         .HasColumnType("INTEGER");
 
@@ -3190,8 +3299,25 @@ namespace ERP.Data.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("IBAN")
+                        .IsRequired()
+                        .HasMaxLength(34)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ImportePagasExtra")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Mes")
                         .HasColumnType("INTEGER");
+
+                    b.Property<int>("NumeroPagasExtra")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NumeroSeguridadSocial")
+                        .IsRequired()
+                        .HasMaxLength(13)
+                        .HasColumnType("TEXT");
 
                     b.Property<decimal>("PagasExtraProrrateadas")
                         .HasPrecision(18, 4)
@@ -3207,6 +3333,16 @@ namespace ERP.Data.Migrations
                     b.Property<decimal>("SalarioBase")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<bool>("TienePagasExtra")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TipoContrato")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("TipoContratoId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<decimal>("TipoIRPF")
                         .HasPrecision(18, 4)
@@ -3416,7 +3552,14 @@ namespace ERP.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("EmailDelegado")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsTratamientoOcasional")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("FechaCreacion")
@@ -3425,8 +3568,18 @@ namespace ERP.Data.Migrations
                     b.Property<DateTime?>("FechaEIPD")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("FechaProximaRevision")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaUltimaRevision")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Finalidad")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MecanismoSeguridad")
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("MedidasTecnicas")
@@ -3437,6 +3590,10 @@ namespace ERP.Data.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PaisDestino")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PlazoConservacion")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -3445,7 +3602,14 @@ namespace ERP.Data.Migrations
                     b.Property<bool>("RequiereEIPD")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("TelefonoDelegado")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("TieneEncargadoTratamiento")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("TransferenciasInternacionales")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("UsuarioCreacion")
@@ -3468,6 +3632,11 @@ namespace ERP.Data.Migrations
                     b.Property<decimal>("BaseImponible")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CodMoneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("CodigoErrorAeat")
                         .HasColumnType("TEXT");
@@ -3575,6 +3744,11 @@ namespace ERP.Data.Migrations
                     b.Property<string>("RespuestaAeat")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Serie")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("TipoFactura")
                         .IsRequired()
                         .HasMaxLength(2)
@@ -3614,6 +3788,9 @@ namespace ERP.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("AnulacionPreviaId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("DatosRegistroJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -3624,6 +3801,9 @@ namespace ERP.Data.Migrations
                     b.Property<string>("EstadoRemision")
                         .IsRequired()
                         .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("FechaAnulacion")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("FechaExpedicion")
@@ -4240,8 +4420,7 @@ namespace ERP.Data.Migrations
                     b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
                         .WithMany()
                         .HasForeignKey("EmpresaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Empresa");
                 });

@@ -1,0 +1,126 @@
+@page "/iva"
+@using ERP.Web.Services
+@using ERP.Services
+@inject FiscalService FiscalService
+@inject NavigationManager Nav
+<h3>Fiscal - IVA / IGIC / IPSI 2026</h3>
+
+<div class="row">
+    <div class="col-12 col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Tarifas IVA (Península)</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr><th>Tipo</th><th>%</th><th>Recargo Eq.</th><th>Base Imponible</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>General</td><td>21%</td><td>5,2%</td><td>@IVAGeneralBase €</td></tr>
+                        <tr><td>Reducido</td><td>10%</td><td>1,4%</td><td>@IVAReducidaBase €</td></tr>
+                        <tr><td>Superreducido</td><td>4%</td><td>0,5%</td><td>@IVASuperreducidaBase €</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Tarifas IGIC (Canarias)</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr><th>Tipo</th><th>%</th><th>Observación</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>General</td><td>7%</td><td>--</td></tr>
+                        <tr><td>Reducido</td><td>3%</td><td>--</td></tr>
+                        <tr><td>Superreducido</td><td>0%</td><td>Franquicia 400</td></tr>
+                        <tr><td>Incrementado</td><td>9,5%</td><td>--</td></tr>
+                        <tr><td>Especial</td><td>13,5%</td><td>--</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Tarifas IPSI (Ceuta/Melilla)</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr><th>Tipo</th><th>%</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>0,5%</td><td>0,5%</td></tr>
+                        <tr><td>10%</td><td>10%</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Liquidación Modelo 303 (Efectiva 2026)</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr><td>Base Imponible General</td><td>@BaseGeneral303 €</td></tr>
+                    <tr><td>Base Imponible Reducida</td><td>@BaseReducida303 €</td></tr>
+                    <tr><td>Base Imponible Superreducida</td><td>@BaseSuperreducida303 €</td></tr>
+                    <tr><td>Cuota IVA General (21%)</td><td>@CuotaIVA21303 €</td></tr>
+                    <tr><td>Cuota IVA Reducida (10%)</td><td>@CuotaIVA10303 €</td></tr>
+                    <tr class="table-primary"><td><strong>Cuota Total Soportada</strong></td><td><strong>@CuotaTotal303 €</strong></td></tr>
+                    <tr><td>Fecha Presentación</td><td>@DateTime.Now.ToString("dd'/'MM'/'yyyy")</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Liquidación Modelo 390 (Resumen Anual)</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr><td>Base Imponible Total Ejercicio</td><td>@BaseTotal390 €</td></tr>
+                    <tr><td>Cuota Total Soportada Ejercicio</td><td>@CuotaTotal390 €</td></tr>
+                    <tr><td>Fecha Presentación</td><td>@DateTime.Now.ToString("dd'/'MM'/'yyyy")</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Cálculos simulados basados en tarifas
+    decimal IVAGeneralBase => 10000m;  // Valor ejemplo
+    decimal IVAReducidaBase => 5000m;
+    decimal IVASuperreducidaBase => 2000m;
+
+    decimal BaseGeneral303 => IVAGeneralBase;
+    decimal BaseReducida303 => IVAReducidaBase;
+    decimal BaseSuperreducida303 => IVASuperreducidaBase;
+
+    decimal CuotaIVA21303 => Math.Round(IVAGeneralBase * 21m / 100m, 2);
+    decimal CuotaIVA10303 => Math.Round(IVAReducidaBase * 10m / 100m, 2);
+
+    decimal CuotaTotal303 => CuotaIVA21303 + CuotaIVA10303;
+
+    decimal BaseTotal390 => Math.Round((IVAGeneralBase + IVAReducidaBase + IVASuperreducidaBase) * 1.21m, 2);
+    decimal CuotaTotal390 => Math.Round((CuotaIVA21303 + CuotaIVA10303) * 1.21m, 2);
+}

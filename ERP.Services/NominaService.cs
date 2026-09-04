@@ -92,6 +92,25 @@ namespace ERP.Services
             return nuevaNomina;
         }
 
+        public async Task<List<Nomina>> GetNominasAsync(int? empleadoId = null)
+        {
+            var q = _context.Nominas.Include(n => n.Empleado).AsQueryable();
+            if (empleadoId.HasValue) q = q.Where(n => n.EmpleadoId == empleadoId.Value);
+            return await q.OrderByDescending(n => n.Anio).ThenByDescending(n => n.Mes).ToListAsync();
+        }
+
+        public async Task<bool> GenerarRemesaSEPAAsync(int empleadoId)
+        {
+            var empleado = await _context.Empleados.FindAsync(empleadoId);
+            if (empleado == null) return false;
+            // Stub: generar remesa SEPA pain.001 simulada para la nómina pendiente
+            var ultimoMes = DateTime.Now.Month;
+            var ultimoAnio = DateTime.Now.Year;
+            var nomina = await _context.Nominas.FirstOrDefaultAsync(n => n.EmpleadoId == empleadoId && n.Mes == ultimoMes && n.Anio == ultimoAnio);
+            if (nomina == null) return false;
+            return true;
+        }
+
         public async Task<bool> ProcesarPagoNominaAsync(int nominaId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();

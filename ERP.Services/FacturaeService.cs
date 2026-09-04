@@ -68,6 +68,13 @@ namespace ERP.Services
             return fe;
         }
 
+        public async Task<List<FacturaElectronica>> GetFacturasElectronicasAsync(int? empresaId = null)
+        {
+            var q = _context.FacturasElectronicas.Include(f => f.Documento).ThenInclude(d => d.Cliente).Include(f => f.Documento).ThenInclude(d => d.Proveedor).Include(f => f.Documento).ThenInclude(d => d.Lineas).AsQueryable();
+            if (empresaId.HasValue) q = q.Where(f => f.EmpresaId == empresaId.Value);
+            return await q.OrderByDescending(f => f.FechaCreacion).ToListAsync();
+        }
+
         public async Task<FacturaElectronica> RegistrarEnFACeAsync(int facturaElectronicaId, string? codigoRegistroSimulado = null)
         {
             var fe = await _context.FacturasElectronicas.FindAsync(facturaElectronicaId)

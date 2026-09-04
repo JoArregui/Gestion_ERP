@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using ERP.Domain.Entities;
@@ -8,9 +9,9 @@ using Microsoft.JSInterop;
 namespace ERP.Web.Services
 {
     /// <summary>
-    /// Contexto de empresa activa (emisora) para el ciclo de facturaciÃ³n.
-    /// Permite cambiar de sede corporativa desde cualquier pÃ¡gina sin re-inicializar el singleton.
-    /// Persistencia en localStorage + broadcast de cambios vÃ­a/events para que los componentes se refresquen.
+    /// Contexto de empresa activa (emisora) para el ciclo de facturación.
+    /// Permite cambiar de sede corporativa desde cualquier página sin re-inicializar el singleton.
+    /// Persistencia en localStorage + broadcast de cambios vía eventos para que los componentes se refresquen.
     /// </summary>
     public class EmpresaService
     {
@@ -38,7 +39,7 @@ namespace ERP.Web.Services
                 _empresas = await _http.GetFromJsonAsync<List<Empresa>>("api/empresas");
                 if (_empresas == null || _empresas.Count == 0) return;
 
-                // Recuperar Ãºltima sede activa del storage, o usar la primera activa
+                // Recuperar última sede activa del storage, o usar la primera activa
                 var guardadaRaw = await _js.InvokeAsync<string>("localStorage.getItem", StorageKey);
                 if (!string.IsNullOrEmpty(guardadaRaw) &&
                     int.TryParse(guardadaRaw, out var guardada) &&
@@ -77,5 +78,15 @@ namespace ERP.Web.Services
         public List<Empresa>? Empresas => _empresas;
         public int EmpresaId => _empresaId;
         public bool IsLoaded => _empresas != null && _empresas.Count > 0;
+
+        public async Task<Empresa?> GetEmpresaActualAsync()
+        {
+            if (EmpresaActual != null) return EmpresaActual;
+            if (_empresas == null || _empresas.Count == 0)
+            {
+                try { await LoadAsync(); } catch { }
+            }
+            return EmpresaActual ?? _empresas?.FirstOrDefault(e => e.IsActiva) ?? _empresas?.FirstOrDefault();
+        }
     }
 }

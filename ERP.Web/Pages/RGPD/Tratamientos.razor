@@ -1,0 +1,183 @@
+@page "/rgpd/tratamientos"
+@using ERP.Web.Services
+@using ERP.Services
+@using ERP.Domain.Entities.RGPD
+@inject RegistroTratamientoService RegistroService
+@inject NotificationService Notification
+@inject NavigationManager Nav
+<h3>RGPD - Art. 30 Registro de Actividades de Tratamiento</h3>
+
+<div class="row">
+    <div class="col-12 col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Nuevo Registro de Tratamiento</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <label>Nombre Tratamiento</label>
+                    <input class="form-control" @bind="nombreTratamiento" placeholder="Ej. Gestión de proveedores" />
+                </div>
+                <div class="mb-2">
+                    <label>Finalidad</label>
+                    <input class="form-control" @bind="finalidad" placeholder="Ej. Gestión de proveedores para compra de materiales" />
+                </div>
+                <div class="mb-2">
+                    <label>Base Jurídica</label>
+                    <select class="form-control" @bind="baseJuridica">
+                        <option value="Consentimiento">Consentimiento del interesado</option>
+                        <option value="Ejecución contrato">Ejecución de contrato</option>
+                        <option value="Obligación legal">Obligación legal</option>
+                        <option value="Intereses vitales">Intereses vitales</option>
+                        <option value="Interés público">Interés público</option>
+                        <option value="Legítimo interés">Legítimo interés del responsable</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Categorías Datos</label>
+                    <input class="form-control" @bind="categoriasDatos" placeholder="Ej. Datos de contacto, DNI, Fiscal" />
+                </div>
+                <div class="mb-2">
+                    <label>Destinatarios</label>
+                    <input class="form-control" @bind="destinatarios" placeholder="Ej. Administracion Hacienda, Contabilidad" />
+                </div>
+                <div class="mb-2">
+                    <label>Plazo Conservación</label>
+                    <input class="form-control" @bind="plazoConservacion" placeholder="Ej. 6 años / Hasta baja proveedor" />
+                </div>
+                <button class="btn btn-primary w-100 mt-2" @onclick="AñadirTratamiento">
+                    <span class="oi oi-plus"></span> Añadir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Finalidades Permitidas</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr><th>Base</th><th>Descripción</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Consentimiento</td><td>Interesado ha manifestado su voluntad libre, específica e informada</td></tr>
+                        <tr><td>Ejecución contrato</td><td>Tratamiento necesario para la ejecución del contrato del que es parte</td></tr>
+                        <tr><td>Obligación legal</td><td>Tratamiento necesario para el cumplimiento de una obligación legal del responsable</td></tr>
+                        <tr><td>Interés vital</td><td>Tratamiento necesario para proteger los intereses vitales del interesado</td></tr>
+                        <tr><td>Interés público</td><td>Tratamiento necesario para el ejercicio de sus funciones pública</td></tr>
+                        <tr><td>Legítimo interés</td><td>Tratamiento necesario para los intereses legítimos del responsable, salvo que prevalezcan derechos interesado</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Estadísticas RGPD</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr><td>Total Tratamientos</td><td>@lstTratamientos.Count</td></tr>
+                    <tr><td>Con base Consentimiento</td><td>@(lstTratamientos.Count(t => t.BaseJuridica == "Consentimiento"))</td></tr>
+                    <tr><td>Con base Legal/Contractual</td><td>@(lstTratamientos.Count(t => t.BaseJuridica != "Consentimiento"))</td></tr>
+                    <tr><td>Requiere EIPD</td><td>@(lstTratamientos.Count(t => t.RequiereEIPD))</td></tr>
+                    <tr class="table-info"><td>Ultima actualización</td><td>@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Listado Actividades (@lstTratamientos.Count)</h5>
+            </div>
+            <div class="card-body p-0" style="height: 500px; overflow-y: auto;">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Tratamiento</th>
+                            <th>Base Jurídica</th>
+                            <th>Plazo</th>
+                            <th>EIPD</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in lstTratamientos)
+                        {
+                            <tr>
+                                <td>@t.NombreTratamiento</td>
+                                <td>@t.BaseJuridica</td>
+                                <td>@t.PlazoConservacion</td>
+                                <td>@(t.RequiereEIPD ? "Sí" : "No")</td>
+                                <td>
+                                    <button class="btn btn-sm btn-link text-primary">Ver</button>
+                                    <button class="btn btn-sm btn-link text-danger">Eliminar</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<TratamientoView> lstTratamientos = new()
+    {
+        new TratamientoView { Id = 1, NombreTratamiento = "Gestión de proveedores", BaseJuridica = "Ejecución contrato", PlazoConservacion = "6 años", RequiereEIPD = false },
+        new TratamientoView { Id = 2, NombreTratamiento = "Datos de empleados", BaseJuridica = "Obligación legal", PlazoConservacion = "4 años", RequiereEIPD = true },
+        new TratamientoView { Id = 3, NombreTratamiento = "Cliente CRM", BaseJuridica = "Consentimiento", PlazoConservacion = "Hasta baja cliente", RequiereEIPD = false },
+        new TratamientoView { Id = 4, NombreTratamiento = "Facturación electrónica", BaseJuridica = "Obligación legal", PlazoConservacion = "10 años", RequiereEIPD = true },
+    };
+
+    public class TratamientoView
+    {
+        public int Id { get; set; }
+        public string NombreTratamiento { get; set; } = "";
+        public string BaseJuridica { get; set; } = "";
+        public string PlazoConservacion { get; set; } = "";
+        public bool RequiereEIPD { get; set; }
+    }
+
+    string nombreTratamiento = "";
+    string finalidad = "";
+    string baseJuridica = "Consentimiento";
+    string categoriasDatos = "";
+    string destinatarios = "";
+    string plazoConservacion = "";
+
+    protected override void OnInitialized()
+    {
+    }
+
+    private void AñadirTratamiento()
+    {
+        if (string.IsNullOrWhiteSpace(nombreTratamiento)) { Notification.Error("Nombre obligatorio"); return; }
+        var nuevo = new TratamientoView
+        {
+            Id = lstTratamientos.Any() ? lstTratamientos.Max(t => t.Id) + 1 : 1,
+            NombreTratamiento = nombreTratamiento,
+            BaseJuridica = baseJuridica,
+            PlazoConservacion = plazoConservacion,
+            RequiereEIPD = baseJuridica == "Obligación legal" || baseJuridica == "Intereses vitales"
+        };
+        lstTratamientos.Add(nuevo);
+        nombreTratamiento = "";
+        finalidad = "";
+        baseJuridica = "Consentimiento";
+        categoriasDatos = "";
+        destinatarios = "";
+        plazoConservacion = "";
+        Notification.Success("Nuevo registro de tratamiento añadido");
+    }
+}

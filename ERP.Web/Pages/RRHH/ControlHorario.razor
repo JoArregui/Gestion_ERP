@@ -1,4 +1,6 @@
 @page "/rrhh/control-horario"
+@using ERP.Web.Services
+@using ERP.Services
 @using System.Net.Http.Json
 @using ERP.Domain.Entities
 @inject HttpClient Http
@@ -160,8 +162,8 @@
     {
         var hoy = DateTime.Today;
         var inicioSemana = hoy.AddDays(-7);
-        horasHoy = TimeSpan.FromHours(historial.Where(h => h.Entrada.Date == hoy && h.Salida.HasValue).Sum(h => (h.Salida.Value - h.Entrada).TotalHours));
-        horasSemana = TimeSpan.FromHours(historial.Where(h => h.Entrada.Date >= inicioSemana && h.Salida.HasValue).Sum(h => (h.Salida.Value - h.Entrada).TotalHours));
+        horasHoy = TimeSpan.FromHours(historial.Where(h => h.Entrada.Date == hoy && h.Salida.HasValue).Sum(h => (h.Salida!.Value - h.Entrada).TotalHours));
+        horasSemana = TimeSpan.FromHours(historial.Where(h => h.Entrada.Date >= inicioSemana && h.Salida.HasValue).Sum(h => (h.Salida!.Value - h.Entrada).TotalHours));
     }
 
     private async Task ActualizarEstadoFichaje()
@@ -202,6 +204,6 @@
 
     public void Dispose() => timer?.Dispose();
 
-    public class FichajeDto { public int Id {get;set;} public int EmpleadoId {get;set;} public string EmpleadoNombre {get;set;}="" ; public DateTime Entrada {get;set;} public DateTime? Salida {get;set;} }
+    public class FichajeDto { public int Id {get;set;} public int EmpleadoId {get;set;} public string EmpleadoNombre {get;set;} = ""; public DateTime Entrada {get;set;} public DateTime? Salida {get;set;} }
     public class EstadoDto { public bool fichado {get;set;} }
 }

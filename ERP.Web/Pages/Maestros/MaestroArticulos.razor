@@ -6,6 +6,7 @@
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NotificationService Notify
+@inject NavigationManager Nav
 @implements IDisposable
 
 <div class="max-w-[1400px] mx-auto p-6 animate-in fade-in duration-700">
@@ -50,6 +51,10 @@
             
             <button @onclick="CargarDatos" class="p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition shadow-sm text-slate-500">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+
+            <button @onclick="RefrescarArticulos" class="p-3 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition shadow-sm text-emerald-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5m3 3l2-2m-3 3l2-2m7.56-5.02a8.981 8.981 0 001.888 1.827m0 0A9 9 0 11-8.98 8.98m0 0A9 9 0 018.981 1.828m0-8l-8 8m4-3.533a7.028 7.028 0 00-1.888 1.828m0 0A5.996 5.996 0 013.05 1.382m0 0a5.956 5.956 0 100 10.606M7.5 7.5a2.121 2.121 0 012.121-2.121 2.121 2.121 0 10-2.121-2.121 2.121 2.121 0 00-2.121 2.121m0 0l-1.636-1.636a1.75 1.75 0 01-2.236 0L3.5 7.5a1.75 1.75 0 100 3.5l1.636 1.636a1.75 1.75 0 010 3.5 7.028 7.028 0 01-1.888 1.828 7.028 7.028 0 00-1.888-1.828 7.028 7.028 0 001.888-1.827z"></path></svg>
             </button>
 
             <button @onclick="NuevoArticulo" class="bg-slate-900 hover:bg-indigo-600 text-white px-8 py-3 rounded-xl font-black text-xs transition-all shadow-xl uppercase tracking-widest active:scale-95">
@@ -235,6 +240,7 @@
     {
         Notify.OnShow += HandleGlobalNotification;
         await CargarDatos();
+        await RefrescarArticulos(); // Cargar siempre al iniciar tras login
     }
 
     private void HandleGlobalNotification(string message, NotificationType type)
@@ -254,11 +260,35 @@
             articulos = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos");
             if (articulos == null) {
                 Notify.Warning("No se encontraron artículos. La sesión puede haber expirado.");
+                await NavToLogin();
             }
-        } catch (Exception ex) when (ex is HttpRequestException) {
-            Notify.Error("Error de conexión con el servidor. Verifique que el API esté ejecutándose en http://localhost:5109/");
+        } catch (HttpRequestException ex) when (ex.Message.Contains("401") || ex.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
+            await NavToLogin();
+        } catch (HttpRequestException ex) {
+            Notify.Error($"Error de conexión ({ex.Message}). API apagado o unreachable.");
         } catch {
-            Notify.Error("Error inesperado al cargar los datos del inventario. Póngase en contacto con el administrador.");
+            Notify.Error("Error inesperado al cargar los datos del inventario.");
+        }
+    }
+
+    private async Task NavToLogin() {
+        await Task.Delay(800);
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+
+    private async Task RefrescarArticulos()
+    {
+        try {
+            articulos = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos");
+            if (articulos == null) {
+                Notify.Warning("No hay artículos en la base de datos.");
+            } else {
+                Notify.Success($"Artículos recargados: {articulos.Count} registros");
+            }
+        } catch (HttpRequestException ex) {
+            Notify.Error($"No se pudo contactar al API: {ex.Message}");
+        } catch {
+            Notify.Error("Error inesperado al refrescar.");
         }
     }
 

@@ -30,6 +30,24 @@ namespace ERP.Domain.Entities
         [Required, StringLength(10)]
         public string Version { get; set; } = "3.2.2";
 
+        // --- Nuevos campos cumplimiento legal facturación (añadidos 2026) ---
+        [StringLength(20)]
+        public string Serie { get; set; } = string.Empty; // Serie factura (obligatorio B2B/B2G)
+
+        [StringLength(50)]
+        public string NumeroExpedicion { get; set; } = string.Empty; // Número expedición oficial
+
+        public byte? TipoOperacion { get; set; } // 0=Venta, 1=Devolución, 2=Intracomunitaria, etc.
+
+        [StringLength(3)]
+        public string CodMoneda { get; set; } = "EUR"; // Moneda obligatoria (por defecto EUR)
+
+        [StringLength(20)]
+        public string? NIFCliente { get; set; } // NIF cliente B2B
+
+        [StringLength(120)]
+        public string? NombreCliente { get; set; } // Nombre/Razón social cliente B2B
+
         // XML generado (Base64 para no romper collation) y hash
         public string? XmlBase64 { get; set; }
         [StringLength(64)]

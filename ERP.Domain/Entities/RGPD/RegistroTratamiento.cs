@@ -26,12 +26,24 @@ namespace ERP.Domain.Entities.RGPD
         public string? Destinatarios { get; set; }
         [StringLength(20)]
         public string PlazoConservacion { get; set; } = "4 años";
+        public bool TransferenciasInternacionales { get; set; } = false;
+        [StringLength(100)]
+        public string? PaisDestino { get; set; }
+        [StringLength(200)]
+        public string? MecanismoSeguridad { get; set; }
         public string? MedidasTecnicas { get; set; }
         public bool RequiereEIPD { get; set; } = false;
         public DateTime? FechaEIPD { get; set; }
+        public DateTime? FechaProximaRevision { get; set; }
+        public DateTime? FechaUltimaRevision { get; set; }
         public bool TieneEncargadoTratamiento { get; set; } = false;
         [StringLength(100)]
+        public string? EmailDelegado { get; set; }
+        [StringLength(20)]
+        public string? TelefonoDelegado { get; set; }
+        [StringLength(100)]
         public string? DelegadoProteccionDatos { get; set; }
+        public bool EsTratamientoOcasional { get; set; } = false;
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
         [StringLength(100)]
         public string? UsuarioCreacion { get; set; }

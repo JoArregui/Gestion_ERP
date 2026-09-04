@@ -4,6 +4,7 @@
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NotificationService Notify
+@inject NavigationManager Nav
 @implements IDisposable
 
 <div class="max-w-[1400px] mx-auto p-6 animate-in fade-in duration-700">
@@ -294,9 +295,21 @@
         try {
             clientes = await Http.GetFromJsonAsync<List<Cliente>>("api/clientes");
             Filtrar();
-        } catch { 
-            AddNotification("Error de conexión con el servidor", NotificationType.Error); 
+            if (clientes == null || !clientes.Any()) {
+                Notify.Warning("No hay clientes en la base de datos.");
+            }
+        } catch (HttpRequestException ex) when (ex.Message.Contains("401") || ex.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
+            await NavToLogin();
+        } catch (HttpRequestException ex) {
+            AddNotification($"Error de conexión: {ex.Message}", NotificationType.Error);
+        } catch {
+            AddNotification("Error inesperado al cargar clientes", NotificationType.Error);
         }
+    }
+
+    private async Task NavToLogin() {
+        await Task.Delay(800);
+        Nav.NavigateTo("/login", forceLoad: true);
     }
 
     private void OnFiltroEstadoChanged(ChangeEventArgs e)

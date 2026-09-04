@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -70,7 +70,7 @@ namespace ERP.Domain.Entities.Fiscal
         public DateTime? FechaInicioIVACaja { get; set; }
         public DateTime? FechaFinIVACaja { get; set; }
         [Column(TypeName = "decimal(18,2)")]
-        public decimal? LimiteVolumenOperacionesIVACaja { get; set; } // 2.000.000 â‚¬
+        public decimal? LimiteVolumenOperacionesIVACaja { get; set; } // 2.000.000 €
 
         // --- OTROS ---
         public bool InversionSujetoPasivoHabitual { get; set; } = false; // Art. 84 LIVA
@@ -78,6 +78,9 @@ namespace ERP.Domain.Entities.Fiscal
 
         // AuditorÃ­a
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
+        public DateTime? FechaUltimaActualizacion { get; set; }
+        [StringLength(20)]
+        public string? VersionConfig { get; set; }
         public DateTime? FechaModificacion { get; set; }
         [StringLength(100)]
         public string? UsuarioCreacion { get; set; }
@@ -116,6 +119,14 @@ namespace ERP.Domain.Entities.Fiscal
         public DateTime FechaHasta { get; set; }
         public DateTime? FechaPresentacion { get; set; }
         public DateTime? FechaPago { get; set; }
+
+        // --- Nuevos campos cumplimiento legal ---
+        [StringLength(10)]
+        public string Modelo { get; set; } = "0303"; // Modelo AEAT obligatorio
+
+        public bool EsLiquidacionDefinitiva { get; set; } = true;
+
+        public bool Presentado { get; set; } = false;
 
         // --- BASES IMPONIBLES POR TIPO ---
         [Column(TypeName = "decimal(18,2)")]
