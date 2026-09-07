@@ -1,0 +1,65 @@
+@page "/fiscal"
+@attribute [Authorize]
+@using ERP.Domain.Entities.Fiscal
+@inject HttpClient Http
+@inject ERP.Web.Services.NotificationService Notify
+
+<div class="p-8 bg-slate-50 min-h-screen">
+    <div class="flex justify-between items-end mb-8">
+        <div><p class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">LIVA 37/1992 · IGIC · IPSI</p><h1 class="text-4xl font-black italic uppercase tracking-tighter">Fiscal <span class="text-blue-600">IVA 2026</span></h1><p class="text-sm text-slate-500">Prorrata 102-105 · Sectores 9.1.c · Recargo 161 · Caja 163bis</p></div>
+        <div class="flex gap-2">
+            <button @onclick='()=>tab="config"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="config"?"bg-slate-900 text-white":"bg-white border")">Config</button>
+            <button @onclick='()=>tab="tarifas"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="tarifas"?"bg-slate-900 text-white":"bg-white border")">Tarifas</button>
+            <button @onclick='()=>tab="liquidaciones"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="liquidaciones"?"bg-slate-900 text-white":"bg-white border")">303</button>
+            <button @onclick='()=>tab="libros"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="libros"?"bg-slate-900 text-white":"bg-white border")">Libros</button>
+        </div>
+    </div>
+
+    @if(tab=="config"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Configuraciones IVA por ejercicio</h3><button @onclick="CrearConfigDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Config @DateTime.Now.Year</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Ejercicio</th><th class="p-4">Prorrata</th><th class="p-4">Sectores</th><th class="p-4">Recargo</th><th class="p-4">Caja</th></tr></thead><tbody>@foreach(var c in configs){<tr class="border-t"><td class="p-4">@c.EjercicioId</td><td class="p-4">@(c.AplicaProrrataGeneral? $"{c.PorcentajeProrrataGeneral}% → {c.PorcentajeProrrataGeneralRedondeado}%":"—")</td><td class="p-4">@(c.TieneSectoresDiferenciados?"Sí":"No")</td><td class="p-4">@(c.SujetoRecargoEquivalencia?"Sí":"No")</td><td class="p-4">@(c.AplicaIVACaja?"Sí":"No")</td></tr>} @if(!configs.Any()){<tr><td colspan="5" class="p-12 text-center text-slate-400">Sin configuraciones</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="tarifas"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Tarifas por Territorio</h3><select @onchange="OnTerritorioChanged" class="border rounded-xl px-4 py-2 text-sm"><option value="">Todos</option><option value="PeninsulaBaleares">Península/Baleares IVA</option><option value="Canarias">Canarias IGIC</option><option value="Ceuta">Ceuta IPSI</option></select></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Territorio</th><th class="p-4">Tipo</th><th class="p-4">Nombre</th><th class="p-4">%</th><th class="p-4">Recargo</th><th class="p-4">Vigente</th></tr></thead><tbody>@foreach(var t in tarifasFiltradas){<tr class="border-t"><td class="p-4">@t.Territorio</td><td class="p-4">@t.TipoIVA</td><td class="p-4">@t.Nombre</td><td class="p-4 font-black">@t.Porcentaje%</td><td class="p-4">@t.RecargoEquivalencia%</td><td class="p-4">@(t.Vigente?"✓":"—")</td></tr>} @if(!tarifas.Any()){<tr><td colspan="6" class="p-12 text-center text-slate-400">Sin tarifas - seed necesario</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="liquidaciones"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Liquidaciones Modelo 303</h3><button @onclick="CalcularDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Calcular T@(trimestre) @ano</button></div>
+            <div class="flex gap-2 mb-4"><select @bind="ano" class="border rounded-xl px-4 py-2"><option value="2026">2026</option><option value="2025">2025</option></select><select @bind="trimestre" class="border rounded-xl px-4 py-2"><option value="1">1T</option><option value="2">2T</option><option value="3">3T</option><option value="4">4T</option></select></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Periodo</th><th class="p-4">Bases</th><th class="p-4">Repercutido</th><th class="p-4">Deducible</th><th class="p-4">A ingresar</th><th class="p-4">Estado</th><th></th></tr></thead><tbody>@foreach(var l in liquidaciones){<tr class="border-t"><td class="p-4">@l.Periodo @l.Año</td><td class="p-4">@((l.BaseGeneral+l.BaseReducida).ToString("C2"))</td><td class="p-4">@((l.IVAGeneralRepercutido+l.IVAReducidoRepercutido).ToString("C2"))</td><td class="p-4">@l.IVADeducibleTotal.ToString("C2")</td><td class="p-4 font-black @(l.IVAAIngresar>0?"text-rose-600":"text-emerald-600")">@l.IVAAIngresar.ToString("C2")</td><td class="p-4">@l.Estado</td><td class="p-4 text-right"><button @onclick="()=>Presentar(l.Id)" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs">Presentar</button></td></tr>} @if(!liquidaciones.Any()){<tr><td colspan="7" class="p-12 text-center text-slate-400">Sin liquidaciones</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="libros"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <h3 class="font-black uppercase text-sm mb-4">Libros Registro IVA (Emitidas/Recibidas/Bienes Inversión/Intracom)</h3>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Tipo</th><th class="p-4">Fecha</th><th class="p-4">Factura</th><th class="p-4">Base</th><th class="p-4">Cuota</th></tr></thead><tbody>@foreach(var r in libros){<tr class="border-t"><td class="p-4">@r.TipoLibro</td><td class="p-4">@r.FechaOperacion.ToString("dd/MM/yyyy")</td><td class="p-4 font-mono">@r.NumeroFactura</td><td class="p-4">@r.BaseImponible.ToString("C2")</td><td class="p-4">@r.CuotaIVA.ToString("C2")</td></tr>} @if(!libros.Any()){<tr><td colspan="5" class="p-12 text-center text-slate-400">Sin registros - se generan desde /liquidaciones/calcular</td></tr>}</tbody></table>
+        </div>
+    }
+</div>
+
+@code{
+    private string tab="config";
+    private List<ConfiguracionIVA> configs=new();
+    private List<TarifaImpuesto> tarifas=new();
+    private string filtroTerritorio="";
+    private IEnumerable<TarifaImpuesto> tarifasFiltradas => string.IsNullOrEmpty(filtroTerritorio) ? tarifas : tarifas.Where(t=>t.Territorio.ToString()==filtroTerritorio);
+    private List<LiquidacionIVA> liquidaciones=new();
+    private List<LibroRegistroIVA> libros=new();
+    private int ano=DateTime.Now.Year;
+    private int trimestre=1;
+
+    protected override async Task OnInitializedAsync(){ await Task.WhenAll(CargarConfigs(),CargarTarifas(),CargarLiquidaciones(),CargarLibros()); }
+    private async Task CargarConfigs(){ try{ configs = await Http.GetFromJsonAsync<List<ConfiguracionIVA>>("api/Fiscal/configuracion") ?? new(); }catch{}}
+    private async Task CargarTarifas(){ try{ tarifas = await Http.GetFromJsonAsync<List<TarifaImpuesto>>("api/Fiscal/tarifas") ?? new(); }catch{}}
+    private async Task CargarLiquidaciones(){ try{ liquidaciones = await Http.GetFromJsonAsync<List<LiquidacionIVA>>("api/Fiscal/liquidaciones") ?? new(); }catch{}}
+    private async Task CargarLibros(){ try{ libros = await Http.GetFromJsonAsync<List<LibroRegistroIVA>>("api/Fiscal/libros-registro") ?? new(); }catch{}}
+    private void OnTerritorioChanged(ChangeEventArgs e){ filtroTerritorio=e.Value?.ToString()??""; }
+    private async Task CrearConfigDemo(){ var ej = await Http.GetFromJsonAsync<List<ERP.Domain.Entities.Contabilidad.EjercicioContable>>("api/Contabilidad/ejercicios") ?? new(); var ejId = ej.FirstOrDefault()?.Id ?? 1; var dto=new ConfiguracionIVA{ EjercicioId=ejId, AplicaProrrataGeneral=false, SujetoRecargoEquivalencia=false }; var r=await Http.PostAsJsonAsync("api/Fiscal/configuracion", dto); Notify.Success(r.IsSuccessStatusCode?"Config creada":await r.Content.ReadAsStringAsync()); await CargarConfigs(); }
+    private async Task CalcularDemo(){ var ej= await Http.GetFromJsonAsync<List<ERP.Domain.Entities.Contabilidad.EjercicioContable>>("api/Contabilidad/ejercicios") ?? new(); var ejId=ej.FirstOrDefault()?.Id ?? 1; var periodo=(PeriodoIVA)trimestre; var dto=new{ EjercicioId=ejId, Periodo=periodo, Año=ano }; var r=await Http.PostAsJsonAsync("api/Fiscal/liquidaciones/calcular", dto); Notify.Success(r.IsSuccessStatusCode?"Liquidación calculada":await r.Content.ReadAsStringAsync()); await CargarLiquidaciones(); }
+    private async Task Presentar(int id){ var r=await Http.PostAsJsonAsync($"api/Fiscal/liquidaciones/{id}/presentar", $"JUST-{DateTime.Now:yyyyMMddHHmmss}"); Notify.Success(r.IsSuccessStatusCode?"Presentada AEAT":await r.Content.ReadAsStringAsync()); await CargarLiquidaciones(); }
+}

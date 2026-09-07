@@ -1,0 +1,124 @@
+@page "/bancario"
+@attribute [Authorize]
+@using ERP.Domain.Entities.Bancario
+@using ERP.Domain.DTOs.Bancario
+@inject HttpClient Http
+@inject ERP.Web.Services.NotificationService Notify
+@inject IJSRuntime JS
+
+<div class="p-8 bg-slate-50 min-h-screen">
+    <div class="flex justify-between items-end mb-8">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">Tesorería · SEPA ISO20022</p>
+            <h1 class="text-4xl font-black italic uppercase tracking-tighter text-slate-900">Bancario <span class="text-blue-600">SEPA</span></h1>
+            <p class="text-sm text-slate-500">Reg. UE 260/2012 · SCT/SDD · VoP 2025 · pain.001/pain.008</p>
+        </div>
+        <div class="flex gap-2">
+            <button @onclick='() => tab="cuentas"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="cuentas"?"bg-slate-900 text-white":"bg-white border")">Cuentas</button>
+            <button @onclick='() => tab="mandatos"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="mandatos"?"bg-slate-900 text-white":"bg-white border")">Mandatos</button>
+            <button @onclick='() => tab="remesas"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="remesas"?"bg-slate-900 text-white":"bg-white border")">Remesas</button>
+            <button @onclick='() => tab="extractos"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="extractos"?"bg-slate-900 text-white":"bg-white border")">Extractos</button>
+        </div>
+    </div>
+
+    @if (tab=="cuentas")
+    {
+        <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+            <div class="p-6 flex justify-between items-center border-b"><h3 class="font-black uppercase text-sm">Cuentas Bancarias</h3><button @onclick="()=>showCuentaModal=true" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Cuenta</button></div>
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Cuenta</th><th class="p-4">IBAN</th><th class="p-4">Tipo</th><th class="p-4">CreditorID</th><th></th></tr></thead>
+                <tbody>
+                    @foreach(var c in cuentas){<tr class="border-t"><td class="p-4 font-bold">@c.NombreCuenta @(c.EsPrincipal?"★":"")</td><td class="p-4 font-mono text-xs">@c.IBAN</td><td class="p-4">@c.Tipo</td><td class="p-4 font-mono text-xs">@c.CreditorIdentifier</td><td class="p-4 text-right"><button @onclick="()=>EliminarCuenta(c.Id)" class="text-rose-600 text-xs font-black">Eliminar</button></td></tr>}
+                    @if(!cuentas.Any()){<tr><td colspan="5" class="p-12 text-center text-slate-400">Sin cuentas</td></tr>}
+                </tbody>
+            </table>
+        </div>
+    }
+    @if (tab=="mandatos")
+    {
+        <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+            <div class="p-6 flex justify-between items-center border-b"><h3 class="font-black uppercase text-sm">Mandatos SEPA (RUM)</h3><button @onclick="()=>showMandatoModal=true" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Mandato</button></div>
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">RUM</th><th class="p-4">Deudor</th><th class="p-4">Esquema</th><th class="p-4">Estado</th><th class="p-4">VoP</th><th></th></tr></thead>
+                <tbody>
+                    @foreach(var m in mandatos){<tr class="border-t"><td class="p-4 font-mono text-xs">@m.ReferenciaUnicaMandato</td><td class="p-4">@m.DeudorNombre<br><span class="text-xs font-mono">@m.DeudorIBAN</span></td><td class="p-4">@m.Esquema</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-black @(m.Estado==EstadoMandatoSEPA.Activo?"bg-emerald-100 text-emerald-700":"bg-amber-100")">@m.Estado</span></td><td class="p-4">@(m.BeneficiarioVerificado?"✓":"—")</td><td class="p-4 flex gap-1 justify-end"><button @onclick="()=>FirmarMandato(m.Id)" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs">Firmar</button><button @onclick="()=>VerificarVoP(m.Id)" class="bg-blue-600 text-white px-3 py-2 rounded-xl text-xs">VoP</button></td></tr>}
+                    @if(!mandatos.Any()){<tr><td colspan="6" class="p-12 text-center text-slate-400">Sin mandatos</td></tr>}
+                </tbody>
+            </table>
+        </div>
+    }
+    @if (tab=="remesas")
+    {
+        <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+            <div class="p-6 flex justify-between items-center border-b"><h3 class="font-black uppercase text-sm">Remesas SEPA</h3><div class="flex gap-2"><button @onclick="CrearRemesaDemo" class="bg-slate-900 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Transferencia demo</button></div></div>
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Ref</th><th class="p-4">Tipo</th><th class="p-4">Importe</th><th class="p-4">Estado</th><th class="p-4">Fichero</th><th></th></tr></thead>
+                <tbody>
+                    @foreach(var r in remesas){<tr class="border-t"><td class="p-4 font-mono">@r.Referencia</td><td class="p-4">@r.Tipo / @r.Esquema</td><td class="p-4 font-black">@r.ImporteTotal.ToString("C2")</td><td class="p-4">@r.Estado</td><td class="p-4 font-mono text-xs">@(r.NombreArchivoXml ?? "-")</td><td class="p-4 flex gap-1 justify-end"><button @onclick="()=>GenerarXml(r.Id)" class="bg-blue-600 text-white px-3 py-2 rounded-xl text-xs">XML</button><button @onclick="()=>EnviarRemesa(r.Id)" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs">Enviar</button></td></tr>}
+                    @if(!remesas.Any()){<tr><td colspan="6" class="p-12 text-center text-slate-400">Sin remesas</td></tr>}
+                </tbody>
+            </table>
+        </div>
+    }
+    @if (tab=="extractos")
+    {
+        <div class="bg-white rounded-3xl shadow-xl border border-slate-200 p-8">
+            <div class="flex justify-between items-center mb-6"><h3 class="font-black uppercase text-sm">Extractos camt.053 + Conciliación</h3><button @onclick="ConciliarDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">Conciliar automático</button></div>
+            <p class="text-sm text-slate-500">Importa camt.053 por cuenta y concilia por Importe+EndToEndId+RUM (±2 días).</p>
+            <table class="w-full text-sm mt-6">
+                <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Ref</th><th class="p-4">Fecha</th><th class="p-4">Saldos</th><th class="p-4">Procesado</th></tr></thead>
+                <tbody>@foreach(var e in extractos){<tr class="border-t"><td class="p-4 font-mono">@e.ReferenciaExtracto</td><td class="p-4">@e.FechaExtracto.ToString("dd/MM/yyyy")</td><td class="p-4">@e.SaldoInicial.ToString("C2") → @e.SaldoFinal.ToString("C2")</td><td class="p-4">@(e.Procesado?"Sí":"No")</td></tr>} @if(!extractos.Any()){<tr><td colspan="4" class="p-12 text-center text-slate-400">Sin extractos</td></tr>}</tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if(showCuentaModal){
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-6"><div class="bg-white rounded-3xl p-8 w-full max-w-xl space-y-4">
+    <h3 class="font-black uppercase">Nueva cuenta</h3>
+    <input @bind="nuevaCuenta.NombreCuenta" placeholder="Nombre" class="w-full border rounded-xl p-3" />
+    <input @bind="nuevaCuenta.IBAN" placeholder="IBAN ES... " class="w-full border rounded-xl p-3 font-mono" />
+    <input @bind="nuevaCuenta.BIC" placeholder="BIC" class="w-full border rounded-xl p-3 font-mono" />
+    <input @bind="nuevaCuenta.CreditorIdentifier" placeholder="Creditor ID" class="w-full border rounded-xl p-3 font-mono" />
+    <div class="flex gap-2"><button @onclick="CrearCuenta" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-black uppercase">Crear</button><button @onclick="()=>showCuentaModal=false" class="flex-1 bg-slate-200 py-3 rounded-xl">Cancelar</button></div>
+</div></div>
+}
+@if(showMandatoModal){
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-6"><div class="bg-white rounded-3xl p-8 w-full max-w-xl space-y-4">
+    <h3 class="font-black uppercase">Nuevo mandato</h3>
+    <input @bind="nuevoMandato.DeudorNombre" placeholder="Deudor" class="w-full border rounded-xl p-3" />
+    <input @bind="nuevoMandato.DeudorIBAN" placeholder="IBAN deudor" class="w-full border rounded-xl p-3 font-mono" />
+    <input @bind="nuevoMandato.AcreedorNombre" placeholder="Acreedor" class="w-full border rounded-xl p-3" />
+    <input @bind="nuevoMandato.AcreedorIBAN" placeholder="IBAN acreedor" class="w-full border rounded-xl p-3 font-mono" />
+    <input @bind="nuevoMandato.CreditorIdentifier" placeholder="CreditorID" class="w-full border rounded-xl p-3 font-mono" />
+    <div class="flex gap-2"><button @onclick="CrearMandato" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-black uppercase">Crear</button><button @onclick="()=>showMandatoModal=false" class="flex-1 bg-slate-200 py-3 rounded-xl">Cancelar</button></div>
+</div></div>
+}
+
+@code{
+    private string tab="cuentas";
+    private List<CuentaBancaria> cuentas=new();
+    private List<MandatoSEPA> mandatos=new();
+    private List<RemesaSEPA> remesas=new();
+    private List<ExtractoBancario> extractos=new();
+    private bool showCuentaModal, showMandatoModal;
+    private CuentaBancaria nuevaCuenta=new(){ NombreCuenta="", IBAN="" };
+    private MandatoSEPA nuevoMandato=new(){ DeudorNombre="", DeudorIBAN="", AcreedorNombre="", AcreedorIBAN="", CreditorIdentifier="ES00000" };
+
+    protected override async Task OnInitializedAsync(){ await Task.WhenAll(CargarCuentas(),CargarMandatos(),CargarRemesas(),CargarExtractos()); }
+
+    private async Task CargarCuentas(){ try{ cuentas = await Http.GetFromJsonAsync<List<CuentaBancaria>>("api/Bancario/cuentas") ?? new(); }catch{}}
+    private async Task CargarMandatos(){ try{ mandatos = await Http.GetFromJsonAsync<List<MandatoSEPA>>("api/Bancario/mandatos") ?? new(); }catch{}}
+    private async Task CargarRemesas(){ try{ remesas = await Http.GetFromJsonAsync<List<RemesaSEPA>>("api/Bancario/remesas") ?? new(); }catch{}}
+    private async Task CargarExtractos(){ try{ extractos = await Http.GetFromJsonAsync<List<ExtractoBancario>>("api/Bancario/extractos") ?? new(); }catch{}}
+
+    private async Task CrearCuenta(){ try{ var r=await Http.PostAsJsonAsync("api/Bancario/cuentas", nuevaCuenta); if(r.IsSuccessStatusCode){ Notify.Success("Cuenta creada"); showCuentaModal=false; await CargarCuentas(); } else Notify.Error(await r.Content.ReadAsStringAsync()); }catch(Exception ex){ Notify.Error(ex.Message);} }
+    private async Task EliminarCuenta(int id){ if(!await JS.InvokeAsync<bool>("confirm","¿Eliminar cuenta?"))return; await Http.DeleteAsync($"api/Bancario/cuentas/{id}"); await CargarCuentas(); }
+    private async Task CrearMandato(){ try{ var r=await Http.PostAsJsonAsync("api/Bancario/mandatos", nuevoMandato); if(r.IsSuccessStatusCode){ Notify.Success("Mandato creado"); showMandatoModal=false; await CargarMandatos(); } else Notify.Error(await r.Content.ReadAsStringAsync()); }catch(Exception ex){Notify.Error(ex.Message);} }
+    private async Task FirmarMandato(int id){ var r=await Http.PostAsync($"api/Bancario/mandatos/{id}/firmar?verificarBeneficiario=true", null); if(r.IsSuccessStatusCode) Notify.Success("Mandato firmado"); await CargarMandatos(); }
+    private async Task VerificarVoP(int id){ var r=await Http.PostAsync($"api/Bancario/mandatos/{id}/verificar-beneficiario", null); Notify.Success(r.IsSuccessStatusCode?"VoP OK":"VoP fallo"); await CargarMandatos(); }
+    private async Task CrearRemesaDemo(){ if(!cuentas.Any()){ Notify.Error("Crea una cuenta primero"); return; } var dto=new{ CuentaOrdenanteId=cuentas[0].Id, FechaEjecucion=DateTime.Now.AddDays(1), Operaciones=new[]{ new{ BeneficiarioNombre="Proveedor Demo", BeneficiarioIBAN="ES9121000418450200051332", Importe=100m, Concepto="Demo SCT" } } }; var r=await Http.PostAsJsonAsync("api/Bancario/remesas/transferencia", dto); Notify.Success(r.IsSuccessStatusCode?"Remesa creada":"Error remesa"); await CargarRemesas(); }
+    private async Task GenerarXml(int id){ var r=await Http.PostAsync($"api/Bancario/remesas/{id}/generar-xml", null); Notify.Success(r.IsSuccessStatusCode?"XML generado":"Error XML"); await CargarRemesas(); }
+    private async Task EnviarRemesa(int id){ var r=await Http.PostAsync($"api/Bancario/remesas/{id}/enviar", null); Notify.Success(r.IsSuccessStatusCode?"Enviada al banco":"Error envío"); await CargarRemesas(); }
+    private async Task ConciliarDemo(){ if(!cuentas.Any())return; var r=await Http.PostAsync($"api/Bancario/conciliacion/automatica?cuentaId={cuentas[0].Id}&desde={DateTime.Now.AddDays(-30):yyyy-MM-dd}&hasta={DateTime.Now:yyyy-MM-dd}", null); Notify.Success(r.IsSuccessStatusCode?"Conciliación OK":await r.Content.ReadAsStringAsync()); }
+}

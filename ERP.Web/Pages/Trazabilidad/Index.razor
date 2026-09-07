@@ -1,0 +1,74 @@
+@page "/trazabilidad"
+@attribute [Authorize]
+@using ERP.Domain.Entities.Trazabilidad
+@inject HttpClient Http
+@inject ERP.Web.Services.NotificationService Notify
+@inject IJSRuntime JS
+
+<div class="p-8 bg-slate-50 min-h-screen">
+    <div class="flex justify-between items-end mb-8">
+        <div><p class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">Reg CE 178/2002 Art.18</p><h1 class="text-4xl font-black italic uppercase tracking-tighter">Trazabilidad <span class="text-blue-600">Lotes</span></h1><p class="text-sm text-slate-500">Un paso atrás / adelante · APPCC · RASFF/AESAN</p></div>
+        <div class="flex gap-2">
+            <button @onclick='()=>tab="lotes"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="lotes"?"bg-slate-900 text-white":"bg-white border")">Lotes</button>
+            <button @onclick='()=>tab="movs"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="movs"?"bg-slate-900 text-white":"bg-white border")">Movimientos</button>
+            <button @onclick='()=>tab="alertas"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="alertas"?"bg-slate-900 text-white":"bg-white border")">Alertas</button>
+            <button @onclick='()=>tab="retiradas"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="retiradas"?"bg-slate-900 text-white":"bg-white border")">Retiradas</button>
+        </div>
+    </div>
+
+    @if(tab=="lotes"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Lotes (vence APPCC)</h3><button @onclick="CrearLoteDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Lote demo</button><button @onclick="GenerarAlertas" class="bg-amber-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">Generar alertas caducidad</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Lote</th><th class="p-4">Artículo</th><th class="p-4">Stock</th><th class="p-4">Caducidad</th><th class="p-4">Estado</th><th></th></tr></thead><tbody>@foreach(var l in lotes){<tr class="border-t"><td class="p-4 font-mono font-bold">@l.CodigoLote</td><td class="p-4">@l.ArticuloId</td><td class="p-4">@l.CantidadActual.ToString("N2") / @l.CantidadDisponible.ToString("N2") disponible</td><td class="p-4 @(l.EstaProximoCaducar?"text-amber-600 font-black":"")>@(l.FechaCaducidad?.ToString("dd/MM/yyyy") ?? "-") @(l.EstaCaducado?"CADUCADO":"")</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-black @(l.Estado==EstadoLote.Activo?"bg-emerald-100 text-emerald-700":"bg-rose-100 text-rose-700")">@l.Estado</span></td><td class="p-4 text-right"><button @onclick="()=>VerTrazabilidad(l.Id)" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs">Trazabilidad</button></td></tr>} @if(!lotes.Any()){<tr><td colspan="6" class="p-12 text-center text-slate-400">Sin lotes</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="movs"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Movimientos (cadena custodia)</h3><button @onclick="CrearMovDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Movimiento</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Fecha</th><th class="p-4">Lote</th><th class="p-4">Tipo</th><th class="p-4">Cantidad</th><th class="p-4">Doc</th></tr></thead><tbody>@foreach(var m in movs){<tr class="border-t"><td class="p-4">@m.Fecha.ToString("dd/MM/yyyy")</td><td class="p-4 font-mono">@m.LoteId</td><td class="p-4">@m.Tipo</td><td class="p-4 font-black">@m.Cantidad.ToString("N2")</td><td class="p-4">@m.NumeroDocumento</td></tr>} @if(!movs.Any()){<tr><td colspan="5" class="p-12 text-center text-slate-400">Sin movimientos</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="alertas"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Alertas (PCC/caducidad)</h3></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Fecha</th><th class="p-4">Tipo</th><th class="p-4">Título</th><th class="p-4">Severidad</th><th></th></tr></thead><tbody>@foreach(var a in alertas){<tr class="border-t @(a.Severidad==SeveridadAlerta.Critica?"bg-rose-50":"")"><td class="p-4">@a.FechaAlerta.ToString("dd/MM/yyyy")</td><td class="p-4">@a.Tipo</td><td class="p-4 font-bold">@a.Titulo</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-black @(a.Severidad==SeveridadAlerta.Critica?"bg-rose-600 text-white":"bg-amber-100")">@a.Severidad</span></td><td class="p-4 flex gap-1 justify-end"><button @onclick="()=>MarcarLeida(a.Id)" class="bg-blue-600 text-white px-3 py-2 rounded-xl text-xs">Leída</button><button @onclick="()=>Resolver(a.Id)" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs">Resolver</button></td></tr>} @if(!alertas.Any()){<tr><td colspan="5" class="p-12 text-center text-slate-400">Sin alertas</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="retiradas"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Retiradas RASFF / AESAN (Art.19-20)</h3><button @onclick="CrearRetiradaDemo" class="bg-rose-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Retirada demo ClaseI</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Fecha</th><th class="p-4">Lote</th><th class="p-4">Motivo</th><th class="p-4">Severidad</th><th class="p-4">Estado</th><th></th></tr></thead><tbody>@foreach(var r in retiradas){<tr class="border-t"><td class="p-4">@r.FechaDeteccion.ToString("dd/MM/yyyy")</td><td class="p-4 font-mono">@r.LoteId</td><td class="p-4">@r.Motivo</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-black @(r.Severidad==SeveridadRetirada.ClaseI?"bg-rose-600 text-white":"bg-amber-100")">@r.Severidad</span></td><td class="p-4">@r.Estado</td><td class="p-4 flex gap-1 justify-end"><button @onclick="()=>NotificarAesan(r.Id)" class="bg-blue-600 text-white px-3 py-2 rounded-xl text-xs">AESAN</button><button @onclick="()=>CerrarRetirada(r.Id)" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs">Cerrar</button></td></tr>} @if(!retiradas.Any()){<tr><td colspan="6" class="p-12 text-center text-slate-400">Sin retiradas</td></tr>}</tbody></table>
+        </div>
+    }
+
+    @if(trazabilidad!=null){
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-6"><div class="bg-white rounded-3xl p-8 w-full max-w-2xl max-h-[80vh] overflow-auto">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase">Trazabilidad completa</h3><button @onclick="()=>trazabilidad=null" class="bg-slate-200 px-4 py-2 rounded-xl">Cerrar</button></div>
+            <pre class="bg-slate-50 p-4 rounded-xl text-xs overflow-auto">@(System.Text.Json.JsonSerializer.Serialize(trazabilidad, new System.Text.Json.JsonSerializerOptions{WriteIndented=true}))</pre>
+        </div></div>
+    }
+</div>
+
+@code{
+    private string tab="lotes";
+    private List<LoteTrazabilidad> lotes=new();
+    private List<MovimientoLote> movs=new();
+    private List<AlertaTrazabilidad> alertas=new();
+    private List<RetiradaLote> retiradas=new();
+    private object? trazabilidad;
+
+    protected override async Task OnInitializedAsync(){ await Task.WhenAll(CargarLotes(),CargarMovs(),CargarAlertas(),CargarRetiradas()); }
+    private async Task CargarLotes(){ try{ lotes = await Http.GetFromJsonAsync<List<LoteTrazabilidad>>("api/Trazabilidad/lotes") ?? new(); }catch{}}
+    private async Task CargarMovs(){ try{ movs = await Http.GetFromJsonAsync<List<MovimientoLote>>("api/Trazabilidad/movimientos") ?? new(); }catch{}}
+    private async Task CargarAlertas(){ try{ alertas = await Http.GetFromJsonAsync<List<AlertaTrazabilidad>>("api/Trazabilidad/alertas") ?? new(); }catch{}}
+    private async Task CargarRetiradas(){ try{ retiradas = await Http.GetFromJsonAsync<List<RetiradaLote>>("api/Trazabilidad/retiradas") ?? new(); }catch{}}
+    private async Task CrearLoteDemo(){ var dto=new LoteTrazabilidad{ CodigoLote=$"LT{DateTime.Now:yyyyMMddHHmmss}", ArticuloId=1, CantidadInicial=100, CantidadActual=100, FechaProduccion=DateTime.Now, FechaCaducidad=DateTime.Now.AddDays(60), EsPCC=false }; var r=await Http.PostAsJsonAsync("api/Trazabilidad/lotes", dto); Notify.Success(r.IsSuccessStatusCode?"Lote creado":await r.Content.ReadAsStringAsync()); await CargarLotes(); }
+    private async Task VerTrazabilidad(int id){ try{ trazabilidad = await Http.GetFromJsonAsync<object>($"api/Trazabilidad/lotes/{id}/trazabilidad-completa"); StateHasChanged(); }catch(Exception ex){ Notify.Error(ex.Message);} }
+    private async Task CrearMovDemo(){ if(!lotes.Any()){Notify.Error("Crea lote primero");return;} var dto=new MovimientoLote{ LoteId=lotes[0].Id, Tipo=TipoMovimientoLote.Expedicion, Cantidad=10, NumeroDocumento=$"ALB{DateTime.Now:yyyyMMdd}" }; var r=await Http.PostAsJsonAsync("api/Trazabilidad/movimientos", dto); Notify.Success(r.IsSuccessStatusCode?"Movimiento registrado":await r.Content.ReadAsStringAsync()); await Task.WhenAll(CargarLotes(),CargarMovs()); }
+    private async Task GenerarAlertas(){ var r=await Http.PostAsync("api/Trazabilidad/alertas/generar-caducidades", null); Notify.Success(r.IsSuccessStatusCode?"Alertas generadas":await r.Content.ReadAsStringAsync()); await CargarAlertas(); }
+    private async Task MarcarLeida(int id){ var r=await Http.PostAsync($"api/Trazabilidad/alertas/{id}/leer", null); await CargarAlertas(); }
+    private async Task Resolver(int id){ var r=await Http.PostAsJsonAsync($"api/Trazabilidad/alertas/{id}/resolver", "Resuelto demo"); await CargarAlertas(); }
+    private async Task CrearRetiradaDemo(){ if(!lotes.Any()){Notify.Error("Crea lote primero");return;} var dto=new RetiradaLote{ LoteId=lotes[0].Id, Tipo=TipoRetirada.Otro, Motivo="Demo ClaseI - peligro grave", Severidad=SeveridadRetirada.ClaseI, CantidadAfectada=50 }; var r=await Http.PostAsJsonAsync("api/Trazabilidad/retiradas", dto); Notify.Success(r.IsSuccessStatusCode?"Retirada creada (lote bloqueado)":await r.Content.ReadAsStringAsync()); await Task.WhenAll(CargarLotes(),CargarRetiradas(),CargarAlertas()); }
+    private async Task NotificarAesan(int id){ var r=await Http.PostAsJsonAsync($"api/Trazabilidad/retiradas/{id}/notificar-aesan", "EXP-AESAN-001"); Notify.Success(r.IsSuccessStatusCode?"Notificado AESAN/RASFF":await r.Content.ReadAsStringAsync()); await CargarRetiradas(); }
+    private async Task CerrarRetirada(int id){ var r=await Http.PostAsJsonAsync($"api/Trazabilidad/retiradas/{id}/cerrar", "Acciones correctivas demo"); Notify.Success(r.IsSuccessStatusCode?"Cerrada":await r.Content.ReadAsStringAsync()); await CargarRetiradas(); }
+}

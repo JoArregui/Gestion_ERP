@@ -1,0 +1,72 @@
+@page "/contabilidad"
+@attribute [Authorize]
+@using ERP.Domain.Entities.Contabilidad
+@inject HttpClient Http
+@inject ERP.Web.Services.NotificationService Notify
+@inject IJSRuntime JS
+
+<div class="p-8 bg-slate-50 min-h-screen">
+    <div class="flex justify-between items-end mb-8">
+        <div><p class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">PGC 07/08 · CCom 25-33</p><h1 class="text-4xl font-black italic uppercase tracking-tighter">Contabilidad <span class="text-blue-600">PGC</span></h1></div>
+        <div class="flex gap-2">
+            <button @onclick='()=>tab="ejercicios"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="ejercicios"?"bg-slate-900 text-white":"bg-white border")">Ejercicios</button>
+            <button @onclick='()=>tab="cuentas"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="cuentas"?"bg-slate-900 text-white":"bg-white border")">Cuentas</button>
+            <button @onclick='()=>tab="asientos"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="asientos"?"bg-slate-900 text-white":"bg-white border")">Asientos</button>
+            <button @onclick='()=>tab="libros"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="libros"?"bg-slate-900 text-white":"bg-white border")">Libros</button>
+        </div>
+    </div>
+
+    @if(tab=="ejercicios"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Ejercicios</h3><button @onclick="CrearEjercicio" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Ejercicio @DateTime.Now.Year</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Código</th><th class="p-4">Periodo</th><th class="p-4">Estado</th><th></th></tr></thead><tbody>@foreach(var e in ejercicios){<tr class="border-t"><td class="p-4 font-bold">@e.Codigo</td><td class="p-4">@e.FechaInicio.ToString("dd/MM/yyyy") - @e.FechaFin.ToString("dd/MM/yyyy")</td><td class="p-4">@e.Estado</td><td class="p-4 text-right"><button @onclick="()=>CerrarEjercicio(e.Id)" class="bg-amber-600 text-white px-3 py-2 rounded-xl text-xs" disabled="@e.CierreDefinitivo">Cerrar</button></td></tr>} @if(!ejercicios.Any()){<tr><td colspan="4" class="p-12 text-center text-slate-400">Sin ejercicios</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="cuentas"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Plan Contable (PGC)</h3><input @bind="filtroCuenta" @bind:event="oninput" placeholder="Filtrar código/nombre" class="border rounded-xl px-4 py-2 text-sm" /></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Código</th><th class="p-4">Nombre</th><th class="p-4">Grupo</th><th class="p-4">Naturaleza</th></tr></thead><tbody>@foreach(var c in cuentasFiltradas.Take(100)){<tr class="border-t"><td class="p-4 font-mono">@c.Codigo</td><td class="p-4">@c.Nombre</td><td class="p-4">@c.Grupo</td><td class="p-4">@c.Naturaleza</td></tr>} @if(!cuentas.Any()){<tr><td colspan="4" class="p-12 text-center text-slate-400">Sin cuentas - importa PGC</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="asientos"){
+        <div class="bg-white rounded-3xl shadow-xl border overflow-hidden">
+            <div class="p-6 flex justify-between items-center border-b"><h3 class="font-black uppercase text-sm">Asientos (Libro Diario)</h3><button @onclick="CrearAsientoDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Asiento demo cuadre</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Ref</th><th class="p-4">Fecha</th><th class="p-4">Concepto</th><th class="p-4">Debe/Haber</th><th class="p-4">Estado</th><th></th></tr></thead><tbody>@foreach(var a in asientos){<tr class="border-t"><td class="p-4 font-mono">@a.ReferenciaCompleta</td><td class="p-4">@a.Fecha.ToString("dd/MM/yyyy")</td><td class="p-4">@a.Concepto</td><td class="p-4 font-mono">@a.TotalDebe.ToString("N2") / @a.TotalHaber.ToString("N2") @(a.Cuadra?"✓":"✗")</td><td class="p-4">@a.Estado</td><td class="p-4 flex gap-1 justify-end"><button @onclick="()=>Contabilizar(a.Id)" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs">Contabilizar</button><button @onclick="()=>Anular(a.Id)" class="bg-rose-600 text-white px-3 py-2 rounded-xl text-xs">Anular</button></td></tr>} @if(!asientos.Any()){<tr><td colspan="6" class="p-12 text-center text-slate-400">Sin asientos</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="libros"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6 space-y-6">
+            <div class="flex justify-between items-center"><h3 class="font-black uppercase text-sm">Libros Oficiales & Legalización RM (4 meses)</h3><button @onclick="GenerarLibro" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">Generar Libro Diario</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Nº Libro</th><th class="p-4">Periodo</th><th class="p-4">Asientos</th><th class="p-4">Hash</th><th class="p-4">Estado</th><th></th></tr></thead><tbody>@foreach(var l in libros){<tr class="border-t"><td class="p-4 font-mono">@l.NumeroLibro</td><td class="p-4">@l.FechaDesde.ToString("dd/MM") - @l.FechaHasta.ToString("dd/MM/yyyy")</td><td class="p-4">@l.NumeroAsientos</td><td class="p-4 font-mono text-xs">@(l.HashArchivo?.Substring(0,8) ?? "-")...</td><td class="p-4">@l.Estado</td><td class="p-4 text-right"><button @onclick="()=>Legalizar(l.Id)" class="bg-amber-600 text-white px-3 py-2 rounded-xl text-xs">Legalizar RM</button></td></tr>} @if(!libros.Any()){<tr><td colspan="6" class="p-12 text-center text-slate-400">Sin libros generados</td></tr>}</tbody></table>
+            <div class="bg-slate-900 text-white rounded-2xl p-6">
+                <h4 class="font-black uppercase text-xs tracking-widest mb-2">Balance Comprobación</h4>
+                @if(balance!=null){<p class="text-sm">Total Debe @balance.GetType().GetProperty("TotalDebe")?.GetValue(balance) - Total Haber @balance.GetType().GetProperty("TotalHaber")?.GetValue(balance)</p>} else {<button @onclick="CargarBalance" class="bg-white text-slate-900 px-4 py-2 rounded-xl text-xs font-black uppercase">Cargar balance</button>}
+            </div>
+        </div>
+    }
+</div>
+
+@code{
+    private string tab="ejercicios";
+    private List<EjercicioContable> ejercicios=new();
+    private List<CuentaContable> cuentas=new();
+    private string filtroCuenta="";
+    private IEnumerable<CuentaContable> cuentasFiltradas => string.IsNullOrWhiteSpace(filtroCuenta) ? cuentas : cuentas.Where(c=>c.Codigo.Contains(filtroCuenta) || c.Nombre.Contains(filtroCuenta, StringComparison.OrdinalIgnoreCase));
+    private List<AsientoContable> asientos=new();
+    private List<LibroDiario> libros=new();
+    private object? balance;
+
+    protected override async Task OnInitializedAsync(){ await Task.WhenAll(CargarEjercicios(),CargarCuentas(),CargarAsientos(),CargarLibros()); }
+    private async Task CargarEjercicios(){ try{ ejercicios = await Http.GetFromJsonAsync<List<EjercicioContable>>("api/Contabilidad/ejercicios") ?? new(); }catch{}}
+    private async Task CargarCuentas(){ try{ cuentas = await Http.GetFromJsonAsync<List<CuentaContable>>("api/Contabilidad/cuentas") ?? new(); }catch{}}
+    private async Task CargarAsientos(){ try{ asientos = await Http.GetFromJsonAsync<List<AsientoContable>>("api/Contabilidad/asientos") ?? new(); }catch{}}
+    private async Task CargarLibros(){ try{ libros = await Http.GetFromJsonAsync<List<LibroDiario>>("api/Contabilidad/libros/diario") ?? new(); }catch{}}
+    private async Task CrearEjercicio(){ var ej=new EjercicioContable{ FechaInicio=new DateTime(DateTime.Now.Year,1,1), FechaFin=new DateTime(DateTime.Now.Year,12,31)}; var r=await Http.PostAsJsonAsync("api/Contabilidad/ejercicios", ej); Notify.Success(r.IsSuccessStatusCode?"Ejercicio creado":await r.Content.ReadAsStringAsync()); await CargarEjercicios(); }
+    private async Task CerrarEjercicio(int id){ var r=await Http.PostAsync($"api/Contabilidad/ejercicios/{id}/cerrar", null); Notify.Success(r.IsSuccessStatusCode?"Cerrado":await r.Content.ReadAsStringAsync()); await CargarEjercicios(); }
+    private async Task CrearAsientoDemo(){ var dto=new AsientoContable{ Serie="D", Fecha=DateTime.Now, Concepto="Asiento demo cuadre", Apuntes=new List<ApunteContable>{ new(){ Orden=1, CuentaContableCodigo="43000000", Tipo=TipoApunte.Debe, Importe=1000}, new(){ Orden=2, CuentaContableCodigo="70000000", Tipo=TipoApunte.Haber, Importe=1000} } }; var r=await Http.PostAsJsonAsync("api/Contabilidad/asientos", dto); Notify.Success(r.IsSuccessStatusCode?"Asiento creado":"Error asiento"); await CargarAsientos(); }
+    private async Task Contabilizar(int id){ var r=await Http.PostAsync($"api/Contabilidad/asientos/{id}/contabilizar", null); Notify.Success(r.IsSuccessStatusCode?"Contabilizado":await r.Content.ReadAsStringAsync()); await CargarAsientos(); }
+    private async Task Anular(int id){ var r=await Http.PostAsync($"api/Contabilidad/asientos/{id}/anular", null); Notify.Success(r.IsSuccessStatusCode?"Anulado (inverso creado)":await r.Content.ReadAsStringAsync()); await CargarAsientos(); }
+    private async Task GenerarLibro(){ if(!ejercicios.Any()){Notify.Error("Crea ejercicio primero");return;} var ej=ejercicios[0]; var r=await Http.PostAsync($"api/Contabilidad/libros/diario/generar?ejercicioId={ej.Id}&desde={ej.FechaInicio:yyyy-MM-dd}&hasta={ej.FechaFin:yyyy-MM-dd}", null); Notify.Success(r.IsSuccessStatusCode?"Libro generado":await r.Content.ReadAsStringAsync()); await CargarLibros(); }
+    private async Task Legalizar(int id){ var r=await Http.PostAsync($"api/Contabilidad/libros/diario/{id}/legalizar", null); Notify.Success(r.IsSuccessStatusCode?"Legalizado RM":await r.Content.ReadAsStringAsync()); await CargarLibros(); }
+    private async Task CargarBalance(){ try{ var ej=ejercicios.FirstOrDefault(); if(ej==null)return; balance = await Http.GetFromJsonAsync<object>($"api/Contabilidad/libros/mayor/43000000?ejercicioId={ej.Id}"); StateHasChanged(); }catch{}}
+}
