@@ -100,6 +100,9 @@ builder.Services.AddScoped<ComprasService>();
 builder.Services.AddScoped<CicloFacturacionService>();
 builder.Services.AddScoped<FacturacionService>();
 builder.Services.AddScoped<VerifactuService>();
+// Módulos legales 2026 - Dossier §5-9
+builder.Services.AddScoped<ERP.Services.Bancario.BancarioService>();
+builder.Services.AddScoped<ERP.Services.Bancario.SepaXmlGeneratorService>();
 
 builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
