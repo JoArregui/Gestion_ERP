@@ -131,24 +131,24 @@ else
                     <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Cliente</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@(Documento.Cliente?.RazonSocial ?? $"ID {Documento.ClienteId}")</div></div>
                     <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Estado</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@Documento.Estado @(Documento.EstaEmitidaFormalmente ? "(Emitida)" : "(No emitida)")</div></div>
                     <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Total</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-emerald-400 font-black">@Documento.Total.ToString("N2") â‚¬</div></div>
-                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">EnvÃ­o / Hacienda</label>
-                        <div class="text-[11px] text-slate-300">Cliente: @(Documento.EnviadaCliente ? $"SÃ­ {Documento.FechaEnvioCliente:dd/MM}" : "No") Â· Hacienda: @(Documento.PresentadaHacienda ? "SÃ­" : "No")</div>
+                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Enviad­o / Hacienda</label>
+                        <div class="text-[11px] text-slate-300">Cliente: @(Documento.EnviadaCliente ? $"Sí­ {Documento.FechaEnvioCliente:dd/MM}" : "No") · Hacienda: @(Documento.PresentadaHacienda ? "Sí­" : "No")</div>
                     </div>
                 </div>
                 @if (!EsEditable(Documento) && modoEdicion)
                 {
-                    <div class="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-300 text-xs text-center">No editable por normativa (ya emitida). Use Desvincular/Anular si aÃºn no enviada, o Rectificativa si ya emitida.</div>
+                    <div class="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-300 text-xs text-center">No editable por normativa (ya emitida). Use Desvincular/Anular si aún no enviada, o Rectificativa si ya emitida.</div>
                 }
             </div>
             <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 mb-6">
-                <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest">LÃ­neas (@Documento.Lineas.Count)</span>
+                <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest">Lí­neas (@Documento.Lineas.Count)</span>
                 @if (Documento.Lineas.Any())
                 {
                     <table class="w-full text-sm mt-3">
-                        <thead class="bg-slate-800/50 text-slate-400 text-[10px] uppercase"><tr><th class="p-3 text-left">ArtÃ­culo</th><th class="p-3 text-center">Cant.</th><th class="p-3 text-end">Precio</th><th class="p-3 text-end">Subtotal</th></tr></thead>
+                        <thead class="bg-slate-800/50 text-slate-400 text-[10px] uppercase"><tr><th class="p-3 text-left">Artí­culo</th><th class="p-3 text-center">Cant.</th><th class="p-3 text-end">Precio</th><th class="p-3 text-end">Subtotal</th></tr></thead>
                         <tbody class="divide-y divide-slate-800">
                             @foreach (var l in Documento.Lineas)
-                            { <tr class="text-white"><td class="p-3">@l.DescripcionArticulo</td><td class="p-3 text-center">@l.Cantidad</td><td class="p-3 text-end">@l.PrecioUnitario.ToString("N2") â‚¬</td><td class="p-3 text-end font-bold">@l.Subtotal.ToString("N2") â‚¬</td></tr> }
+                            { <tr class="text-white"><td class="p-3">@l.DescripcionArticulo</td><td class="p-3 text-center">@l.Cantidad</td><td class="p-3 text-end">@l.PrecioUnitario.ToString("N2") â‚¬</td><td class="p-3 text-end font-bold">@l.Subtotal.ToString("N2") €</td></tr> }
                         </tbody>
                     </table>
                 }
@@ -168,14 +168,14 @@ else
                     {
                         @if (!Documento.EstaEmitidaFormalmente)
                         {
-                            <button @onclick="DesvincularFactura" class="w-full bg-amber-600 text-white py-3 rounded-xl font-black text-xs uppercase">Desvincular (corregir albarÃ¡n y regenerar)</button>
+                            <button @onclick="DesvincularFactura" class="w-full bg-amber-600 text-white py-3 rounded-xl font-black text-xs uppercase">Desvincular (corregir albarán y regenerar)</button>
                             <button @onclick="AnularInterna" class="w-full bg-slate-700 text-white py-3 rounded-xl font-black text-xs uppercase">Anular interna (no enviada)</button>
                             <button @onclick="MarcarEnviada" class="w-full bg-emerald-700 text-white py-3 rounded-xl font-black text-xs uppercase">Marcar como enviada a cliente</button>
                         }
                         else
                         {
                             <button @onclick="CrearRectificativa" class="w-full bg-orange-600 text-white py-3 rounded-xl font-black text-xs uppercase">Crear rectificativa / abono</button>
-                            <button @onclick="CrearDevolucion" class="w-full bg-orange-800 text-white py-3 rounded-xl font-black text-xs uppercase">AlbarÃ¡n devoluciÃ³n + abono</button>
+                            <button @onclick="CrearDevolucion" class="w-full bg-orange-800 text-white py-3 rounded-xl font-black text-xs uppercase">Albarán devolución + abono</button>
                         }
                         <button @onclick="DescargarPdf" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition shadow-xl"><i class="bi bi-file-earmark-pdf mr-2"></i> Descargar PDF</button>
                     }
@@ -258,26 +258,26 @@ else
 
     private async Task GuardarEdicion()
     {
-        if (!EsEditable(Documento)) { await JS.InvokeVoidAsync("alert", "No editable por normativa. Use rectificativa o desvincular si aÃºn no emitida."); return; }
+        if (!EsEditable(Documento)) { await JS.InvokeVoidAsync("alert", "No editable por normativa. Use rectificativa o desvincular si aún no emitida."); return; }
         var resp = await Http.PutAsJsonAsync($"api/CicloFacturacion/{Documento.Id}", Documento);
         if (resp.IsSuccessStatusCode) { await JS.InvokeVoidAsync("alert", "Documento actualizado"); Nav.NavigateTo("/ventas/editor"); }
         else { var msg = await resp.Content.ReadAsStringAsync(); await JS.InvokeVoidAsync("alert", msg); }
     }
     private async Task ConvertirAAlbaran()
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "Â¿Convertir presupuesto a albarÃ¡n?")) return;
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Convertir presupuesto a albarán?")) return;
         var res = await Http.PostAsync($"api/CicloFacturacion/{Documento.Id}/convertir?nuevoTipo={TipoDocumento.Albaran}", null);
         if (res.IsSuccessStatusCode) Nav.NavigateTo("/ventas/albaranes"); else { var msg = await res.Content.ReadAsStringAsync(); await JS.InvokeVoidAsync("alert", msg); }
     }
     private async Task Eliminar()
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "Â¿Eliminar documento?")) return;
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Eliminar documento?")) return;
         var res = await Http.DeleteAsync($"api/CicloFacturacion/albaran/{Documento.Id}");
         if (res.IsSuccessStatusCode) Volver(); else { var msg = await res.Content.ReadAsStringAsync(); await JS.InvokeVoidAsync("alert", msg); }
     }
     private async Task DesvincularFactura()
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "Â¿Desvincular factura no emitida? Se borrarÃ¡ la factura y podrÃ¡ corregir el albarÃ¡n y regenerar.")) return;
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Desvincular factura no emitida? Se borrará la factura y podrá corregir el albarán y regenerar.")) return;
         var res = await Http.PostAsync($"api/CicloFacturacion/{Documento.Id}/desvincular", null);
         var msg = await res.Content.ReadAsStringAsync();
         await JS.InvokeVoidAsync("alert", msg);

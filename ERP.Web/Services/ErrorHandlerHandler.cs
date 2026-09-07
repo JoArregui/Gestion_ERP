@@ -58,30 +58,37 @@ namespace ERP.Web.Services
 
         private async Task HandleUnauthorizedAsync()
         {
+            bool alreadyOnLogin = false;
             try
             {
-                // Limpiar token caducado de localStorage
-                await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
+                alreadyOnLogin = _navManager.ToBaseRelativePath(_navManager.Uri)
+                    .StartsWith("login", StringComparison.OrdinalIgnoreCase);
+            }
+            catch { alreadyOnLogin = false; }
 
-                // Resolver AuthenticationStateProvider bajo demanda para evitar dependencia circular al arrancar
+            // Si ya estamos en login, no hacer nada para evitar bucle infinito / spinner
+            if (alreadyOnLogin) return;
+
+            try
+            {
+                try { await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken"); } catch { }
                 var authProvider = _serviceProvider.GetService<AuthenticationStateProvider>();
                 if (authProvider is CustomAuthenticationProvider provider)
                 {
                     provider.NotifyUserLogout();
                 }
-
-                // Mostrar mensaje de sesión expirada
                 _notify.Error("Sesión expirada. Por favor, vuelva a iniciar sesión.");
             }
-            catch
-            {
-                // Prevenir que errores secundarios bloqueen la redirección
-            }
+            catch { }
             finally
             {
-                // Redirigir al login
-                _navManager.NavigateTo("/login", forceLoad: true);
+                try
+                {
+                    // forceLoad:false evita recarga completa que dispara blazor-error-ui
+                    _navManager.NavigateTo("/login", forceLoad: false);
+                }
+                catch { }
             }
         }
-    }
+}
 }

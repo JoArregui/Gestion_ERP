@@ -5,21 +5,19 @@
                 <NotAuthorized>
                     @if (context.User.Identity?.IsAuthenticated != true)
                     {
-                        @* Si no está logueado, lo mandamos al Login automáticamente *@
                         <RedirectToLogin />
                     }
                     else
                     {
-                        @* Si está logueado pero NO tiene el permiso (Policy) *@
                         <div class="min-h-screen flex flex-col items-center justify-center bg-[#020617] text-white p-6">
                             <div class="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center text-amber-500 text-4xl mb-6 border border-amber-500/20">
                                 <i class="bi bi-shield-lock"></i>
                             </div>
                             <h2 class="text-3xl font-black uppercase tracking-tight mb-2 text-center">Acceso no autorizado</h2>
                             <p class="text-slate-400 text-center max-w-md mb-8">
-                                Lo sentimos, tu cuenta no dispone de los privilegios necesarios para acceder a este módulo del sistema.
+                                Tu cuenta no dispone de privilegios para este módulo.
                             </p>
-                            <button @onclick='() => NavigationManager.NavigateTo("")' 
+                            <button @onclick='() => NavigationManager.NavigateTo("")'
                                     class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg shadow-blue-900/20">
                                 Volver al Escritorio
                             </button>
@@ -27,7 +25,6 @@
                     }
                 </NotAuthorized>
                 <Authorizing>
-                    @* Pantalla de carga mientras se valida el JWT *@
                     <div class="h-screen w-full flex flex-col items-center justify-center bg-[#020617]">
                         <div class="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin mb-4"></div>
                         <p class="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">Validando Identidad...</p>

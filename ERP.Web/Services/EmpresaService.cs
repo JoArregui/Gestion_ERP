@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using ERP.Domain.Entities;
@@ -36,11 +37,28 @@ namespace ERP.Web.Services
         {
             try
             {
-                _empresas = await _http.GetFromJsonAsync<List<Empresa>>("api/empresas");
-                if (_empresas == null || _empresas.Count == 0) return;
+                var response = await _http.GetAsync("api/empresas");
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"EmpresaService.LoadAsync warning: La API devolvió el estado {response.StatusCode}");
+                    _empresas = new List<Empresa>();
+                    return;
+                }
 
-                // Recuperar última sede activa del storage, o usar la primera activa
-                var guardadaRaw = await _js.InvokeAsync<string>("localStorage.getItem", StorageKey);
+                _empresas = await response.Content.ReadFromJsonAsync<List<Empresa>>() ?? new List<Empresa>();
+                if (_empresas.Count == 0) return;
+
+                // Recuperar última sede activa del storage de forma segura
+                string? guardadaRaw = null;
+                try
+                {
+                    guardadaRaw = await _js.InvokeAsync<string>("localStorage.getItem", StorageKey);
+                }
+                catch (Exception jsEx)
+                {
+                    Console.WriteLine($"EmpresaService.LoadAsync JSInterop warning: {jsEx.Message}");
+                }
+
                 if (!string.IsNullOrEmpty(guardadaRaw) &&
                     int.TryParse(guardadaRaw, out var guardada) &&
                     (_empresas?.Exists(e => e.Id == guardada) ?? false))
@@ -56,13 +74,23 @@ namespace ERP.Web.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"EmpresaService.LoadAsync error: {ex.Message}");
+                _empresas = new List<Empresa>();
             }
         }
 
         public async Task<bool> SelectEmpresaAsync(int empresaId)
         {
             if (_empresas == null || !_empresas.Exists(e => e.Id == empresaId)) return false;
-            await _js.InvokeVoidAsync("localStorage.setItem", StorageKey, empresaId.ToString());
+            
+            try
+            {
+                await _js.InvokeVoidAsync("localStorage.setItem", StorageKey, empresaId.ToString());
+            }
+            catch (Exception jsEx)
+            {
+                Console.WriteLine($"EmpresaService.SelectEmpresaAsync JSInterop warning: {jsEx.Message}");
+            }
+
             await SetEmpresaAsync(empresaId, notify: true);
             return true;
         }

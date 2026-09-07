@@ -2,7 +2,10 @@
 @using ERP.Web.Shared
 @using ERP.Web.Layout
 @using ERP.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @inject NotificationService NotificationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
 @implements IDisposable
 
 <div class="flex h-screen overflow-hidden bg-[#020617]">

@@ -18,9 +18,13 @@ builder.Services.AddAuthorizationCore(options =>
             policy.RequireClaim("Permission", permission));
     }
 });
+
 builder.Services.AddScoped<CustomAuthenticationProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<CustomAuthenticationProvider>());
+
+// Registro del handler para que DI lo pueda resolver correctamente
+builder.Services.AddScoped<ErrorHandlerHandler>();
 
 builder.Services.AddScoped(sp =>
 {

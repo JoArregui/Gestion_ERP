@@ -2,9 +2,12 @@
 @layout EmptyLayout
 @using ERP.Domain.Dtos
 @using ERP.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 @inject NotificationService NotificationService
+@inject IJSRuntime JSRuntime
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="min-h-screen w-full flex items-center justify-center bg-[#020617] p-6">
     <div class="w-full max-w-md bg-[#0f172a] rounded-3xl shadow-2xl border border-slate-800/50 p-8">
@@ -91,8 +94,22 @@
 
             if (result is not null && !string.IsNullOrEmpty(result.Token))
             {
-                await Task.Delay(300);
-                NavigationManager.NavigateTo("/dashboard", forceLoad: true);
+                // 1. Guardar el token JWT en el localStorage
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
+
+                // 2. Notificar al estado global de autenticación de Blazor
+                if (AuthStateProvider is CustomAuthenticationProvider customAuthProvider)
+                {
+                    customAuthProvider.NotifyUserAuthentication(result.Token);
+                }
+
+                // Si necesita onboarding, ir al escritorio donde está el wizard modal (el que te gustaba)
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var needsOnboarding = authState.User.FindFirst("OnboardingRequired") != null;
+                if (needsOnboarding)
+                    NavigationManager.NavigateTo("/", forceLoad: false);
+                else
+                    NavigationManager.NavigateTo("/dashboard", forceLoad: false);
             }
             else
             {

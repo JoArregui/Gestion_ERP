@@ -10,8 +10,9 @@
 
         if (user.Identity == null || !user.Identity.IsAuthenticated)
         {
-            // Redirigir al login si no hay sesión
-            NavigationManager.NavigateTo("login");
+            var relative = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+            if (!relative.StartsWith("login", StringComparison.OrdinalIgnoreCase))
+                NavigationManager.NavigateTo("login", forceLoad: false);
         }
     }
 }

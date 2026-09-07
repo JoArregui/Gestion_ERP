@@ -57,8 +57,7 @@ namespace ERP.Api.Controllers
             if (result.Succeeded)
             {
                 // --- AUDITORÍA AUTOMÁTICA ---
-                // Actualizamos la propiedad que configuramos en ApplicationUser
-                user.UltimoAcceso = DateTime.Now;
+                user.UltimoAcceso = DateTime.UtcNow;
                 await _userManager.UpdateAsync(user);
                 // ----------------------------
 
@@ -88,16 +87,19 @@ namespace ERP.Api.Controllers
                 new Claim(JwtRegisteredClaimNames.Sub, user.Email!),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim(ClaimTypes.Name, user.UserName ?? user.Email!),
                 new Claim(ClaimTypes.Email, user.Email!),
-                new Claim("FullName", user.FullName),
+                new Claim("FullName", user.FullName ?? string.Empty),
                 // CLAIM DE TENANCY: Vital para filtrar datos por empresa en los servicios (0 si bootstrap sin empresa)
                 new Claim("EmpresaId", (user.EmpresaId ?? 0).ToString())
             };
 
-            // Mapeo de roles a claims de seguridad
+            // Mapeo explícito de roles a claims de seguridad
             foreach (var role in roles)
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
+                // Duplicamos el claim con la clave 'role' explícita para evitar inconsistencias de desmaterialización en Blazor WASM
+                claims.Add(new Claim("role", role));
             }
 
             foreach (var permission in permissions.Where(c => c.Type == "Permission"))

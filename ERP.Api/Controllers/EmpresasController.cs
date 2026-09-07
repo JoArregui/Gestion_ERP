@@ -1,28 +1,48 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace ERP.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class EmpresasController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public EmpresasController(ApplicationDbContext context)
+        public EmpresasController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
+        }
+
+        /// <summary>
+        /// Obtiene el listado completo de empresas activas
+        /// </summary>
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Empresa>>> GetEmpresas()
+        {
+            var empresas = await _context.Empresas
+                .Where(e => e.IsActiva)
+                .ToListAsync();
+
+            return Ok(empresas);
         }
 
         /// <summary>
         /// Crea la primera empresa durante el onboarding inicial
         /// </summary>
+        [AllowAnonymous]
         [HttpPost("crear-onboarding")]
         public async Task<ActionResult<Empresa>> CrearParaOnboarding([FromBody] string nombreEmpresa)
         {
@@ -44,14 +64,14 @@ namespace ERP.Api.Controllers
                 NombreComercial = nombreLimpio,
                 RazonSocial = nombreEmpresa,
                 CIF = $"B{Guid.NewGuid():N}"[..10],
-                SerieFacturacion = DateTime.Now.Year.ToString(),
+                SerieFacturacion = DateTime.UtcNow.Year.ToString(),
                 IvaDefecto = 21m,
                 IsActiva = true,
                 ColorHex = "#3498db",
                 Eslogan = null,
                 LogoUrl = null,
                 LogoBase64 = null,
-                FechaAlta = DateTime.Now,
+                FechaAlta = DateTime.UtcNow,
                 UltimaModificacion = null,
                 TerritorioFiscal = ERP.Domain.Entities.Fiscal.TerritorioFiscal.PeninsulaBaleares,
                 EsSII = false
@@ -59,6 +79,28 @@ namespace ERP.Api.Controllers
 
             _context.Empresas.Add(empresa);
             await _context.SaveChangesAsync();
+
+            // Vincular automáticamente al usuario bootstrap (admin@erp.local) si aún no tiene empresa
+            // o al usuario autenticado si lo hay
+            try
+            {
+                ApplicationUser? targetUser = null;
+                if (User?.Identity?.IsAuthenticated == true)
+                {
+                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    if (!string.IsNullOrEmpty(userId))
+                        targetUser = await _userManager.FindByIdAsync(userId);
+                }
+                if (targetUser == null)
+                    targetUser = await _userManager.FindByEmailAsync("admin@erp.local");
+
+                if (targetUser != null && targetUser.EmpresaId == null)
+                {
+                    targetUser.EmpresaId = empresa.Id;
+                    await _userManager.UpdateAsync(targetUser);
+                }
+            }
+            catch { /* no bloquea la creación si falla la vinculación */ }
 
             return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
         }
@@ -87,11 +129,27 @@ namespace ERP.Api.Controllers
         {
             try
             {
-                empresa.FechaAlta = DateTime.Now;
+                empresa.FechaAlta = DateTime.UtcNow;
                 empresa.UltimaModificacion = null;
                 
                 _context.Empresas.Add(empresa);
                 await _context.SaveChangesAsync();
+
+                // Si es la primera empresa y el usuario bootstrap aún no tiene EmpresaId, vincularla
+                try
+                {
+                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    if (!string.IsNullOrEmpty(userId))
+                    {
+                        var u = await _userManager.FindByIdAsync(userId);
+                        if (u != null && u.EmpresaId == null)
+                        {
+                            u.EmpresaId = empresa.Id;
+                            await _userManager.UpdateAsync(u);
+                        }
+                    }
+                }
+                catch { }
 
                 return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
             }
@@ -120,7 +178,7 @@ namespace ERP.Api.Controllers
             }
 
             empresa.FechaAlta = existente.FechaAlta;
-            empresa.UltimaModificacion = DateTime.Now;
+            empresa.UltimaModificacion = DateTime.UtcNow;
 
             _context.Entry(empresa).State = EntityState.Modified;
 
@@ -151,7 +209,7 @@ namespace ERP.Api.Controllers
 
             // Aplicamos baja lógica
             empresa.IsActiva = false;
-            empresa.UltimaModificacion = DateTime.Now;
+            empresa.UltimaModificacion = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 

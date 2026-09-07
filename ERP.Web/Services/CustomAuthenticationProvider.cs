@@ -26,17 +26,20 @@ namespace ERP.Web.Services
 
                 try
                 {
-                    // En Blazor Server (Prerendering), JS Interop falla al arrancar porque aún no hay conexión DOM/WebSocket.
+                    // En Blazor WASM el JS Interop puede fallar durante el arranque / desconexión
                     token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
                 }
                 catch (InvalidOperationException)
                 {
-                    // Captura la excepción cuando JS Interop no está listo durante el prerender
                     return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
                 }
                 catch (JSException)
                 {
-                    // Captura errores específicos de JavaScript durante la inicialización
+                    return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+                }
+                catch (Exception)
+                {
+                    // JSDisconnectedException y otros durante blazor-error-ui / reload
                     return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
                 }
 
@@ -45,20 +48,10 @@ namespace ERP.Web.Services
                     return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
                 }
 
-                var claims = ParseClaimsFromJwt(token);
                 _httpClient.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", token);
 
-                var identity = new ClaimsIdentity(claims, "jwt");
-
-// --- DETECCIÓN ONBOARDING ---
-                // Si EmpresaId es null o vacío, marcar que requiere onboarding
-                var empresaIdClaim = identity.FindFirst("EmpresaId");
-                if (empresaIdClaim == null || string.IsNullOrEmpty(empresaIdClaim.Value))
-                {
-                    identity.AddClaim(new Claim("OnboardingRequired", "true"));
-                }
-                // --- FIN DETECCIÓN ONBOARDING ---
+                var identity = CreateIdentityFromToken(token);
 
                 return new AuthenticationState(new ClaimsPrincipal(identity));
             }
@@ -82,12 +75,11 @@ namespace ERP.Web.Services
         {
             try
             {
-                var claims = ParseClaimsFromJwt(token);
-                var identity = new ClaimsIdentity(claims, "jwt");
-                var user = new ClaimsPrincipal(identity);
-
                 _httpClient.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", token);
+
+                var identity = CreateIdentityFromToken(token);
+                var user = new ClaimsPrincipal(identity);
 
                 var authState = Task.FromResult(new AuthenticationState(user));
                 NotifyAuthenticationStateChanged(authState);
@@ -106,6 +98,24 @@ namespace ERP.Web.Services
             var authState = Task.FromResult(new AuthenticationState(anonymous));
             
             NotifyAuthenticationStateChanged(authState);
+        }
+
+        private static ClaimsIdentity CreateIdentityFromToken(string token)
+        {
+            var claims = ParseClaimsFromJwt(token).ToList();
+
+            // Especificar explícitamente NameType y RoleType para que IsInRole("Admin") funcione correctamente
+            var identity = new ClaimsIdentity(claims, "jwt", ClaimTypes.Name, ClaimTypes.Role);
+
+            // --- DETECCIÓN ONBOARDING ---
+            var empresaIdClaim = identity.FindFirst("EmpresaId");
+            if (empresaIdClaim == null || string.IsNullOrWhiteSpace(empresaIdClaim.Value) || empresaIdClaim.Value == "0")
+            {
+                identity.AddClaim(new Claim("OnboardingRequired", "true"));
+            }
+            // --- FIN DETECCIÓN ONBOARDING ---
+
+            return identity;
         }
 
         private static IEnumerable<Claim> ParseClaimsFromJwt(string token)
@@ -132,12 +142,15 @@ namespace ERP.Web.Services
             }
         }
 
-        private static string MapClaimType(string type) => type switch
+        private static string MapClaimType(string type) => type.ToLower() switch
         {
             "email" => ClaimTypes.Email,
             "unique_name" => ClaimTypes.Name,
+            "name" => ClaimTypes.Name,
             "role" => ClaimTypes.Role,
-            ClaimTypes.Role => ClaimTypes.Role,
+            "roles" => ClaimTypes.Role,
+            "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" => ClaimTypes.Role,
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name" => ClaimTypes.Name,
             _ => type
         };
     }
