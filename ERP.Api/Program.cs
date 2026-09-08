@@ -20,6 +20,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Si no hay Tenant (bootstrap admin@erp.local pasillo) se usa DefaultConnection (maestro).
 var masterConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=erp.db";
 var masterUseSqlite = builder.Configuration.GetValue<bool>("Database:UseSqlite");
+var contentRoot = builder.Environment.ContentRootPath;
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
 {
@@ -29,16 +30,22 @@ builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
     bool useSqlite = masterUseSqlite;
     if (!string.IsNullOrWhiteSpace(tenantFile))
     {
-        // Resolver ruta GestionX.db junto a erp.db
         var masterFile = masterConnectionString.Contains("Data Source=") ? masterConnectionString.Split("Data Source=")[1].Split(';')[0].Trim() : "erp.db";
-        var baseDir = AppContext.BaseDirectory;
-        var masterPath = Path.IsPathRooted(masterFile) ? masterFile : Path.Combine(baseDir, masterFile);
-        var dir = Path.GetDirectoryName(masterPath) ?? baseDir;
+        var dir = Path.IsPathRooted(masterFile) ? Path.GetDirectoryName(masterFile)! : contentRoot;
         var tenantPath = Path.Combine(dir, tenantFile);
         if (File.Exists(tenantPath))
         {
             conn = $"Data Source={tenantPath}";
             useSqlite = true;
+        }
+    }
+    else
+    {
+        // Asegurar que maestro apunta a ContentRoot, no a bin
+        if (masterConnectionString.Contains("Data Source="))
+        {
+            var mf = masterConnectionString.Split("Data Source=")[1].Split(';')[0].Trim();
+            if (!Path.IsPathRooted(mf)) conn = $"Data Source={Path.Combine(contentRoot, mf)}";
         }
     }
     if (useSqlite) options.UseSqlite(conn); else options.UseSqlServer(conn);
