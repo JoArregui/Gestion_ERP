@@ -19,11 +19,13 @@ namespace ERP.Api.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ERP.Services.Tenant.TenantDatabaseService _tenantService;
 
-        public EmpresasController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public EmpresasController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ERP.Services.Tenant.TenantDatabaseService tenantService)
         {
             _context = context;
             _userManager = userManager;
+            _tenantService = tenantService;
         }
 
         /// <summary>
@@ -80,6 +82,10 @@ namespace ERP.Api.Controllers
             _context.Empresas.Add(empresa);
             await _context.SaveChangesAsync();
 
+            // Crear BBDD por empresa: GestionX.db (visible en carpeta, para miles de PCs/empresas)
+            string tenantFile = "";
+            try { tenantFile = await _tenantService.EnsureTenantDatabaseAsync(empresa); } catch { }
+
             // Vincular automáticamente al usuario bootstrap (admin@erp.local) si aún no tiene empresa
             // o al usuario autenticado si lo hay
             try
@@ -102,7 +108,8 @@ namespace ERP.Api.Controllers
             }
             catch { /* no bloquea la creación si falla la vinculación */ }
 
-            return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
+            // Devolver también el fichero GestionX.db para que el wizard lo muestre
+            return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, new { empresa.Id, empresa.RazonSocial, empresa.NombreComercial, empresa.CIF, TenantDatabase = tenantFile, Mensaje = tenantFile != "" ? $"BBDD {System.IO.Path.GetFileName(tenantFile)} creada" : null });
         }
 
         /// <summary>
@@ -134,6 +141,9 @@ namespace ERP.Api.Controllers
                 
                 _context.Empresas.Add(empresa);
                 await _context.SaveChangesAsync();
+
+                // Crear BBDD por empresa: GestionX.db (para miles de PCs/empresas)
+                try { await _tenantService.EnsureTenantDatabaseAsync(empresa); } catch { }
 
                 // Si es la primera empresa y el usuario bootstrap aún no tiene EmpresaId, vincularla
                 try

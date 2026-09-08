@@ -1,40 +1,95 @@
 @using Microsoft.AspNetCore.Components.Authorization
+@using ERP.Domain.Entities
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject ERP.Web.Services.NotificationService Notify
 
 @if (mostrar)
 {
     <div class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-6">
-        <div class="w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in">
+        <div class="w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in max-h-[90vh] overflow-y-auto">
             <div class="bg-[#020617] text-white p-8 text-center">
                 <div class="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-black">E</div>
                 <h2 class="text-2xl font-black uppercase tracking-tight">Bienvenido — Primer arranque</h2>
-                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Has entrado con credenciales por defecto</p>
+                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Has entrado con credenciales por defecto <code class="bg-white/10 px-2 py-1 rounded">admin@erp.local / Admin123!</code></p>
+                <p class="text-amber-400 text-[10px] font-bold uppercase tracking-widest mt-2">Programa multi-empresa — miles de PCs · miles de empresas</p>
             </div>
             <div class="p-8 space-y-6">
-                <div class="flex gap-4">
-                    <div class="flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-200">
-                        <div class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Paso 1</div>
+                @if (!empresaCreada)
+                {
+                    <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                        <div class="text-[10px] font-black uppercase text-blue-600 tracking-widest">Paso 1 · Obligatorio</div>
                         <div class="font-black text-slate-800 mt-1">Crea tu empresa</div>
-                        <p class="text-xs text-slate-500 mt-2">Ve a <b>Maestros → Empresas</b> y registra CIF, razón social y serie de facturación. Sin empresa no podrás crear familias ni artículos.</p>
-                        <button @onclick='() => Nav.NavigateTo("/maestros/empresas")' class="mt-4 w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition">Ir a Empresas</button>
+                        <p class="text-xs text-slate-500 mt-2">Si la empresa se llama <b>@(string.IsNullOrWhiteSpace(nombreEmpresa) ? "X" : nombreEmpresa)</b>, se verá <b>Empresa @(string.IsNullOrWhiteSpace(nombreEmpresa) ? "X" : nombreEmpresa)</b> en todos los documentos y se creará la BBDD <b>Gestion@(ERP.Services.Tenant.TenantDatabaseService.SanitizeEmpresa(string.IsNullOrWhiteSpace(nombreEmpresa) ? "X" : nombreEmpresa)).db</b>.</p>
+                        <input @bind="nombreEmpresa" @bind:event="oninput" placeholder="Ej: Empresa X" class="mt-3 w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                        @if (!string.IsNullOrEmpty(errorEmpresa)) { <p class="text-xs text-rose-600 mt-2">@errorEmpresa</p> }
+                        @if (!string.IsNullOrEmpty(tenantFile)) { <p class="text-xs text-emerald-600 mt-2 font-bold">✓ @tenantFile creada</p> }
+                        <button @onclick="CrearEmpresa" disabled="@(isCreandoEmpresa || string.IsNullOrWhiteSpace(nombreEmpresa))" class="mt-3 w-full bg-slate-900 hover:bg-blue-600 disabled:bg-slate-300 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest transition">
+                            @(isCreandoEmpresa ? "Creando..." : empresaCreada ? "✓ Empresa creada" : "Crear empresa y BBDD GestionX")
+                        </button>
+                        <p class="text-[10px] text-slate-400 mt-2">También puedes ir a <a href="/maestros/empresas" class="text-blue-600 underline">Maestros → Empresas</a></p>
                     </div>
-                    <div class="flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-200">
-                        <div class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Paso 2</div>
-                        <div class="font-black text-slate-800 mt-1">Crea tu usuario</div>
-                        <p class="text-xs text-slate-500 mt-2">En <b>Configuración → Usuarios</b> crea tu usuario personal (email y contraseña propias) y asígnalo a la empresa creada.</p>
-                        <button @onclick='() => Nav.NavigateTo("/configuracion/usuarios")' class="mt-4 w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition">Ir a Usuarios</button>
+                }
+                else
+                {
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+                        <div class="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center">✓</div>
+                        <div><p class="text-sm font-black text-emerald-800">Empresa "@nombreEmpresa" creada</p><p class="text-xs text-emerald-600">BBDD: @tenantFile · Aparece como "Empresa @nombreEmpresa" en facturas/albaranes</p></div>
                     </div>
-                </div>
-                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
-                    <b>Paso 3:</b> Cierra sesión y vuelve a entrar con <b>tus</b> credenciales. A partir de ahí el bootstrap <code>admin@erp.local / Admin123!</code> ya no será necesario. Marca abajo para no volver a mostrar este asistente.
-                </div>
+                }
+
+                @if (empresaCreada)
+                {
+                    <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                        <div class="text-[10px] font-black uppercase text-blue-600 tracking-widest">Paso 2 · Obligatorio</div>
+                        <div class="font-black text-slate-800 mt-1">Crea tu usuario personal</div>
+                        <p class="text-xs text-slate-500 mt-2">Con él entrarás a partir de ahora. Se vinculará a "@nombreEmpresa".</p>
+                        <div class="mt-3 space-y-3">
+                            <input @bind="nuevoUsuarioNombre" placeholder="Nombre completo" class="w-full border rounded-xl px-4 py-3 text-sm" />
+                            <input @bind="nuevoUsuarioEmail" placeholder="Email (tu usuario)" class="w-full border rounded-xl px-4 py-3 text-sm" />
+                            <input @bind="nuevoUsuarioPassword" type="password" placeholder="Contraseña (8+ chars)" class="w-full border rounded-xl px-4 py-3 text-sm" />
+                            @if (!string.IsNullOrEmpty(errorUsuario)) { <p class="text-xs text-rose-600">@errorUsuario</p> }
+                            @if (usuarioCreado) { <p class="text-xs text-emerald-600 font-bold">✓ Usuario @nuevoUsuarioEmail creado</p> }
+                            <button @onclick="CrearUsuario" disabled="@(isCreandoUsuario || usuarioCreado)" class="w-full bg-slate-900 hover:bg-blue-600 disabled:bg-slate-300 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest transition">
+                                @(isCreandoUsuario ? "Creando..." : usuarioCreado ? "✓ Usuario creado" : "Crear mi usuario")
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-2">O ve a <a href="/configuracion/seguridad" class="text-blue-600 underline">Configuración → Seguridad</a></p>
+                    </div>
+                }
+
+                @if (empresaCreada && usuarioCreado)
+                {
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
+                        <b>¡Listo!</b> Reinicia el programa y entra con <b>@nuevoUsuarioEmail</b>. Verás <b>Empresa @nombreEmpresa</b> en todos los documentos. Ya puedes crear familias, artículos, proveedores y más usuarios.
+                    </div>
+                }
+                else if (empresaCreada)
+                {
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800">
+                        Siguiente: crea tu usuario para dejar de usar <code>admin@erp.local</code>.
+                    </div>
+                }
+                else
+                {
+                    <div class="bg-slate-100 border border-slate-200 rounded-xl p-4 text-xs text-slate-600">
+                        Debes crear primero la empresa. Sin empresa no puedes crear familias, artículos ni usuarios vinculados.
+                    </div>
+                }
+
                 <label class="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
                     <input type="checkbox" @bind="noVolverMostrar" class="rounded" /> No volver a mostrar
                 </label>
                 <div class="flex gap-3">
-                    <button @onclick="Cerrar" class="flex-1 bg-blue-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-500 transition">Entendido, empezar</button>
+                    @if (empresaCreada && usuarioCreado)
+                    {
+                        <button @onclick="ReiniciarConNuevoUsuario" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest transition">Reiniciar y entrar con mi usuario</button>
+                    }
+                    else
+                    {
+                        <button @onclick="Cerrar" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest transition">Entendido, empezar</button>
+                    }
                     <button @onclick="CerrarSesion" class="px-6 bg-slate-100 text-slate-600 py-4 rounded-xl font-black text-xs uppercase hover:bg-slate-200 transition">Cerrar sesión</button>
                 </div>
             </div>
@@ -47,25 +102,93 @@
     private bool noVolverMostrar = false;
     private const string StorageKey = "erp_onboarding_dismissed";
 
+    // Paso 1
+    private string nombreEmpresa = "";
+    private bool isCreandoEmpresa = false;
+    private bool empresaCreada = false;
+    private string? errorEmpresa;
+    private string? tenantFile;
+    private int? empresaCreadaId;
+
+    // Paso 2
+    private string nuevoUsuarioNombre = "";
+    private string nuevoUsuarioEmail = "";
+    private string nuevoUsuarioPassword = "";
+    private bool isCreandoUsuario = false;
+    private bool usuarioCreado = false;
+    private string? errorUsuario;
+
     protected override async Task OnInitializedAsync()
     {
         try
         {
             var dismissed = await JS.InvokeAsync<string>("localStorage.getItem", StorageKey);
             if (!string.IsNullOrEmpty(dismissed) && dismissed == "1") return;
-
-            // Si no hay empresas, mostrar wizard (primer arranque)
-            var empresas = await Http.GetFromJsonAsync<List<ERP.Domain.Entities.Empresa>>("api/empresas");
+            var empresas = await Http.GetFromJsonAsync<List<Empresa>>("api/empresas");
             if (empresas == null || empresas.Count == 0)
                 mostrar = true;
         }
-        catch { /* si 401 u otro, no mostrar; el login ya redirige */ }
+        catch { }
+    }
+
+    private async Task CrearEmpresa()
+    {
+        errorEmpresa = null;
+        if (string.IsNullOrWhiteSpace(nombreEmpresa)) { errorEmpresa = "Nombre obligatorio"; return; }
+        isCreandoEmpresa = true;
+        try
+        {
+            var resp = await Http.PostAsJsonAsync("api/empresas/crear-onboarding", nombreEmpresa);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode) { errorEmpresa = body; Notify.Error($"No se pudo crear empresa: {body}"); return; }
+            // Parsear respuesta para obtener tenantFile y id
+            try
+            {
+                var doc = System.Text.Json.JsonDocument.Parse(body);
+                if (doc.RootElement.TryGetProperty("tenantDatabase", out var tf)) tenantFile = tf.GetString();
+                if (doc.RootElement.TryGetProperty("id", out var idEl) && idEl.TryGetInt32(out var id)) empresaCreadaId = id;
+                else if (doc.RootElement.TryGetProperty("Id", out var id2) && id2.TryGetInt32(out var idv)) empresaCreadaId = idv;
+            }
+            catch { tenantFile = $"Gestion{ERP.Services.Tenant.TenantDatabaseService.SanitizeEmpresa(nombreEmpresa)}.db"; }
+            if (string.IsNullOrEmpty(tenantFile)) tenantFile = $"Gestion{ERP.Services.Tenant.TenantDatabaseService.SanitizeEmpresa(nombreEmpresa)}.db";
+            empresaCreada = true;
+            Notify.Success($"Empresa '{nombreEmpresa}' creada · BBDD {tenantFile}");
+        }
+        catch (Exception ex) { errorEmpresa = ex.Message; Notify.Error(errorEmpresa); }
+        finally { isCreandoEmpresa = false; }
+    }
+
+    private async Task CrearUsuario()
+    {
+        errorUsuario = null;
+        if (string.IsNullOrWhiteSpace(nuevoUsuarioNombre) || string.IsNullOrWhiteSpace(nuevoUsuarioEmail) || string.IsNullOrWhiteSpace(nuevoUsuarioPassword))
+        { errorUsuario = "Nombre, email y contraseña obligatorios (8+ chars)"; return; }
+        if (empresaCreadaId == null) { errorUsuario = "Crea primero la empresa"; return; }
+        isCreandoUsuario = true;
+        try
+        {
+            var dto = new { FullName = nuevoUsuarioNombre, Email = nuevoUsuarioEmail, Password = nuevoUsuarioPassword, Role = "Admin", EmpresaId = empresaCreadaId.Value };
+            var resp = await Http.PostAsJsonAsync("api/users", dto);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode) { errorUsuario = body; Notify.Error(body); return; }
+            usuarioCreado = true;
+            Notify.Success($"Usuario {nuevoUsuarioEmail} creado y vinculado a {nombreEmpresa}");
+        }
+        catch (Exception ex) { errorUsuario = ex.Message; Notify.Error(errorUsuario); }
+        finally { isCreandoUsuario = false; }
+    }
+
+    private async Task ReiniciarConNuevoUsuario()
+    {
+        if (noVolverMostrar) await JS.InvokeVoidAsync("localStorage.setItem", StorageKey, "1");
+        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        mostrar = false;
+        Nav.NavigateTo("/login", forceLoad:true);
     }
 
     private async Task Cerrar()
     {
-        if (noVolverMostrar)
-            await JS.InvokeVoidAsync("localStorage.setItem", StorageKey, "1");
+        if (noVolverMostrar) await JS.InvokeVoidAsync("localStorage.setItem", StorageKey, "1");
         mostrar = false;
     }
 

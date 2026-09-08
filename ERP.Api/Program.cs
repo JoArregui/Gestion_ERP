@@ -106,6 +106,8 @@ builder.Services.AddScoped<ERP.Services.Bancario.SepaXmlGeneratorService>();
 builder.Services.AddScoped<ERP.Services.Contabilidad.ContabilidadService>();
 builder.Services.AddScoped<ERP.Services.Trazabilidad.TrazabilidadService>();
 builder.Services.AddScoped<ERP.Services.Fiscal.MotorIVAService>();
+// Onboarding multi-tenant: GestionX.db por empresa (miles de PCs/empresas)
+builder.Services.AddScoped<ERP.Services.Tenant.TenantDatabaseService>();
 
 builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
