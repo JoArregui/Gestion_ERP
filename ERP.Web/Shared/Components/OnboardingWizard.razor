@@ -124,10 +124,47 @@
         try
         {
             var dismissed = await JS.InvokeAsync<string>("localStorage.getItem", StorageKey);
-            if (!string.IsNullOrEmpty(dismissed) && dismissed == "1") return;
             var empresas = await Http.GetFromJsonAsync<List<Empresa>>("api/empresas");
-            if (empresas == null || empresas.Count == 0)
+            var empresasVacias = empresas == null || empresas.Count == 0;
+
+            if (empresasVacias)
+            {
+                // Pasillo: sin empresa → mostrar paso 1
+                if (!string.IsNullOrEmpty(dismissed) && dismissed == "1") return;
                 mostrar = true;
+                return;
+            }
+
+            // Ya hay empresa (creada por wizard o por Maestros→Empresas) → mostrar paso 2 para crear usuario
+            var emp = empresas![0];
+            empresaCreada = true;
+            empresaCreadaId = emp.Id;
+            nombreEmpresa = emp.RazonSocial ?? emp.NombreComercial;
+            tenantFile = $"Gestion{ERP.Services.Tenant.TenantDatabaseService.SanitizeEmpresa(nombreEmpresa)}.db";
+
+            // Si ya existe un usuario propio (no solo admin), no mostrar; si solo admin, mostrar paso 2
+            try
+            {
+                var users = await Http.GetFromJsonAsync<List<ERP.Domain.Dtos.UserDto>>("api/users");
+                // Si hay más de 1 usuario o hay uno distinto de admin@erp.local, asumimos onboarding completo
+                var soloAdmin = users == null || users.Count <= 1 || users.All(u => u.Email == "admin@erp.local");
+                if (soloAdmin)
+                {
+                    // Aunque haya marcado "no volver a mostrar", si aún no creó su usuario personal, mostrar
+                    mostrar = true;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(dismissed) && dismissed == "1") return;
+                    // Si ya hay usuarios propios, respetar dismissed
+                    mostrar = false;
+                }
+            }
+            catch
+            {
+                // Si no puede leer usuarios (no admin?), mostrar de todos modos el paso 2
+                mostrar = true;
+            }
         }
         catch { }
     }
