@@ -305,14 +305,14 @@
             </div>
         </div>
 
-        @* CATEGORÍA: LEGAL 2026 (Dossier) *@
+        @* CATEGORÍA: LEGAL (Dossier) *@
         <div>
-            <button @onclick='() => ToggleSection("legal2026")'
+            <button @onclick='() => ToggleSection("legal")'
                     class="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/5 hover:text-white text-left focus:outline-none select-none">
-                <span class="text-[9px] font-black text-amber-400 uppercase tracking-[0.2em]">Legal 2026</span>
-                <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "legal2026" ? "rotate-0" : "-rotate-90")"></i>
+                <span class="text-[9px] font-black text-amber-400 uppercase tracking-[0.2em]">Legal</span>
+                <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "legal" ? "rotate-0" : "-rotate-90")"></i>
             </button>
-            <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "legal2026" ? "block" : "hidden")">
+            <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "legal" ? "block" : "hidden")">
                 <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
                          href="bancario" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
                     <i class="bi bi-bank text-lg"></i>
@@ -331,7 +331,7 @@
                 <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
                          href="fiscal" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
                     <i class="bi bi-calculator-fill text-lg"></i>
-                    <span class="text-[10px] uppercase font-black tracking-widest">Fiscal IVA 2026</span>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Fiscal IVA</span>
                 </NavLink>
                 <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
                          href="trazabilidad" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">

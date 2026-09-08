@@ -1,4 +1,4 @@
-# Plan ERP Completo — Cumplimiento Legal 2026 (sin duplicar / respetando nombres existentes)
+# Plan ERP Completo — Cumplimiento Legal (sin duplicar / respetando nombres existentes)
 
 **Fecha:** 2026-08-31  
 **Inventario base:** `ERP.Domain/Entities`, `ERP.Data/ApplicationDbContext.cs:21-72`, `ERP.Services`, `ERP.Api/Controllers`, `ERP.Web/Pages` (ver informe de auditoría)
