@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities.Fiscal;
+using ERP.Domain.DTOs.Fiscal;
+using ERP.Services.Fiscal;
 
 namespace ERP.Api.Controllers.Fiscal
 {
@@ -12,7 +14,8 @@ namespace ERP.Api.Controllers.Fiscal
     public class FiscalController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        public FiscalController(ApplicationDbContext context) => _context = context;
+        private readonly MotorIVAService _iva;
+        public FiscalController(ApplicationDbContext context, MotorIVAService iva) { _context = context; _iva = iva; }
         private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
 
         // ── Configuración IVA ───────────────────────────────────────────
@@ -35,20 +38,26 @@ namespace ERP.Api.Controllers.Fiscal
         }
 
         [HttpPost("configuracion")]
-        public async Task<ActionResult<ConfiguracionIVA>> PostConfig(ConfiguracionIVA dto)
+        public async Task<ActionResult<ConfiguracionIVADto>> PostConfig(CrearConfiguracionIVADto dto)
         {
-            dto.EmpresaId = GetEmpresaId();
-            if (dto.EmpresaId == 0) return BadRequest(new { Message = "EmpresaId requerido" });
-            // Validar unicidad por empresa+ejercicio
-            if (await _context.ConfiguracionesIVA.AnyAsync(x => x.EmpresaId == dto.EmpresaId && x.EjercicioId == dto.EjercicioId))
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return BadRequest(new { Message = "EmpresaId requerido" });
+            if (await _context.ConfiguracionesIVA.AnyAsync(x => x.EmpresaId == empresaId && x.EjercicioId == dto.EjercicioId))
                 return Conflict(new { Message = "Ya existe configuración para ese ejercicio" });
-            // Calcular prorrata redondeada techo si aplica
-            if (dto.AplicaProrrataGeneral && dto.PorcentajeProrrataGeneral.HasValue)
-                dto.PorcentajeProrrataGeneralRedondeado = Math.Ceiling(dto.PorcentajeProrrataGeneral.Value);
-            dto.FechaCreacion = DateTime.Now;
-            _context.ConfiguracionesIVA.Add(dto);
+            var entity = new ConfiguracionIVA
+            {
+                EmpresaId = empresaId, EjercicioId = dto.EjercicioId, AplicaProrrataGeneral = dto.AplicaProrrataGeneral,
+                PorcentajeProrrataGeneral = dto.PorcentajeProrrataGeneral,
+                PorcentajeProrrataGeneralRedondeado = dto.AplicaProrrataGeneral && dto.PorcentajeProrrataGeneral.HasValue ? Math.Ceiling(dto.PorcentajeProrrataGeneral.Value) : null,
+                AplicaProrrataEspecial = dto.AplicaProrrataEspecial, DetalleProrrataEspecialJson = dto.DetalleProrrataEspecialJson,
+                TieneSectoresDiferenciados = dto.TieneSectoresDiferenciados, SectoresJson = dto.SectoresJson,
+                SujetoRecargoEquivalencia = dto.SujetoRecargoEquivalencia, RecargoGeneral = dto.RecargoGeneral, RecargoReducido = dto.RecargoReducido, RecargoSuperreducido = dto.RecargoSuperreducido, RecargoTabaco = dto.RecargoTabaco,
+                RegimenAgenciasViajes = dto.RegimenAgenciasViajes, RegimenBienesUsados = dto.RegimenBienesUsados, RegimenObjetosArte = dto.RegimenObjetosArte, RegimenOroInversion = dto.RegimenOroInversion,
+                AplicaIVACaja = dto.AplicaIVACaja, InversionSujetoPasivoHabitual = dto.InversionSujetoPasivoHabitual, FechaCreacion = DateTime.Now
+            };
+            _context.ConfiguracionesIVA.Add(entity);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetConfig), new { id = dto.Id }, dto);
+            return CreatedAtAction(nameof(GetConfig), new { id = entity.Id }, new ConfiguracionIVADto { Id = entity.Id, EmpresaId = entity.EmpresaId, EjercicioId = entity.EjercicioId, AplicaProrrataGeneral = entity.AplicaProrrataGeneral, PorcentajeProrrataGeneral = entity.PorcentajeProrrataGeneral });
         }
 
         [HttpPut("configuracion/{id}")]
@@ -90,12 +99,18 @@ namespace ERP.Api.Controllers.Fiscal
         }
 
         [HttpPost("tarifas")]
-        public async Task<ActionResult<TarifaImpuesto>> PostTarifa(TarifaImpuesto dto)
+        public async Task<ActionResult<TarifaImpuestoDto>> PostTarifa(CrearTarifaImpuestoDto dto)
         {
-            dto.FechaDesde = dto.FechaDesde == default ? new DateTime(2026, 1, 1) : dto.FechaDesde;
-            _context.TarifasImpuesto.Add(dto);
+            var entity = new TarifaImpuesto
+            {
+                Territorio = Enum.TryParse<TerritorioFiscal>(dto.Territorio, true, out var t) ? t : TerritorioFiscal.PeninsulaBaleares,
+                TipoIVA = Enum.TryParse<TipoIVA>(dto.TipoIVA, true, out var ti) ? ti : TipoIVA.General,
+                Nombre = dto.Nombre, Porcentaje = dto.Porcentaje, RecargoEquivalencia = dto.RecargoEquivalencia,
+                Vigente = dto.Vigente, FechaDesde = dto.FechaDesde == default ? new DateTime(2026, 1, 1) : dto.FechaDesde, FechaHasta = dto.FechaHasta
+            };
+            _context.TarifasImpuesto.Add(entity);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetTarifa), new { id = dto.Id }, dto);
+            return CreatedAtAction(nameof(GetTarifa), new { id = entity.Id }, new TarifaImpuestoDto { Id = entity.Id, Territorio = entity.Territorio.ToString(), TipoIVA = entity.TipoIVA.ToString(), Nombre = entity.Nombre, Porcentaje = entity.Porcentaje });
         }
 
         [HttpPut("tarifas/{id}")]

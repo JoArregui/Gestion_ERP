@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities.Contabilidad;
+using ERP.Domain.DTOs.Contabilidad;
+using ERP.Services.Contabilidad;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -14,7 +16,8 @@ namespace ERP.Api.Controllers.Contabilidad
     public class ContabilidadController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        public ContabilidadController(ApplicationDbContext context) => _context = context;
+        private readonly ContabilidadService _conta;
+        public ContabilidadController(ApplicationDbContext context, ContabilidadService conta) { _context = context; _conta = conta; }
         private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
 
         // ── Ejercicios ───────────────────────────────────────────────────
@@ -72,16 +75,37 @@ namespace ERP.Api.Controllers.Contabilidad
         }
 
         [HttpPost("cuentas")]
-        public async Task<ActionResult<CuentaContable>> PostCuenta(CuentaContable dto)
+        public async Task<ActionResult<CuentaContableDto>> PostCuenta(CuentaContableDto dto)
+        {
+            var empresaId = GetEmpresaId();
+            var entity = new CuentaContable
+            {
+                Codigo = dto.Codigo, Nombre = dto.Nombre, Grupo = dto.Grupo, Nivel = dto.Nivel,
+                CodigoPadre = dto.CodigoPadre, EsDetalle = dto.EsDetalle,
+                Naturaleza = dto.Naturaleza == "Acreedora" ? NaturalezaCuenta.Acreedora : NaturalezaCuenta.Deudora,
+                Descripcion = dto.Descripcion, Activa = dto.Activa, EmpresaId = empresaId
+            };
+            try
+            {
+                var creada = await _conta.CrearCuentaAsync(entity, User.Identity?.Name);
+                return CreatedAtAction(nameof(GetCuenta), new { codigo = creada.Codigo }, new CuentaContableDto { Codigo = creada.Codigo, Nombre = creada.Nombre, Grupo = creada.Grupo });
+            }
+            catch (InvalidOperationException ex) { return Conflict(new { Message = ex.Message }); }
+        }
+
+        [HttpPost("cuentas/importar")]
+        public async Task<ActionResult> ImportarPlan([FromBody] ImportarPlanContableDto dto)
         {
             dto.EmpresaId = GetEmpresaId();
-            // Validar unicidad código por empresa
-            if (await _context.CuentasContables.AnyAsync(x => x.Codigo == dto.Codigo && x.EmpresaId == dto.EmpresaId))
-                return Conflict(new { Message = "Código ya existe" });
-            dto.FechaCreacion = DateTime.Now;
-            _context.CuentasContables.Add(dto);
+            int creadas = 0;
+            foreach (var c in dto.Cuentas)
+            {
+                if (await _context.CuentasContables.AnyAsync(x => x.Codigo == c.Codigo && x.EmpresaId == dto.EmpresaId) && !dto.SobrescribirExistentes) continue;
+                var e = new CuentaContable { Codigo = c.Codigo, Nombre = c.Nombre, Grupo = c.Grupo, Nivel = c.Nivel, CodigoPadre = c.CodigoPadre, EsDetalle = c.EsDetalle, Naturaleza = c.Naturaleza == "Acreedora" ? NaturalezaCuenta.Acreedora : NaturalezaCuenta.Deudora, Descripcion = c.Descripcion, Activa = c.Activa, EmpresaId = dto.EmpresaId };
+                _context.CuentasContables.Add(e); creadas++;
+            }
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetCuenta), new { codigo = dto.Codigo }, dto);
+            return Ok(new { Creadas = creadas });
         }
 
         [HttpPut("cuentas/{codigo}")]
@@ -121,69 +145,44 @@ namespace ERP.Api.Controllers.Contabilidad
         }
 
         [HttpPost("asientos")]
-        public async Task<ActionResult<AsientoContable>> PostAsiento(AsientoContable dto)
+        public async Task<ActionResult<AsientoContable>> PostAsiento(CrearAsientoDto dto)
         {
-            dto.EmpresaId = GetEmpresaId();
-            if (dto.EmpresaId == 0) return BadRequest();
-            // Validar cuadre Debe=Haber
-            var debe = dto.Apuntes.Where(p => p.Tipo == TipoApunte.Debe).Sum(p => p.Importe);
-            var haber = dto.Apuntes.Where(p => p.Tipo == TipoApunte.Haber).Sum(p => p.Importe);
-            if (Math.Abs(debe - haber) >= 0.005m) return BadRequest(new { Message = $"Asiento descuadrado: Debe {debe} != Haber {haber}" });
-            dto.TotalDebe = debe; dto.TotalHaber = haber;
-            // Autonumeración por Serie
-            if (dto.Numero == 0)
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return BadRequest();
+            var entity = new AsientoContable
             {
-                var max = await _context.AsientosContables.Where(a => a.EmpresaId == dto.EmpresaId && a.Serie == dto.Serie).MaxAsync(a => (int?)a.Numero) ?? 0;
-                dto.Numero = max + 1;
+                EmpresaId = empresaId, Serie = dto.Serie, Fecha = dto.Fecha, Concepto = dto.Concepto,
+                Tipo = Enum.TryParse<TipoAsiento>(dto.TipoAsiento, true, out var t) ? t : TipoAsiento.Normal,
+                OrigenTipo = dto.OrigenTipo, OrigenId = dto.OrigenId,
+                Apuntes = dto.Apuntes.Select(a => new ApunteContable
+                {
+                    Orden = a.Orden, CuentaContableCodigo = a.CuentaContableCodigo,
+                    Tipo = a.Tipo == "Haber" ? TipoApunte.Haber : TipoApunte.Debe,
+                    Importe = a.Importe, Concepto = a.Concepto, CentroCosteId = a.CentroCosteId, ProyectoId = a.ProyectoId, DocumentoReferencia = a.DocumentoReferencia
+                }).ToList()
+            };
+            try
+            {
+                var creada = await _conta.CrearAsientoAsync(entity, User.Identity?.Name);
+                return CreatedAtAction(nameof(GetAsiento), new { id = creada.Id }, creada);
             }
-            dto.FechaCreacion = DateTime.Now;
-            dto.UsuarioCreacion = User.Identity?.Name;
-            _context.AsientosContables.Add(dto);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetAsiento), new { id = dto.Id }, dto);
+            catch (InvalidOperationException ex) { return BadRequest(new { Message = ex.Message }); }
         }
 
         [HttpPost("asientos/{id}/contabilizar")]
         public async Task<IActionResult> Contabilizar(int id)
         {
-            var a = await _context.AsientosContables.FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == GetEmpresaId());
-            if (a == null) return NotFound();
-            if (a.Estado != EstadoAsiento.Borrador && a.Estado != EstadoAsiento.Pendiente) return BadRequest(new { Message = "Solo borrador/pendiente se puede contabilizar" });
-            if (!a.Cuadra) return BadRequest(new { Message = "Asiento descuadrado" });
-            a.Estado = EstadoAsiento.Contabilizado;
-            a.FechaContabilizacion = DateTime.Now;
-            a.UsuarioContabilizacion = User.Identity?.Name;
-            await _context.SaveChangesAsync();
-            return Ok(new { a.Estado });
+            try { var a = await _conta.ContabilizarAsync(GetEmpresaId(), id, User.Identity?.Name); return Ok(new { a.Estado }); }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { Message = ex.Message }); }
         }
 
         [HttpPost("asientos/{id}/anular")]
         public async Task<IActionResult> Anular(int id)
         {
-            var a = await _context.AsientosContables.Include(x => x.Apuntes).FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == GetEmpresaId());
-            if (a == null) return NotFound();
-            // Crear asiento inverso
-            var inverso = new AsientoContable
-            {
-                EmpresaId = a.EmpresaId, Serie = a.Serie, Fecha = DateTime.Now,
-                Concepto = $"Anulación {a.ReferenciaCompleta}: {a.Concepto}",
-                Tipo = TipoAsiento.Ajuste, Estado = EstadoAsiento.Contabilizado,
-                OrigenTipo = "Anulacion", OrigenId = a.Id,
-                Apuntes = a.Apuntes.Select(p => new ApunteContable
-                {
-                    Orden = p.Orden, CuentaContableCodigo = p.CuentaContableCodigo,
-                    Tipo = p.Tipo == TipoApunte.Debe ? TipoApunte.Haber : TipoApunte.Debe,
-                    Importe = p.Importe, Concepto = p.Concepto
-                }).ToList()
-            };
-            inverso.TotalDebe = inverso.Apuntes.Where(p => p.Tipo == TipoApunte.Debe).Sum(p => p.Importe);
-            inverso.TotalHaber = inverso.Apuntes.Where(p => p.Tipo == TipoApunte.Haber).Sum(p => p.Importe);
-            var max = await _context.AsientosContables.Where(x => x.EmpresaId == inverso.EmpresaId && x.Serie == inverso.Serie).MaxAsync(x => (int?)x.Numero) ?? 0;
-            inverso.Numero = max + 1;
-            a.Estado = EstadoAsiento.Anulado;
-            _context.AsientosContables.Add(inverso);
-            await _context.SaveChangesAsync();
-            return Ok(new { AnulacionId = inverso.Id });
+            try { var inv = await _conta.AnularAsync(GetEmpresaId(), id); return Ok(new { AnulacionId = inv.Id }); }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { Message = ex.Message }); }
         }
 
         // ── Libros oficiales ────────────────────────────────────────────
@@ -198,37 +197,20 @@ namespace ERP.Api.Controllers.Contabilidad
         [HttpPost("libros/diario/generar")]
         public async Task<ActionResult<LibroDiario>> GenerarLibroDiario([FromQuery] int ejercicioId, [FromQuery] DateTime desde, [FromQuery] DateTime hasta)
         {
-            var empresaId = GetEmpresaId();
-            var ej = await _context.EjerciciosContables.FirstOrDefaultAsync(e => e.Id == ejercicioId && e.EmpresaId == empresaId);
-            if (ej == null) return BadRequest(new { Message = "Ejercicio no válido" });
-            var asientos = await _context.AsientosContables.Where(a => a.EmpresaId == empresaId && a.Fecha >= desde && a.Fecha <= hasta && a.Estado == EstadoAsiento.Contabilizado).ToListAsync();
-            if (!asientos.Any()) return BadRequest(new { Message = "No hay asientos contabilizados en el periodo" });
-            var libro = new LibroDiario
+            try
             {
-                EmpresaId = empresaId, EjercicioId = ejercicioId, FechaDesde = desde, FechaHasta = hasta,
-                FechaGeneracion = DateTime.Now, UsuarioGeneracion = User.Identity?.Name,
-                TotalDebe = asientos.Sum(a => a.TotalDebe), TotalHaber = asientos.Sum(a => a.TotalHaber),
-                NumeroAsientos = asientos.Count, NumeroApuntes = asientos.Sum(a => a.NumeroApuntes),
-                NumeroLibro = $"{asientos.Count}-{ej.Codigo}",
-                HashArchivo = CalcularHash($"{empresaId}-{ejercicioId}-{desde:yyyyMMdd}-{hasta:yyyyMMdd}-{asientos.Count}"),
-                Estado = EstadoLibro.Generado
-            };
-            _context.LibrosDiario.Add(libro);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetLibrosDiario), new { id = libro.Id }, libro);
+                var libro = await _conta.GenerarLibroDiarioAsync(GetEmpresaId(), ejercicioId, desde, hasta, User.Identity?.Name);
+                return CreatedAtAction(nameof(GetLibrosDiario), new { id = libro.Id }, libro);
+            }
+            catch (Exception ex) { return BadRequest(new { Message = ex.Message }); }
         }
 
         [HttpPost("libros/diario/{id}/legalizar")]
         public async Task<IActionResult> LegalizarDiario(int id)
         {
-            var libro = await _context.LibrosDiario.FirstOrDefaultAsync(l => l.Id == id && l.EmpresaId == GetEmpresaId());
-            if (libro == null) return NotFound();
-            if (libro.Estado == EstadoLibro.Legalizado) return BadRequest(new { Message = "Ya legalizado" });
-            libro.Estado = EstadoLibro.Legalizado; libro.FechaLegalizacion = DateTime.Now;
-            libro.NumeroLegalizacion = $"RM-{DateTime.Now:yyyy}-{libro.Id:D6}";
-            libro.FechaPresentacionRM = DateTime.Now;
-            await _context.SaveChangesAsync();
-            return Ok(new { libro.NumeroLegalizacion, libro.FechaLegalizacion });
+            try { var libro = await _conta.LegalizarLibroDiarioAsync(GetEmpresaId(), id); return Ok(new { libro.NumeroLegalizacion, libro.FechaLegalizacion }); }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { Message = ex.Message }); }
         }
 
         [HttpGet("libros/mayor/{cuentaCodigo}")]

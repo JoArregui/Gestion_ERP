@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities.Trazabilidad;
+using ERP.Domain.DTOs.Trazabilidad;
+using ERP.Services.Trazabilidad;
 
 namespace ERP.Api.Controllers.Trazabilidad
 {
@@ -12,7 +14,8 @@ namespace ERP.Api.Controllers.Trazabilidad
     public class TrazabilidadController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        public TrazabilidadController(ApplicationDbContext context) => _context = context;
+        private readonly TrazabilidadService _svc;
+        public TrazabilidadController(ApplicationDbContext context, TrazabilidadService svc) { _context = context; _svc = svc; }
         private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
 
         // ── Lotes ───────────────────────────────────────────────────────
@@ -42,30 +45,25 @@ namespace ERP.Api.Controllers.Trazabilidad
         }
 
         [HttpPost("lotes")]
-        public async Task<ActionResult<LoteTrazabilidad>> PostLote(LoteTrazabilidad dto)
+        public async Task<ActionResult<LoteDto>> PostLote(CrearLoteDto dto)
         {
-            dto.EmpresaId = GetEmpresaId();
-            if (dto.EmpresaId == 0) return BadRequest(new { Message = "EmpresaId requerido" });
-            if (await _context.LotesTrazabilidad.AnyAsync(x => x.CodigoLote == dto.CodigoLote && x.EmpresaId == dto.EmpresaId))
-                return Conflict(new { Message = "Código de lote ya existe" });
-            dto.CantidadActual = dto.CantidadInicial;
-            dto.FechaCreacion = DateTime.Now;
-            dto.UsuarioCreacion = User.Identity?.Name;
-            _context.LotesTrazabilidad.Add(dto);
-            await _context.SaveChangesAsync();
-            // Crear alerta automática si es PCC sin análisis
-            if (dto.EsPCC && !dto.TieneAnalisisOficial)
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return BadRequest(new { Message = "EmpresaId requerido" });
+            var entity = new LoteTrazabilidad
             {
-                _context.AlertasTrazabilidad.Add(new AlertaTrazabilidad
-                {
-                    EmpresaId = dto.EmpresaId, LoteId = dto.Id,
-                    Tipo = TipoAlertaTrazabilidad.AnalisisPendiente, Severidad = SeveridadAlerta.Alta,
-                    Titulo = $"Lote {dto.CodigoLote} PCC sin análisis",
-                    Descripcion = "Requiere análisis oficial antes de liberar"
-                });
-                await _context.SaveChangesAsync();
+                EmpresaId = empresaId, CodigoLote = dto.CodigoLote, ArticuloId = dto.ArticuloId, ProveedorId = dto.ProveedorId,
+                LoteProveedor = dto.LoteProveedor, DocumentoOrigen = dto.DocumentoOrigen, FechaRecepcion = dto.FechaRecepcion,
+                CantidadInicial = dto.CantidadInicial, FechaProduccion = dto.FechaProduccion, FechaCaducidad = dto.FechaCaducidad,
+                FechaConsumoPreferente = dto.FechaConsumoPreferente, CondicionesAlmacenamiento = dto.CondicionesAlmacenamiento,
+                TemperaturaMinima = dto.TemperaturaMinima, TemperaturaMaxima = dto.TemperaturaMaxima,
+                EsPCC = dto.EsPCC, ParametrosCriticos = dto.ParametrosCriticos
+            };
+            try
+            {
+                var creado = await _svc.CrearLoteAsync(entity, User.Identity?.Name);
+                return CreatedAtAction(nameof(GetLote), new { id = creado.Id }, new LoteDto { Id = creado.Id, CodigoLote = creado.CodigoLote, ArticuloId = creado.ArticuloId, CantidadInicial = creado.CantidadInicial, CantidadActual = creado.CantidadActual, CantidadDisponible = creado.CantidadDisponible, FechaProduccion = creado.FechaProduccion, FechaCaducidad = creado.FechaCaducidad, Estado = creado.Estado.ToString(), EsPCC = creado.EsPCC });
             }
-            return CreatedAtAction(nameof(GetLote), new { id = dto.Id }, dto);
+            catch (InvalidOperationException ex) { return Conflict(new { Message = ex.Message }); }
         }
 
         [HttpPut("lotes/{id}")]

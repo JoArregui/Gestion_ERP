@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities.Bancario;
+using ERP.Domain.DTOs.Bancario;
 using ERP.Services.Bancario;
 using System.Security.Claims;
 
@@ -28,30 +29,40 @@ namespace ERP.Api.Controllers.Bancario
 
         // ── Cuentas Bancarias ──────────────────────────────────────────────
         [HttpGet("cuentas")]
-        public async Task<ActionResult<IEnumerable<CuentaBancaria>>> GetCuentas([FromQuery] bool soloActivas = true)
+        public async Task<ActionResult<IEnumerable<CuentaBancariaDto>>> GetCuentas([FromQuery] bool soloActivas = true)
         {
             var empresaId = GetEmpresaId();
             if (empresaId == 0) return BadRequest(new { Message = "EmpresaId no presente en token" });
-            return Ok(await _bancario.GetCuentasBancariasAsync(empresaId, soloActivas));
+            var list = await _bancario.GetCuentasBancariasAsync(empresaId, soloActivas);
+            return Ok(list.Select(ToCuentaDto));
         }
 
         [HttpGet("cuentas/{id}")]
-        public async Task<ActionResult<CuentaBancaria>> GetCuenta(int id)
+        public async Task<ActionResult<CuentaBancariaDto>> GetCuenta(int id)
         {
             var c = await _bancario.GetCuentaBancariaAsync(id);
             if (c == null || c.EmpresaId != GetEmpresaId()) return NotFound(new { Message = "Cuenta no encontrada" });
-            return Ok(c);
+            return Ok(ToCuentaDto(c));
         }
 
         [HttpPost("cuentas")]
-        public async Task<ActionResult<CuentaBancaria>> PostCuenta(CuentaBancaria dto)
+        public async Task<ActionResult<CuentaBancariaDto>> PostCuenta(CrearCuentaBancariaDto dto)
         {
-            dto.EmpresaId = GetEmpresaId();
-            if (dto.EmpresaId == 0) return BadRequest(new { Message = "EmpresaId requerido" });
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return BadRequest(new { Message = "EmpresaId requerido" });
             try
             {
-                var creada = await _bancario.CrearCuentaBancariaAsync(dto);
-                return CreatedAtAction(nameof(GetCuenta), new { id = creada.Id }, creada);
+                var entity = new CuentaBancaria
+                {
+                    EmpresaId = empresaId, IBAN = dto.IBAN, BIC = dto.BIC, NombreCuenta = dto.NombreCuenta,
+                    EntidadBancaria = dto.EntidadBancaria, CreditorIdentifier = dto.CreditorIdentifier,
+                    Tipo = Enum.TryParse<TipoCuentaBancaria>(dto.Tipo, true, out var t) ? t : TipoCuentaBancaria.Operativa,
+                    EsPrincipal = dto.EsPrincipal, PermiteTransferenciasSEPA = dto.PermiteTransferenciasSEPA,
+                    PermiteAdeudosSEPA = dto.PermiteAdeudosSEPA, PermiteTransferenciasInstant = dto.PermiteTransferenciasInstant,
+                    LimiteDiarioTransferencias = dto.LimiteDiarioTransferencias, LimiteDiarioAdeudos = dto.LimiteDiarioAdeudos
+                };
+                var creada = await _bancario.CrearCuentaBancariaAsync(entity);
+                return CreatedAtAction(nameof(GetCuenta), new { id = creada.Id }, ToCuentaDto(creada));
             }
             catch (ArgumentException ex) { return BadRequest(new { Message = ex.Message }); }
         }
@@ -91,30 +102,61 @@ namespace ERP.Api.Controllers.Bancario
             return rem == 1;
         }
 
+        private static CuentaBancariaDto ToCuentaDto(CuentaBancaria c) => new()
+        {
+            Id = c.Id, EmpresaId = c.EmpresaId, IBAN = c.IBAN, IBANFormateado = c.IBANFormateado, BIC = c.BIC,
+            NombreCuenta = c.NombreCuenta, EntidadBancaria = c.EntidadBancaria, CreditorIdentifier = c.CreditorIdentifier,
+            Tipo = c.Tipo.ToString(), EsPrincipal = c.EsPrincipal, Activa = c.Activa,
+            PermiteTransferenciasSEPA = c.PermiteTransferenciasSEPA, PermiteAdeudosSEPA = c.PermiteAdeudosSEPA,
+            PermiteTransferenciasInstant = c.PermiteTransferenciasInstant, LimiteDiarioTransferencias = c.LimiteDiarioTransferencias,
+            LimiteDiarioAdeudos = c.LimiteDiarioAdeudos, FechaCreacion = c.FechaCreacion
+        };
+        private static MandatoSepaDto ToMandatoDto(MandatoSEPA m) => new()
+        {
+            Id = m.Id, ReferenciaUnicaMandato = m.ReferenciaUnicaMandato, RUMFormateado = m.RUMFormateado,
+            CreditorIdentifier = m.CreditorIdentifier, DeudorNombre = m.DeudorNombre, DeudorIBAN = m.DeudorIBAN,
+            AcreedorNombre = m.AcreedorNombre, AcreedorIBAN = m.AcreedorIBAN,
+            Esquema = m.Esquema.ToString(), TipoSecuencia = m.TipoSecuencia.ToString(), Estado = m.Estado.ToString(),
+            BeneficiarioVerificado = m.BeneficiarioVerificado, FechaFirma = m.FechaFirma, EstaVigente = m.EstaVigente, FechaCreacion = m.FechaCreacion
+        };
+
         // ── Mandatos SEPA ─────────────────────────────────────────────────
         [HttpGet("mandatos")]
-        public async Task<ActionResult<IEnumerable<MandatoSEPA>>> GetMandatos([FromQuery] EstadoMandatoSEPA? estado = null)
+        public async Task<ActionResult<IEnumerable<MandatoSepaDto>>> GetMandatos([FromQuery] EstadoMandatoSEPA? estado = null)
         {
             var empresaId = GetEmpresaId();
-            return Ok(await _bancario.GetMandatosAsync(empresaId, estado));
+            var list = await _bancario.GetMandatosAsync(empresaId, estado);
+            return Ok(list.Select(ToMandatoDto));
         }
 
         [HttpGet("mandatos/{id}")]
-        public async Task<ActionResult<MandatoSEPA>> GetMandato(int id)
+        public async Task<ActionResult<MandatoSepaDto>> GetMandato(int id)
         {
             var m = await _bancario.GetMandatoAsync(id);
             if (m == null || m.EmpresaId != GetEmpresaId()) return NotFound();
-            return Ok(m);
+            return Ok(ToMandatoDto(m));
         }
 
         [HttpPost("mandatos")]
-        public async Task<ActionResult<MandatoSEPA>> PostMandato(MandatoSEPA dto)
+        public async Task<ActionResult<MandatoSepaDto>> PostMandato(CrearMandatoSepaDto dto)
         {
-            dto.EmpresaId = GetEmpresaId();
+            var empresaId = GetEmpresaId();
             try
             {
-                var creado = await _bancario.CrearMandatoAsync(dto);
-                return CreatedAtAction(nameof(GetMandato), new { id = creado.Id }, creado);
+                var entity = new MandatoSEPA
+                {
+                    EmpresaId = empresaId, ReferenciaUnicaMandato = dto.ReferenciaUnicaMandato ?? "",
+                    CreditorIdentifier = dto.CreditorIdentifier, DeudorNombre = dto.DeudorNombre, DeudorNombreComercial = dto.DeudorNombreComercial,
+                    DeudorCalle = dto.DeudorCalle, DeudorNumero = dto.DeudorNumero, DeudorCodigoPostal = dto.DeudorCodigoPostal, DeudorPoblacion = dto.DeudorPoblacion, DeudorPais = dto.DeudorPais,
+                    DeudorIBAN = dto.DeudorIBAN, DeudorBIC = dto.DeudorBIC, DeudorIdentificacionFiscal = dto.DeudorIdentificacionFiscal,
+                    AcreedorNombre = dto.AcreedorNombre, AcreedorIBAN = dto.AcreedorIBAN,
+                    Esquema = Enum.TryParse<EsquemaSEPA>(dto.Esquema, true, out var es) ? es : EsquemaSEPA.Core,
+                    TipoSecuencia = Enum.TryParse<TipoSecuenciaMandato>(dto.TipoSecuencia, true, out var ts) ? ts : TipoSecuenciaMandato.RCUR,
+                    FechaFirma = dto.FechaFirma, ClienteId = dto.ClienteId,
+                    CuentaBancariaAcreedorId = dto.CuentaBancariaAcreedorId, CuentaBancariaDeudorId = dto.CuentaBancariaDeudorId
+                };
+                var creado = await _bancario.CrearMandatoAsync(entity);
+                return CreatedAtAction(nameof(GetMandato), new { id = creado.Id }, ToMandatoDto(creado));
             }
             catch (ArgumentException ex) { return BadRequest(new { Message = ex.Message }); }
         }

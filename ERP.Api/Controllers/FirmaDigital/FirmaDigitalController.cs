@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities.FirmaDigital;
+using ERP.Domain.DTOs.FirmaDigital;
 
 namespace ERP.Api.Controllers.FirmaDigital
 {
@@ -33,15 +34,20 @@ namespace ERP.Api.Controllers.FirmaDigital
         }
 
         [HttpPost("certificados")]
-        public async Task<ActionResult<CertificadoDigital>> PostCertificado(CertificadoDigital dto)
+        public async Task<ActionResult<CertificadoDto>> PostCertificado(CrearCertificadoDto dto)
         {
-            dto.EmpresaId = GetEmpresaId();
-            if (dto.EmpresaId == 0) return BadRequest(new { Message = "EmpresaId requerido" });
-            dto.FechaCreacion = DateTime.Now;
-            dto.UsuarioCreacion = User.Identity?.Name;
-            _context.CertificadosDigitales.Add(dto);
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return BadRequest(new { Message = "EmpresaId requerido" });
+            var entity = new CertificadoDigital
+            {
+                EmpresaId = empresaId, Nombre = dto.Nombre, Tipo = Enum.TryParse<TipoCertificado>(dto.Tipo, true, out var t) ? t : TipoCertificado.Avanzada,
+                SubjectDN = dto.SubjectDN, IssuerDN = dto.IssuerDN, NotBefore = dto.NotBefore, NotAfter = dto.NotAfter,
+                SerialNumber = dto.SerialNumber, ThumbprintSHA256 = dto.ThumbprintSHA256, ThumbprintSHA1 = dto.SerialNumber, PublicKeyPem = dto.PublicKeyPem,
+                QTSP = dto.QTSP, CadenaCertificadosPem = dto.CadenaCertificadosPem, FechaCreacion = DateTime.Now, UsuarioCreacion = User.Identity?.Name
+            };
+            _context.CertificadosDigitales.Add(entity);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetCertificado), new { id = dto.Id }, dto);
+            return CreatedAtAction(nameof(GetCertificado), new { id = entity.Id }, new CertificadoDto { Id = entity.Id, Nombre = entity.Nombre, Tipo = entity.Tipo.ToString(), Estado = entity.Estado.ToString(), SubjectDN = entity.SubjectDN, EstaVigente = entity.EstaVigente });
         }
 
         [HttpPost("certificados/{id}/revocar")]
@@ -82,22 +88,26 @@ namespace ERP.Api.Controllers.FirmaDigital
         }
 
         [HttpPost("firmas")]
-        public async Task<ActionResult<FirmaElectronica>> PostFirma(FirmaElectronica dto)
+        public async Task<ActionResult<FirmaDto>> PostFirma(CrearFirmaDto dto)
         {
-            dto.EmpresaId = GetEmpresaId();
-            var cert = await _context.CertificadosDigitales.FirstOrDefaultAsync(c => c.Id == dto.CertificadoId && c.EmpresaId == dto.EmpresaId);
+            var empresaId = GetEmpresaId();
+            var cert = await _context.CertificadosDigitales.FirstOrDefaultAsync(c => c.Id == dto.CertificadoId && c.EmpresaId == empresaId);
             if (cert == null) return BadRequest(new { Message = "Certificado no válido" });
             if (!cert.EstaVigente) return BadRequest(new { Message = "Certificado no vigente" });
-            dto.FechaFirma = DateTime.Now;
-            dto.FirmanteNombre = dto.FirmanteNombre ?? User.Identity?.Name ?? "system";
-            // Simular firma: hash + base64
-            dto.HashDocumentoSHA256 = dto.HashDocumentoSHA256 ?? Convert.ToHexString(System.Security.Cryptography.SHA256.Create().ComputeHash(System.Text.Encoding.UTF8.GetBytes(dto.DocumentoReferencia ?? dto.DocumentoId.ToString())));
-            dto.FirmaBase64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"FIRMADO-{dto.HashDocumentoSHA256}-{cert.ThumbprintSHA256}"));
-            dto.FirmaEstructurada = $"PAdES:{dto.FirmaBase64}";
-            dto.UsuarioCreacion = User.Identity?.Name;
-            _context.FirmasElectronicas.Add(dto);
+            var entity = new FirmaElectronica
+            {
+                EmpresaId = empresaId, CertificadoId = dto.CertificadoId,
+                Tipo = Enum.TryParse<TipoFirma>(dto.Tipo, true, out var tf) ? tf : TipoFirma.Avanzada,
+                Formato = Enum.TryParse<FormatoFirma>(dto.Formato, true, out var ff) ? ff : FormatoFirma.PAdES,
+                DocumentoTipo = dto.DocumentoTipo, DocumentoId = dto.DocumentoId, HashDocumentoSHA256 = dto.HashDocumentoSHA256 ?? Convert.ToHexString(System.Security.Cryptography.SHA256.Create().ComputeHash(System.Text.Encoding.UTF8.GetBytes(dto.DocumentoId.ToString()))),
+                FirmanteNombre = dto.FirmanteNombre, FirmanteNIF = dto.FirmanteNIF, FirmanteCargo = dto.FirmanteCargo,
+                FechaFirma = DateTime.Now, UsuarioCreacion = User.Identity?.Name, EstadoVerificacion = EstadoVerificacionFirma.Valida
+            };
+            entity.FirmaBase64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"FIRMADO-{entity.HashDocumentoSHA256}-{cert.ThumbprintSHA256}"));
+            entity.FirmaEstructurada = $"{entity.Formato}:{entity.FirmaBase64}";
+            _context.FirmasElectronicas.Add(entity);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetFirma), new { id = dto.Id }, dto);
+            return CreatedAtAction(nameof(GetFirma), new { id = entity.Id }, new FirmaDto { Id = entity.Id, Tipo = entity.Tipo.ToString(), Formato = entity.Formato.ToString(), DocumentoTipo = entity.DocumentoTipo, DocumentoId = entity.DocumentoId, FirmanteNombre = entity.FirmanteNombre, EstadoVerificacion = entity.EstadoVerificacion.ToString(), EsValidaLegal = entity.EsValidaLegal });
         }
 
         [HttpPost("firmas/{id}/verificar")]
