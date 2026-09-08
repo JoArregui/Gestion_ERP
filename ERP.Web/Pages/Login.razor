@@ -103,11 +103,11 @@
                     customAuthProvider.NotifyUserAuthentication(result.Token);
                 }
 
-                // Pasillo universal: si EmpresaId==0 (vacío, sin datos) → /onboarding (no verás datos de otra empresa)
+                // Pasillo universal → Escritorio principal sin empresa y con onboarding; propio usuario con empresa → programa directo
                 var authState = await AuthStateProvider.GetAuthenticationStateAsync();
                 var needsOnboarding = authState.User.FindFirst("OnboardingRequired") != null;
                 if (needsOnboarding)
-                    NavigationManager.NavigateTo("/onboarding", forceLoad: false);
+                    NavigationManager.NavigateTo("/", forceLoad: false);
                 else
                     NavigationManager.NavigateTo("/dashboard", forceLoad: false);
             }

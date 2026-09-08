@@ -28,27 +28,34 @@ namespace ERP.Api.Controllers
             _emailService = emailService;
         }
 
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+
         [HttpGet("resumen-financiero")]
         public async Task<ActionResult<DashboardDTO>> GetResumen()
         {
+            var empresaId = GetEmpresaId();
+            // Pasillo universal (EmpresaId 0) → programa vacío, sin datos
+            if (empresaId == 0) return Ok(new DashboardDTO { TotalVentas = 0, TotalCompras = 0, TotalNominas = 0, BeneficioNeto = 0, FacturasPendientesCobro = 0, ImportePendienteCobro = 0, FacturasVencidas = 0, ArticulosStockBajo = 0, VentasMensuales = new() });
+
             var hoy = DateTime.Today;
 
             var ventasTotal = await _context.Documentos
-                .Where(d => d.Tipo == TipoDocumento.Factura && !d.EsCompra)
+                .Where(d => d.EmpresaId == empresaId && d.Tipo == TipoDocumento.Factura && !d.EsCompra)
                 .Select(d => d.Total != 0
                     ? d.Total
                     : d.Lineas.Sum(l => l.Cantidad * l.PrecioUnitario * (1 + l.PorcentajeIva / 100m)))
                 .SumAsync();
 
             var comprasTotal = await _context.Documentos
-                .Where(d => d.Tipo == TipoDocumento.Factura && d.EsCompra)
+                .Where(d => d.EmpresaId == empresaId && d.Tipo == TipoDocumento.Factura && d.EsCompra)
                 .SumAsync(d => d.Total);
 
             var nominasTotal = await _context.Nominas
+                .Where(n => n.Empleado != null && n.Empleado.EmpresaId == empresaId)
                 .SumAsync(n => n.SalarioBase + n.Complementos);
 
             var pendientesQuery = _context.Vencimientos
-                .Where(v => v.Estado != "Pagado" && v.Documento != null && !v.Documento.EsCompra);
+                .Where(v => v.EmpresaId == empresaId && v.Estado != "Pagado" && v.Documento != null && !v.Documento.EsCompra);
 
             var pendientes = await pendientesQuery.ToListAsync();
             
@@ -56,11 +63,12 @@ namespace ERP.Api.Controllers
                 .CountAsync(v => v.FechaVencimiento < hoy);
 
             var stockCritico = await _context.Articulos
+                .Where(a => a.EmpresaId == empresaId)
                 .CountAsync(a => a.Stock < a.StockMinimo || a.Stock < 5);
 
             var seisMesesAtras = DateTime.Today.AddMonths(-5);
             var ventasPorMes = await _context.Documentos
-                .Where(d => d.Tipo == TipoDocumento.Factura && !d.EsCompra && d.Fecha >= seisMesesAtras)
+                .Where(d => d.EmpresaId == empresaId && d.Tipo == TipoDocumento.Factura && !d.EsCompra && d.Fecha >= seisMesesAtras)
                 .GroupBy(d => new { d.Fecha.Year, d.Fecha.Month })
                 .Select(g => new GraficoVentasMes
                 {
@@ -90,6 +98,8 @@ namespace ERP.Api.Controllers
         [HttpGet("detalle/{tipo}")]
         public async Task<ActionResult<DashboardDetalleDTO>> GetDetalle(string tipo)
         {
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new DashboardDetalleDTO { Titulo = tipo == "stock-bajo" ? "ARTÍCULOS BAJO MÍNIMOS" : "VENCIMIENTOS IMPAGADOS", Items = new() });
             var detalle = new DashboardDetalleDTO 
             { 
                 Titulo = tipo == "stock-bajo" ? "ARTÍCULOS BAJO MÍNIMOS" : "VENCIMIENTOS IMPAGADOS" 
@@ -98,7 +108,7 @@ namespace ERP.Api.Controllers
             if (tipo == "stock-bajo")
             {
                 detalle.Items = await _context.Articulos
-                    .Where(a => a.Stock < a.StockMinimo || a.Stock < 5)
+                    .Where(a => a.EmpresaId == empresaId && (a.Stock < a.StockMinimo || a.Stock < 5))
                     .Select(a => new ItemDetalle {
                         IdRelacionado = a.Id,
                         Principal = a.Descripcion,
@@ -113,7 +123,7 @@ namespace ERP.Api.Controllers
                 detalle.Items = await _context.Vencimientos
                     .Include(v => v.Documento)
                     .ThenInclude(d => d!.Cliente)
-                    .Where(v => v.Estado != "Pagado" && v.FechaVencimiento < DateTime.Today)
+                    .Where(v => v.EmpresaId == empresaId && v.Estado != "Pagado" && v.FechaVencimiento < DateTime.Today)
                     .Select(v => new ItemDetalle {
                         IdRelacionado = v.DocumentoId ?? 0,
                         Principal = v.Documento != null ? v.Documento.NumeroDocumento : (v.DocumentoId == null ? "NÓMINA" : "S/N"),

@@ -83,32 +83,10 @@ namespace ERP.Api.Controllers
             await _context.SaveChangesAsync();
 
             // Crear BBDD por empresa: GestionX.db (visible en carpeta, para miles de PCs/empresas)
+            // El pasillo admin@erp.local NO se vincula (sigue vacío, sin empresa), el nuevo usuario de Paso 2 se vinculará a esta empresa
             string tenantFile = "";
             try { tenantFile = await _tenantService.EnsureTenantDatabaseAsync(empresa); } catch { }
 
-            // Vincular automáticamente al usuario bootstrap (admin@erp.local) si aún no tiene empresa
-            // o al usuario autenticado si lo hay
-            try
-            {
-                ApplicationUser? targetUser = null;
-                if (User?.Identity?.IsAuthenticated == true)
-                {
-                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                    if (!string.IsNullOrEmpty(userId))
-                        targetUser = await _userManager.FindByIdAsync(userId);
-                }
-                if (targetUser == null)
-                    targetUser = await _userManager.FindByEmailAsync("admin@erp.local");
-
-                if (targetUser != null && targetUser.EmpresaId == null)
-                {
-                    targetUser.EmpresaId = empresa.Id;
-                    await _userManager.UpdateAsync(targetUser);
-                }
-            }
-            catch { /* no bloquea la creación si falla la vinculación */ }
-
-            // Devolver también el fichero GestionX.db para que el wizard lo muestre
             return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, new { empresa.Id, empresa.RazonSocial, empresa.NombreComercial, empresa.CIF, TenantDatabase = tenantFile, Mensaje = tenantFile != "" ? $"BBDD {System.IO.Path.GetFileName(tenantFile)} creada" : null });
         }
 
@@ -143,23 +121,8 @@ namespace ERP.Api.Controllers
                 await _context.SaveChangesAsync();
 
                 // Crear BBDD por empresa: GestionX.db (para miles de PCs/empresas)
+                // Nota: admin@erp.local (pasillo) NO se vincula nunca, sigue vacío
                 try { await _tenantService.EnsureTenantDatabaseAsync(empresa); } catch { }
-
-                // Si es la primera empresa y el usuario bootstrap aún no tiene EmpresaId, vincularla
-                try
-                {
-                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                    if (!string.IsNullOrEmpty(userId))
-                    {
-                        var u = await _userManager.FindByIdAsync(userId);
-                        if (u != null && u.EmpresaId == null)
-                        {
-                            u.EmpresaId = empresa.Id;
-                            await _userManager.UpdateAsync(u);
-                        }
-                    }
-                }
-                catch { }
 
                 return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
             }
