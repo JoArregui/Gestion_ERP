@@ -16,44 +16,32 @@ using ERP.Services; // SeedService para seeding inicial
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. CONFIGURACIÓN DE BASE DE DATOS ---
-// Pasillo universal: si ya existe GestionX.db activo (tenant.json), usarlo como DB por empresa (aislamiento físico por PC/empresa)
-// Si no, usar DefaultConnection (programa vacío con bootstrap admin@erp.local)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-var useSqlite = builder.Configuration.GetValue<bool>("Database:UseSqlite");
-try
+// BBDD INICIAL erp.db (maestro) con todos los usuarios duplicados. Por request se resuelve GestionX.db vía claim Tenant.
+// Si no hay Tenant (bootstrap admin@erp.local pasillo) se usa DefaultConnection (maestro).
+var masterConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=erp.db";
+var masterUseSqlite = builder.Configuration.GetValue<bool>("Database:UseSqlite");
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
 {
-    var tenantMarker = Path.Combine(AppContext.BaseDirectory, "tenant.json");
-    // Buscar también junto al .db actual
-    if (!File.Exists(tenantMarker))
+    var httpCtx = sp.GetService<IHttpContextAccessor>()?.HttpContext;
+    var tenantFile = httpCtx?.User?.FindFirst("Tenant")?.Value;
+    string conn = masterConnectionString;
+    bool useSqlite = masterUseSqlite;
+    if (!string.IsNullOrWhiteSpace(tenantFile))
     {
-        var altDir = Path.GetDirectoryName(connectionString?.Contains("Data Source=") == true ? connectionString.Split("Data Source=")[1].Split(';')[0].Trim() : "");
-        if (!string.IsNullOrEmpty(altDir) && !Path.IsPathRooted(altDir)) altDir = Path.Combine(AppContext.BaseDirectory, altDir);
-        var altMarker = !string.IsNullOrEmpty(altDir) ? Path.Combine(Path.GetDirectoryName(altDir) ?? AppContext.BaseDirectory, "tenant.json") : null;
-        if (altMarker != null && File.Exists(altMarker)) tenantMarker = altMarker;
-    }
-    if (File.Exists(tenantMarker))
-    {
-        var json = File.ReadAllText(tenantMarker);
-        var doc = System.Text.Json.JsonDocument.Parse(json);
-        if (doc.RootElement.TryGetProperty("ActiveDatabase", out var active) && active.GetString() is string activeFile && !string.IsNullOrWhiteSpace(activeFile))
+        // Resolver ruta GestionX.db junto a erp.db
+        var masterFile = masterConnectionString.Contains("Data Source=") ? masterConnectionString.Split("Data Source=")[1].Split(';')[0].Trim() : "erp.db";
+        var baseDir = AppContext.BaseDirectory;
+        var masterPath = Path.IsPathRooted(masterFile) ? masterFile : Path.Combine(baseDir, masterFile);
+        var dir = Path.GetDirectoryName(masterPath) ?? baseDir;
+        var tenantPath = Path.Combine(dir, tenantFile);
+        if (File.Exists(tenantPath))
         {
-            var tenantPath = Path.Combine(Path.GetDirectoryName(tenantMarker)!, activeFile);
-            if (File.Exists(tenantPath))
-            {
-                connectionString = $"Data Source={tenantPath}";
-                useSqlite = true;
-                Console.WriteLine($"[Tenant] Usando BBDD por empresa: {tenantPath}");
-            }
+            conn = $"Data Source={tenantPath}";
+            useSqlite = true;
         }
     }
-}
-catch { /* si falla, seguir con DefaultConnection vacía (pasillo) */ }
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-{
-    if (useSqlite)
-        options.UseSqlite(connectionString);
-    else
-        options.UseSqlServer(connectionString);
+    if (useSqlite) options.UseSqlite(conn); else options.UseSqlServer(conn);
 });
 
 // --- 2. CONFIGURACIÓN DE IDENTITY ---

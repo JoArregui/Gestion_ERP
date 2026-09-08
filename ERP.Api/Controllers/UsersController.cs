@@ -19,11 +19,17 @@ namespace ERP.Api.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly ERP.Data.ApplicationDbContext _context;
+        private readonly ERP.Services.Tenant.TenantDatabaseService _tenantService;
+        private readonly IConfiguration _config;
 
-        public UsersController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
+        public UsersController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, ERP.Data.ApplicationDbContext context, ERP.Services.Tenant.TenantDatabaseService tenantService, IConfiguration config)
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            _context = context;
+            _tenantService = tenantService;
+            _config = config;
         }
 
         // ============================================
@@ -120,9 +126,34 @@ namespace ERP.Api.Controllers
 
             if (result.Succeeded)
             {
+                var addedRoles = new List<string>();
+                var addedClaims = new List<System.Security.Claims.Claim>();
                 if (!string.IsNullOrEmpty(model.Role))
                 {
                     await _userManager.AddToRoleAsync(user, model.Role);
+                    addedRoles.Add(model.Role);
+                }
+                // Propagar permisos del rol si existen
+                var perms = await _roleManager.GetClaimsAsync(await _roleManager.FindByNameAsync(model.Role ?? "Admin") ?? new IdentityRole());
+                foreach (var p in perms.Where(c => c.Type == "Permission"))
+                {
+                    await _userManager.AddClaimAsync(user, p);
+                    addedClaims.Add(p);
+                }
+                // Duplicar en GestionX.db si tiene EmpresaId (creación desde onboarding privada)
+                if (user.EmpresaId.HasValue && user.EmpresaId.Value != 0)
+                {
+                    try
+                    {
+                        var emp = await _context.Empresas.FindAsync(user.EmpresaId.Value);
+                        if (emp != null)
+                        {
+                            var tenantPath = _tenantService.GetTenantDbPath(emp.RazonSocial ?? emp.NombreComercial);
+                            if (System.IO.File.Exists(tenantPath))
+                                await _tenantService.EnsureUserInTenantAsync(user, tenantPath, addedRoles, addedClaims);
+                        }
+                    }
+                    catch { /* master ya tiene usuario, tenant se sincroniza luego */ }
                 }
 
                 return Ok(new { Message = "Usuario creado correctamente", UserId = user.Id });

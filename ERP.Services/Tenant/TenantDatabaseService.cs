@@ -179,5 +179,52 @@ namespace ERP.Services.Tenant
             if (!Directory.Exists(dir)) return Array.Empty<string>();
             return Directory.GetFiles(dir, "Gestion*.db").Select(Path.GetFileName).ToArray()!;
         }
+
+        /// <summary>Duplica usuario maestro -> GestionX.db (mismo Id, hash, claims, roles). Idempotente.</summary>
+        public async Task EnsureUserInTenantAsync(ApplicationUser masterUser, string tenantPath, IList<string> roles, IList<System.Security.Claims.Claim> claims)
+        {
+            var useSqliteStr = _config["Database:UseSqlite"];
+            var useSqlite = bool.TryParse(useSqliteStr, out var u) ? u : true;
+            var tenantConn = useSqlite ? $"Data Source={tenantPath}" : _config.GetConnectionString("DefaultConnection")!;
+            var opts = new DbContextOptionsBuilder<ApplicationDbContext>();
+            if (useSqlite) opts.UseSqlite(tenantConn); else opts.UseSqlServer(tenantConn);
+            using var ctx = new ApplicationDbContext(opts.Options);
+            var exists = await ctx.Users.AnyAsync(u => u.Email == masterUser.Email);
+            if (exists) return;
+            var clone = new ApplicationUser
+            {
+                Id = masterUser.Id,
+                UserName = masterUser.UserName,
+                NormalizedUserName = masterUser.NormalizedUserName,
+                Email = masterUser.Email,
+                NormalizedEmail = masterUser.NormalizedEmail,
+                EmailConfirmed = masterUser.EmailConfirmed,
+                PasswordHash = masterUser.PasswordHash,
+                SecurityStamp = masterUser.SecurityStamp,
+                ConcurrencyStamp = masterUser.ConcurrencyStamp,
+                PhoneNumber = masterUser.PhoneNumber,
+                PhoneNumberConfirmed = masterUser.PhoneNumberConfirmed,
+                TwoFactorEnabled = masterUser.TwoFactorEnabled,
+                LockoutEnd = masterUser.LockoutEnd,
+                LockoutEnabled = masterUser.LockoutEnabled,
+                AccessFailedCount = masterUser.AccessFailedCount,
+                FullName = masterUser.FullName,
+                EmpresaId = masterUser.EmpresaId,
+                IsActivo = masterUser.IsActivo,
+                UltimoAcceso = masterUser.UltimoAcceso
+            };
+            ctx.Users.Add(clone);
+            await ctx.SaveChangesAsync();
+            // Roles y claims se guardan en tablas AspNetUserRoles / AspNetUserClaims - copiar vía SQL directo
+            foreach (var role in roles)
+            {
+                var roleId = await ctx.Roles.Where(r => r.Name == role).Select(r => r.Id).FirstOrDefaultAsync();
+                if (roleId != null) ctx.UserRoles.Add(new Microsoft.AspNetCore.Identity.IdentityUserRole<string>{ UserId = clone.Id, RoleId = roleId });
+            }
+            foreach (var c in claims.Where(x => x.Type == "Permission"))
+                ctx.UserClaims.Add(new Microsoft.AspNetCore.Identity.IdentityUserClaim<string>{ UserId = clone.Id, ClaimType = c.Type, ClaimValue = c.Value });
+            await ctx.SaveChangesAsync();
+            _logger.LogInformation("Usuario {Email} duplicado en {Path}", clone.Email, tenantPath);
+        }
     }
 }

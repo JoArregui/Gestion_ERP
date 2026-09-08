@@ -21,15 +21,18 @@ namespace ERP.Api.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IConfiguration _configuration;
+        private readonly ERP.Data.ApplicationDbContext _context;
 
         public AuthController(
             UserManager<ApplicationUser> userManager, 
             SignInManager<ApplicationUser> signInManager,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ERP.Data.ApplicationDbContext context)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _configuration = configuration;
+            _context = context;
         }
 
         /// <summary>
@@ -81,6 +84,14 @@ namespace ERP.Api.Controllers
             var roles = await _userManager.GetRolesAsync(user);
             var permissions = await _userManager.GetClaimsAsync(user);
             
+            // Resolver Tenant file desde BBDD INICIAL (erp.db) - duplicado en GestionX
+            string? tenantFile = null;
+            if (user.EmpresaId.HasValue && user.EmpresaId.Value != 0)
+            {
+                var emp = await _context.Empresas.FindAsync(user.EmpresaId.Value);
+                if (emp != null) tenantFile = ERP.Services.Tenant.TenantDatabaseService.GetTenantFileName(emp.RazonSocial ?? emp.NombreComercial);
+            }
+
             // Claims básicos y personalizados para el ERP
             var claims = new List<Claim>
             {
@@ -93,6 +104,7 @@ namespace ERP.Api.Controllers
                 // CLAIM DE TENANCY: Vital para filtrar datos por empresa en los servicios (0 si bootstrap sin empresa)
                 new Claim("EmpresaId", (user.EmpresaId ?? 0).ToString())
             };
+            if (!string.IsNullOrWhiteSpace(tenantFile)) claims.Add(new Claim("Tenant", tenantFile));
 
             // Mapeo explícito de roles a claims de seguridad
             foreach (var role in roles)
