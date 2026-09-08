@@ -2,7 +2,6 @@
 @using ERP.Domain.Entities
 @inject HttpClient Http
 @inject IJSRuntime JS
-@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="max-w-[1400px] mx-auto p-6 animate-in fade-in duration-700">
     
@@ -219,27 +218,12 @@
     {
         try 
         {
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var empresaIdStr = authState.User.FindFirst("EmpresaId")?.Value ?? "0";
-            var empresaId = int.TryParse(empresaIdStr, out var id) ? id : 0;
-            
-            var empresasRaw = await Http.GetFromJsonAsync<List<Empresa>>("api/empresas");
-            
-            if (empresaId == 0)
-            {
-                // Pasillo universal → lista vacía
-                empresas = new List<Empresa>();
-            }
-            else
-            {
-                // Usuario privado → solo su empresa
-                empresas = empresasRaw?.Where(e => e.IsActiva && e.Id == empresaId).ToList() ?? new List<Empresa>();
-            }
+            empresas = await Http.GetFromJsonAsync<List<Empresa>>("api/empresas");
+            // Filtrado server-side por EmpresaId (pasillo 0 -> vacio, privado -> solo suya)
         } 
         catch (Exception ex) 
         { 
             await Notificar($"Error de conexión: {ex.Message}", "error"); 
-            empresas = new List<Empresa>();
         }
     }
 
