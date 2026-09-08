@@ -16,8 +16,38 @@ using ERP.Services; // SeedService para seeding inicial
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. CONFIGURACIÓN DE BASE DE DATOS ---
+// Pasillo universal: si ya existe GestionX.db activo (tenant.json), usarlo como DB por empresa (aislamiento físico por PC/empresa)
+// Si no, usar DefaultConnection (programa vacío con bootstrap admin@erp.local)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var useSqlite = builder.Configuration.GetValue<bool>("Database:UseSqlite");
+try
+{
+    var tenantMarker = Path.Combine(AppContext.BaseDirectory, "tenant.json");
+    // Buscar también junto al .db actual
+    if (!File.Exists(tenantMarker))
+    {
+        var altDir = Path.GetDirectoryName(connectionString?.Contains("Data Source=") == true ? connectionString.Split("Data Source=")[1].Split(';')[0].Trim() : "");
+        if (!string.IsNullOrEmpty(altDir) && !Path.IsPathRooted(altDir)) altDir = Path.Combine(AppContext.BaseDirectory, altDir);
+        var altMarker = !string.IsNullOrEmpty(altDir) ? Path.Combine(Path.GetDirectoryName(altDir) ?? AppContext.BaseDirectory, "tenant.json") : null;
+        if (altMarker != null && File.Exists(altMarker)) tenantMarker = altMarker;
+    }
+    if (File.Exists(tenantMarker))
+    {
+        var json = File.ReadAllText(tenantMarker);
+        var doc = System.Text.Json.JsonDocument.Parse(json);
+        if (doc.RootElement.TryGetProperty("ActiveDatabase", out var active) && active.GetString() is string activeFile && !string.IsNullOrWhiteSpace(activeFile))
+        {
+            var tenantPath = Path.Combine(Path.GetDirectoryName(tenantMarker)!, activeFile);
+            if (File.Exists(tenantPath))
+            {
+                connectionString = $"Data Source={tenantPath}";
+                useSqlite = true;
+                Console.WriteLine($"[Tenant] Usando BBDD por empresa: {tenantPath}");
+            }
+        }
+    }
+}
+catch { /* si falla, seguir con DefaultConnection vacía (pasillo) */ }
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     if (useSqlite)

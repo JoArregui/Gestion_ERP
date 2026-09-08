@@ -11,9 +11,10 @@
         <div class="w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in max-h-[90vh] overflow-y-auto">
             <div class="bg-[#020617] text-white p-8 text-center">
                 <div class="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-black">E</div>
-                <h2 class="text-2xl font-black uppercase tracking-tight">Bienvenido — Primer arranque</h2>
-                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Has entrado con credenciales por defecto <code class="bg-white/10 px-2 py-1 rounded">admin@erp.local / Admin123!</code></p>
-                <p class="text-amber-400 text-[10px] font-bold uppercase tracking-widest mt-2">Programa multi-empresa — miles de PCs · miles de empresas</p>
+                <h2 class="text-2xl font-black uppercase tracking-tight">Bienvenido — Pasillo universal</h2>
+                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Has entrado con <code class="bg-white/10 px-2 py-1 rounded">admin@erp.local / Admin123!</code> — credenciales tipo para todos</p>
+                <p class="text-amber-400 text-[10px] font-bold uppercase tracking-widest mt-2">Programa vacío, sin datos — tras el onboarding entrarás solo con tus datos</p>
+                <p class="text-slate-500 text-[10px] mt-2">Miles de PCs · miles de empresas · cada GestionX.db aislada</p>
             </div>
             <div class="p-8 space-y-6">
                 @if (!empresaCreada)
@@ -62,7 +63,7 @@
                 @if (empresaCreada && usuarioCreado)
                 {
                     <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
-                        <b>¡Listo!</b> Reinicia el programa y entra con <b>@nuevoUsuarioEmail</b>. Verás <b>Empresa @nombreEmpresa</b> en todos los documentos. Ya puedes crear familias, artículos, proveedores y más usuarios.
+                        <b>¡Listo!</b> Reinicia el programa y entra con <b>@nuevoUsuarioEmail</b>. Verás <b>Empresa @nombreEmpresa</b> en todos los documentos y <b>solo tus datos</b> — sin acceso a datos de otra empresa. Ya puedes crear familias, artículos, proveedores y más usuarios.
                     </div>
                 }
                 else if (empresaCreada)
