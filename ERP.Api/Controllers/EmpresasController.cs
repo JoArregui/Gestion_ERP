@@ -28,44 +28,70 @@ namespace ERP.Api.Controllers
             _tenantService = tenantService;
         }
 
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+
         /// <summary>
-        /// Obtiene el listado completo de empresas activas
+        /// Obtiene el listado de empresas visibles para el usuario (pasillo EmpresaId 0 → vacío)
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Empresa>>> GetEmpresas()
         {
+            var empresaId = GetEmpresaId();
+            // Pasillo universal (admin@erp.local sin empresa) → programa vacío, sin datos
+            if (empresaId == 0) return Ok(new List<Empresa>());
             var empresas = await _context.Empresas
-                .Where(e => e.IsActiva)
+                .Where(e => e.IsActiva && e.Id == empresaId)
                 .ToListAsync();
-
             return Ok(empresas);
         }
 
         /// <summary>
-        /// Crea la primera empresa durante el onboarding inicial
+        /// Check onboarding pasillo: ¿hay alguna empresa en el sistema? (sin filtro EmpresaId, para wizard)
+        /// </summary>
+        [HttpGet("onboarding-check")]
+        [AllowAnonymous]
+        public async Task<ActionResult> GetOnboardingCheck()
+        {
+            var count = await _context.Empresas.CountAsync(e => e.IsActiva);
+            var hasEmpresa = count > 0;
+            var primera = hasEmpresa ? await _context.Empresas.Where(e => e.IsActiva).OrderBy(e => e.Id).Select(e => new { e.Id, e.RazonSocial, e.NombreComercial }).FirstOrDefaultAsync() : null;
+            return Ok(new { hasEmpresa, count, pasilloVacio = true, primeraEmpresaId = primera?.Id, primeraRazon = primera?.RazonSocial, primeraNombre = primera?.NombreComercial });
+        }
+
+        public class CrearEmpresaOnboardingDto
+        {
+            public string NombreEmpresa { get; set; } = string.Empty;
+            public string? CIF { get; set; }
+        }
+
+        /// <summary>
+        /// Crea la primera empresa durante el onboarding inicial - CIF real obligatorio, no inventado
         /// </summary>
         [AllowAnonymous]
         [HttpPost("crear-onboarding")]
-        public async Task<ActionResult<Empresa>> CrearParaOnboarding([FromBody] string nombreEmpresa)
+        public async Task<ActionResult<Empresa>> CrearParaOnboarding([FromBody] CrearEmpresaOnboardingDto dto)
         {
+            var nombreEmpresa = dto.NombreEmpresa?.Trim() ?? "";
+            var cif = dto.CIF?.Trim().ToUpper() ?? "";
             if (string.IsNullOrWhiteSpace(nombreEmpresa))
-            {
                 return BadRequest(new { Message = "El nombre de la empresa es obligatorio" });
-            }
+            if (string.IsNullOrWhiteSpace(cif) || cif.Length < 9)
+                return BadRequest(new { Message = "El CIF/NIF real es obligatorio (9 caracteres)" });
+            if (!System.Text.RegularExpressions.Regex.IsMatch(cif, @"^[A-Z0-9]{9}$"))
+                return BadRequest(new { Message = "CIF/NIF inválido. Formato: A12345678 o B12345678" });
 
-            // Limpiar nombre: quitar caracteres especiales, tomar solo letras/números/guiones
+            if (await _context.Empresas.AnyAsync(e => e.CIF == cif && e.IsActiva))
+                return BadRequest(new { Message = $"Ya existe una empresa con CIF {cif}" });
+
             var nombreLimpio = string.Join("-", nombreEmpresa.Split(new[] { ' ', '/', '\\', ':' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => string.Join("", s.Where(char.IsLetterOrDigit))));
-
-            // Asegurar que tenga un formato coherente
-            if (string.IsNullOrEmpty(nombreLimpio))
-                nombreLimpio = "Empresa";
+            if (string.IsNullOrEmpty(nombreLimpio)) nombreLimpio = "Empresa";
 
             var empresa = new Empresa
             {
                 NombreComercial = nombreLimpio,
                 RazonSocial = nombreEmpresa,
-                CIF = $"B{Guid.NewGuid():N}"[..10],
+                CIF = cif,
                 SerieFacturacion = DateTime.UtcNow.Year.ToString(),
                 IvaDefecto = 21m,
                 IsActiva = true,

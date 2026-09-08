@@ -30,10 +30,15 @@ namespace ERP.Api.Controllers
         // GESTIÓN DE USUARIOS
         // ============================================
 
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
         {
-            var users = await _userManager.Users.ToListAsync();
+            var empresaId = GetEmpresaId();
+            var users = empresaId == 0
+                ? await _userManager.Users.Where(u => false).ToListAsync() // pasillo → vacío
+                : await _userManager.Users.Where(u => u.EmpresaId == empresaId).ToListAsync();
             var userList = new List<UserDto>();
 
             foreach (var user in users)
@@ -225,17 +230,19 @@ namespace ERP.Api.Controllers
         [HttpGet("roles")]
         public async Task<ActionResult<IEnumerable<RoleDto>>> GetRoles()
         {
+            var empresaId = GetEmpresaId();
             var roles = await _roleManager.Roles.ToListAsync();
             var roleList = new List<RoleDto>();
 
             foreach (var role in roles)
             {
                 var usersInRole = await _userManager.GetUsersInRoleAsync(role.Name!);
+                var count = empresaId == 0 ? 0 : usersInRole.Count(u => u.EmpresaId == empresaId);
                 roleList.Add(new RoleDto
                 {
                     Id = role.Id,
                     Name = role.Name ?? "Sin Nombre",
-                    UserCount = usersInRole.Count
+                    UserCount = count
                 });
             }
 

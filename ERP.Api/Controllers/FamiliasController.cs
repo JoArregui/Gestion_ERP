@@ -6,11 +6,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERP.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class FamiliasController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -20,12 +22,16 @@ namespace ERP.API.Controllers
             _context = context;
         }
 
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+
         // GET: api/Familias
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Familia>>> GetFamilias()
         {
             try
             {
+                // Pasillo universal (EmpresaId 0) → programa vacío
+                if (GetEmpresaId() == 0) return Ok(new List<Familia>());
                 return await _context.Familia
                     .OrderBy(f => f.Nombre)
                     .ToListAsync();

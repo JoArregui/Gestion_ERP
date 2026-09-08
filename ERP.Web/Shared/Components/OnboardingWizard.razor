@@ -22,10 +22,12 @@
                     <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200">
                         <div class="text-[10px] font-black uppercase text-blue-600 tracking-widest">Paso 1 · Obligatorio</div>
                         <div class="font-black text-slate-800 mt-1">Crea tu empresa</div>
-                        <input @bind="nombreEmpresa" @bind:event="oninput" placeholder="Nombre de la empresa" class="mt-3 w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                        <input @bind="nombreEmpresa" @bind:event="oninput" placeholder="Nombre de la empresa (ej: X)" class="mt-3 w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                        <input @bind="cifEmpresa" @bind:event="oninput" placeholder="CIF/NIF real (ej: B12345678 - 9 caracteres)" maxlength="9" class="mt-2 w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+                        <p class="text-[10px] text-slate-400 mt-1">Se usará CIF real, no inventado. Mostrará "@(string.IsNullOrWhiteSpace(nombreEmpresa) ? "X" : nombreEmpresa)" en documentos.</p>
                         @if (!string.IsNullOrEmpty(errorEmpresa)) { <p class="text-xs text-rose-600 mt-2">@errorEmpresa</p> }
                         @if (!string.IsNullOrEmpty(tenantFile)) { <p class="text-xs text-emerald-600 mt-2 font-bold">✓ @tenantFile creada</p> }
-                        <button @onclick="CrearEmpresa" disabled="@(isCreandoEmpresa || string.IsNullOrWhiteSpace(nombreEmpresa))" class="mt-3 w-full bg-slate-900 hover:bg-blue-600 disabled:bg-slate-300 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest transition">
+                        <button @onclick="CrearEmpresa" disabled="@(isCreandoEmpresa || string.IsNullOrWhiteSpace(nombreEmpresa) || string.IsNullOrWhiteSpace(cifEmpresa))" class="mt-3 w-full bg-slate-900 hover:bg-blue-600 disabled:bg-slate-300 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest transition">
                             @(isCreandoEmpresa ? "Creando..." : empresaCreada ? "✓ Empresa creada" : "Crear empresa y BBDD Gestion")
                         </button>
                         <p class="text-[10px] text-slate-400 mt-2">También puedes ir a <a href="/maestros/empresas" class="text-blue-600 underline">Maestros → Empresas</a></p>
@@ -104,6 +106,7 @@
 
     // Paso 1
     private string nombreEmpresa = "";
+    private string cifEmpresa = "";
     private bool isCreandoEmpresa = false;
     private bool empresaCreada = false;
     private string? errorEmpresa;
@@ -169,10 +172,12 @@
     {
         errorEmpresa = null;
         if (string.IsNullOrWhiteSpace(nombreEmpresa)) { errorEmpresa = "Nombre obligatorio"; return; }
+        if (string.IsNullOrWhiteSpace(cifEmpresa) || cifEmpresa.Trim().Length < 9) { errorEmpresa = "CIF/NIF real obligatorio (9 caracteres)"; return; }
         isCreandoEmpresa = true;
         try
         {
-            var resp = await Http.PostAsJsonAsync("api/empresas/crear-onboarding", nombreEmpresa);
+            var dto = new { NombreEmpresa = nombreEmpresa.Trim(), CIF = cifEmpresa.Trim().ToUpper() };
+            var resp = await Http.PostAsJsonAsync("api/empresas/crear-onboarding", dto);
             var body = await resp.Content.ReadAsStringAsync();
             if (!resp.IsSuccessStatusCode) { errorEmpresa = body; Notify.Error($"No se pudo crear empresa: {body}"); return; }
             // Parsear respuesta para obtener tenantFile y id

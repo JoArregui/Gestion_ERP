@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities;
 using ERP.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERP.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class DocumentosController : ControllerBase
@@ -24,11 +26,16 @@ namespace ERP.Api.Controllers
             _pdfService = pdfService;
         }
 
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+
         // GET: api/Documentos
         [HttpGet]
         public async Task<ActionResult<IEnumerable<DocumentoComercial>>> GetDocumentos()
         {
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new List<DocumentoComercial>());
             return await _context.Documentos
+                .Where(d => d.EmpresaId == empresaId)
                 .Include(d => d.Cliente)
                 .Include(d => d.Proveedor)
                 .OrderByDescending(d => d.Fecha)
