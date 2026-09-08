@@ -103,11 +103,11 @@
                     customAuthProvider.NotifyUserAuthentication(result.Token);
                 }
 
-                // Si necesita onboarding, ir al escritorio donde está el wizard modal (el que te gustaba)
+                // Pasillo universal: si EmpresaId==0 (vacío, sin datos) → /onboarding (no verás datos de otra empresa)
                 var authState = await AuthStateProvider.GetAuthenticationStateAsync();
                 var needsOnboarding = authState.User.FindFirst("OnboardingRequired") != null;
                 if (needsOnboarding)
-                    NavigationManager.NavigateTo("/", forceLoad: false);
+                    NavigationManager.NavigateTo("/onboarding", forceLoad: false);
                 else
                     NavigationManager.NavigateTo("/dashboard", forceLoad: false);
             }

@@ -11,10 +11,9 @@
         <div class="w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in max-h-[90vh] overflow-y-auto">
             <div class="bg-[#020617] text-white p-8 text-center">
                 <div class="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-black">E</div>
-                <h2 class="text-2xl font-black uppercase tracking-tight">Bienvenido — Pasillo universal</h2>
-                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Has entrado con <code class="bg-white/10 px-2 py-1 rounded">admin@erp.local / Admin123!</code> — credenciales tipo para todos</p>
-                <p class="text-amber-400 text-[10px] font-bold uppercase tracking-widest mt-2">Programa vacío, sin datos — tras el onboarding entrarás solo con tus datos</p>
-                <p class="text-slate-500 text-[10px] mt-2">Miles de PCs · miles de empresas · cada GestionX.db aislada</p>
+                <h2 class="text-2xl font-black uppercase tracking-tight">Bienvenido</h2>
+                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Has entrado con <code class="bg-white/10 px-2 py-1 rounded">admin@erp.local / Admin123!</code></p>
+                <p class="text-amber-400 text-[10px] font-bold uppercase tracking-widest mt-2">Tras el onboarding entrarás solo con tus datos</p>
             </div>
             <div class="p-8 space-y-6">
                 @if (!empresaCreada)
@@ -45,7 +44,7 @@
                     <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200">
                         <div class="text-[10px] font-black uppercase text-blue-600 tracking-widest">Paso 2 · Obligatorio</div>
                         <div class="font-black text-slate-800 mt-1">Crea tu usuario personal</div>
-                        <p class="text-xs text-slate-500 mt-2">Con él entrarás a partir de ahora. Se vinculará a "@nombreEmpresa".</p>
+                        <p class="text-xs text-slate-500 mt-2">Con él entrarás a partir de ahora. Se vinculará a la Empresa"@nombreEmpresa".</p>
                         <div class="mt-3 space-y-3">
                             <input @bind="nuevoUsuarioNombre" placeholder="Nombre completo" class="w-full border rounded-xl px-4 py-3 text-sm" />
                             <input @bind="nuevoUsuarioEmail" placeholder="Email (tu usuario)" class="w-full border rounded-xl px-4 py-3 text-sm" />
