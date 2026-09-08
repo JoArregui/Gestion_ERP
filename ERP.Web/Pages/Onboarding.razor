@@ -41,7 +41,7 @@
                         <div>
                             <div class="text-[10px] font-black uppercase text-blue-600 tracking-widest">Paso 1 · Obligatorio — Programa vacío</div>
                             <div class="font-black text-slate-800 mt-1 text-lg">Crea tu empresa</div>
-                            <p class="text-xs text-slate-500 mt-2">Si la empresa se llama <b>@(string.IsNullOrWhiteSpace(nombreEmpresa) ? "X" : nombreEmpresa)</b>, se verá <b>Empresa @(string.IsNullOrWhiteSpace(nombreEmpresa) ? "X" : nombreEmpresa)</b> en todos los documentos y se creará la BBDD <b>Gestion@(ERP.Services.Tenant.TenantDatabaseService.SanitizeEmpresa(string.IsNullOrWhiteSpace(nombreEmpresa) ? "X" : nombreEmpresa)).db</b> aislada.</p>
+                            <p class="text-xs text-slate-500 mt-2">Si la empresa se llama <b>@(string.IsNullOrWhiteSpace(nombreEmpresa) ? "X" : nombreEmpresa)</b>, se verá <b>@(string.IsNullOrWhiteSpace(nombreEmpresa) ? "X" : nombreEmpresa)</b> en todos los documentos y se creará la BBDD <b>Gestion@(ERP.Services.Tenant.TenantDatabaseService.SanitizeEmpresa(string.IsNullOrWhiteSpace(nombreEmpresa) ? "X" : nombreEmpresa)).db</b> aislada.</p>
                             <input @bind="nombreEmpresa" @bind:event="oninput" placeholder="Ej: Empresa X" class="mt-4 w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                             @if (!string.IsNullOrEmpty(errorEmpresa)) { <p class="text-xs text-rose-600 mt-2">@errorEmpresa</p> }
                             @if (!string.IsNullOrEmpty(tenantFile)) { <p class="text-xs text-emerald-600 mt-2 font-bold">✓ @tenantFile creada</p> }
@@ -54,7 +54,7 @@
                     {
                         <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
                             <div class="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center">✓</div>
-                            <div><p class="text-sm font-black text-emerald-800">Empresa "@nombreEmpresa" creada</p><p class="text-xs text-emerald-600">BBDD: @tenantFile · Aparece como "Empresa @nombreEmpresa"</p></div>
+                            <div><p class="text-sm font-black text-emerald-800">"@nombreEmpresa" creada</p><p class="text-xs text-emerald-600">BBDD: @tenantFile · Aparece como "@nombreEmpresa"</p></div>
                         </div>
                         <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200">
                             <div class="text-[10px] font-black uppercase text-blue-600 tracking-widest">Paso 2 · Obligatorio</div>
@@ -76,7 +76,7 @@
                     @if (empresaCreada && usuarioCreado)
                     {
                         <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
-                            <b>¡Listo!</b> Reinicia el programa y entra con <b>@nuevoUsuarioEmail</b>. Verás <b>Empresa @nombreEmpresa</b> en todos los documentos y <b>solo tus datos</b> — sin acceso a otra empresa. Ya puedes crear familias, artículos, proveedores.
+                            <b>¡Listo!</b> Reinicia el programa y entra con <b>@nuevoUsuarioEmail</b>. Verás <b>@nombreEmpresa</b> en todos los documentos y <b>solo tus datos</b> — sin acceso a otra empresa. Ya puedes crear familias, artículos, proveedores.
                         </div>
                         <button @onclick="ReiniciarConNuevoUsuario" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest transition">Reiniciar y entrar con mi usuario</button>
                     }
@@ -165,7 +165,7 @@
             catch { tenantFile = $"Gestion{ERP.Services.Tenant.TenantDatabaseService.SanitizeEmpresa(nombreEmpresa)}.db"; }
             if (string.IsNullOrEmpty(tenantFile)) tenantFile = $"Gestion{ERP.Services.Tenant.TenantDatabaseService.SanitizeEmpresa(nombreEmpresa)}.db";
             empresaCreada = true;
-            Notify.Success($"Empresa '{nombreEmpresa}' creada · BBDD {tenantFile} · Programa sigue vacío hasta que crees tu usuario");
+            Notify.Success($"'{nombreEmpresa}' creada · BBDD {tenantFile} · Programa sigue vacío hasta que crees tu usuario");
         }
         catch (Exception ex) { errorEmpresa = ex.Message; Notify.Error(errorEmpresa); }
         finally { isCreandoEmpresa = false; }
