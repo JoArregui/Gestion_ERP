@@ -20,30 +20,40 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        StatusText.Text = $"Conectando a {_apiUrl}...";
-        LoadingText.Text = $"Conectando a {_apiUrl}...";
-
-        // 1. Asegurar que el API esté corriendo (modo escritorio = API embebido o externo)
-        await EnsureApiRunningAsync();
-
-        // 2. Inicializar WebView2
         try
         {
-            await MainWebView.EnsureCoreWebView2Async();
-            MainWebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
-            MainWebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
-            MainWebView.CoreWebView2.NavigationCompleted += (s, args) =>
-            {
-                LoadingOverlay.Visibility = Visibility.Collapsed;
-                StatusText.Text = $"Conectado — {_apiUrl}";
-            };
+            StatusText.Text = $"Conectando a {_apiUrl}...";
+            LoadingText.Text = $"Conectando a {_apiUrl}...";
 
-            MainWebView.Source = new Uri(_apiUrl);
+            // 1. Asegurar que el API esté corriendo (modo escritorio = API embebido o externo)
+            await EnsureApiRunningAsync();
+
+            // 2. Inicializar WebView2
+            try
+            {
+                await MainWebView.EnsureCoreWebView2Async();
+                MainWebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+                MainWebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
+                MainWebView.CoreWebView2.NavigationCompleted += (s, args) =>
+                {
+                    LoadingOverlay.Visibility = Visibility.Collapsed;
+                    StatusText.Text = $"Conectado — {_apiUrl}";
+                };
+
+                MainWebView.Source = new Uri(_apiUrl);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"No se pudo inicializar WebView2:\n{ex.Message}\n\nAsegúrate de tener WebView2 Runtime instalado.", "ERP Escritorio", MessageBoxButton.OK, MessageBoxImage.Error);
+                LoadingText.Text = "Error WebView2";
+                StatusText.Text = "Error WebView2";
+            }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"No se pudo inicializar WebView2:\n{ex.Message}\n\nAsegúrate de tener WebView2 Runtime instalado.", "ERP Escritorio", MessageBoxButton.OK, MessageBoxImage.Error);
-            LoadingText.Text = "Error WebView2";
+            try { File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop-crash.log"), ex.ToString()); } catch { }
+            MessageBox.Show(ex.ToString(), "ERP Escritorio — Error en arranque", MessageBoxButton.OK, MessageBoxImage.Error);
+            LoadingText.Text = "Error de arranque";
         }
     }
 

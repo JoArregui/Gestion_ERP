@@ -8,6 +8,19 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Log global para diagnosticar cierre inmediato
+        AppDomain.CurrentDomain.UnhandledException += (s, args) =>
+        {
+            try { File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop-crash.log"), args.ExceptionObject.ToString() ?? "unknown"); } catch { }
+            MessageBox.Show(args.ExceptionObject.ToString(), "ERP Escritorio — Error no controlado", MessageBoxButton.OK, MessageBoxImage.Error);
+        };
+        DispatcherUnhandledException += (s, args) =>
+        {
+            try { File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop-crash.log"), args.Exception.ToString()); } catch { }
+            MessageBox.Show(args.Exception.ToString(), "ERP Escritorio — Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            args.Handled = true;
+        };
+
         base.OnStartup(e);
 
         // Escritorio reutiliza 100% del proyecto web tal cual:
