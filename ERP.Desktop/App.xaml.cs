@@ -8,15 +8,17 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Evitar cierre si WebView2 falla: mantener app viva hasta cerrar ventana
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
         // Log global para diagnosticar cierre inmediato
         AppDomain.CurrentDomain.UnhandledException += (s, args) =>
         {
-            try { File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop-crash.log"), args.ExceptionObject.ToString() ?? "unknown"); } catch { }
+            try { File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop.log"), $"\n[UNHANDLED] {args.ExceptionObject}\n"); } catch { }
             MessageBox.Show(args.ExceptionObject.ToString(), "ERP Escritorio — Error no controlado", MessageBoxButton.OK, MessageBoxImage.Error);
         };
         DispatcherUnhandledException += (s, args) =>
         {
-            try { File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop-crash.log"), args.Exception.ToString()); } catch { }
+            try { File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop.log"), $"\n[DISPATCHER] {args.Exception}\n"); } catch { }
             MessageBox.Show(args.Exception.ToString(), "ERP Escritorio — Error", MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
         };
@@ -29,6 +31,7 @@ public partial class App : Application
         var apiUrl = GetApiUrl(e.Args);
 
         var main = new MainWindow(apiUrl);
+        main.Closed += (s, _) => Shutdown();
         main.Show();
     }
 
