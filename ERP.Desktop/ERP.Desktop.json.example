@@ -1,0 +1,4 @@
+{
+  "ApiUrl": "http://localhost:5109",
+  "Comments": "Copia este fichero a ERP.Desktop.json junto al exe para personalizar la URL del API. Por defecto el escritorio lanza/reusa el API en http://localhost:5109 (mismo erp.db / Gestion*.db que la web)."
+}
