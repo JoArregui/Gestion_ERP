@@ -27,9 +27,14 @@ public partial class MainWindow : Window
             StatusText.Text = $"Conectando a {_apiUrl}...";
             LoadingText.Text = $"Conectando a {_apiUrl}...";
 
-            // 1. Asegurar que el API esté corriendo (API sirve el Blazor via wwwroot copiado del Web)
+            // 1. Asegurar que el API esté corriendo
             await EnsureApiRunningAsync();
+            // Usar siempre http://localhost:5109 (o 5000 fallback) — file:// rompe <base href="/"> y deja el spinner infinito
             _navUrl = _apiUrl;
+            var apiAltForNav = _apiUrl.Contains("5109") ? _apiUrl.Replace("5109", "5000") : _apiUrl.Replace("5000", "5109");
+            if (!await IsUrlReachableAsync(_apiUrl) && await IsUrlReachableAsync(apiAltForNav))
+                _navUrl = apiAltForNav;
+            try { File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop.log"), $"[{DateTime.Now:HH:mm:ss}] Navegando a {_navUrl} (wwwroot exists={File.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html"))})\n"); } catch { }
             StatusText.Text = $"Conectando a {_navUrl}...";
             LoadingText.Text = $"Conectando a {_navUrl}...";
 
@@ -39,11 +44,25 @@ public partial class MainWindow : Window
                 await MainWebView.EnsureCoreWebView2Async();
                 MainWebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
                 MainWebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
-            MainWebView.CoreWebView2.NavigationCompleted += (s, args) =>
-            {
-                LoadingOverlay.Visibility = Visibility.Collapsed;
-                StatusText.Text = $"Conectado — {_navUrl}";
-            };
+                MainWebView.CoreWebView2.WebMessageReceived += (s, e) =>
+                {
+                    try { File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop.log"), $"[{DateTime.Now:HH:mm:ss}] [WV2 MSG] {e.TryGetWebMessageAsString()}\n"); } catch {}
+                };
+                try { await MainWebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync("try{window.chrome.webview.postMessage('DOC_CREATED '+location.href);}catch(e){}"); } catch (Exception ex) { try { File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop.log"), $"[WV2 AddScript ERR] {ex.Message}\n"); } catch {} }
+                MainWebView.CoreWebView2.NavigationCompleted += (s, args) =>
+                {
+                    try { File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop.log"), $"[{DateTime.Now:HH:mm:ss}] [WV2 NavCompleted] IsSuccess={args.IsSuccess} HttpStatus={args.HttpStatusCode} WebError={args.WebErrorStatus} Source={MainWebView.Source}\n"); } catch {}
+                    LoadingOverlay.Visibility = Visibility.Collapsed;
+                    StatusText.Text = $"Conectado — {_navUrl} (HTTP {args.HttpStatusCode})";
+                };
+                MainWebView.CoreWebView2.WebResourceResponseReceived += (s, e) =>
+                {
+                    var uri = e.Request.Uri;
+                    if (uri.Contains("/api/"))
+                        try { File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop.log"), $"[{DateTime.Now:HH:mm:ss}] [WV2 API {e.Response.StatusCode}] {uri} {e.Request.Method}\n"); } catch {}
+                    else if (e.Response.StatusCode >= 400)
+                        try { File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop.log"), $"[{DateTime.Now:HH:mm:ss}] [WV2 HTTP {e.Response.StatusCode}] {uri}\n"); } catch {}
+                };
 
             // Navegar aunque la API no haya respondido: WebView2 mostrará el error pero la ventana NO se cierra
             MainWebView.Source = new Uri(_navUrl);

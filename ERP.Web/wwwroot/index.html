@@ -103,7 +103,66 @@
         <a href="" class="reload px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-all">RECONECTAR</a>
     </div>
 
-    <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        // Diagnóstico escritorio: capturar errores JS/.NET y mostrarlos en blazor-error-ui + WebView2 postMessage
+        window._erpErrors = [];
+        (function(){
+            var origError = console.error;
+            console.error = function(){
+                var txt = Array.prototype.map.call(arguments, function(a){ try{return a&&a.stack? a.stack : String(a);}catch(e){return String(a);} }).join(' | ');
+                window._erpErrors.push(txt);
+                try{ window.chrome.webview.postMessage(JSON.stringify({type:'console.error', detail: txt.substring(0,2000)})); }catch(e){}
+                var el = document.getElementById('blazor-error-ui');
+                if(el){ el.classList.remove('hidden'); el.style.display='flex'; var sp=el.querySelector('span'); if(sp) sp.textContent = txt.substring(0,600); }
+                return origError.apply(console, arguments);
+            };
+        })();
+        // Observar blazor-error-ui para capturar cualquier .NET exception que lo muestre
+        document.addEventListener('DOMContentLoaded', function(){
+            var errEl = document.getElementById('blazor-error-ui');
+            if(!errEl) return;
+            var obs = new MutationObserver(function(){
+                if(!errEl.classList.contains('hidden') || errEl.style.display!=='none' && errEl.offsetParent!==null){
+                    var txt = errEl.innerText || errEl.textContent || 'blazor-error-ui visible';
+                    try{ window.chrome.webview.postMessage(JSON.stringify({type:'blazorErrorUI', txt: txt.substring(0,3000), html: errEl.innerHTML.substring(0,3000)})); }catch(e){}
+                    // también volcar _erpErrors
+                    try{ window.chrome.webview.postMessage(JSON.stringify({type:'erpErrors', list: window._erpErrors.slice(-5)})); }catch(e){}
+                }
+            });
+            obs.observe(errEl, {attributes:true, attributeFilter:['class','style']});
+            // polling fallback cada 2s
+            setInterval(function(){
+                if(!errEl.classList.contains('hidden') || errEl.style.display==='flex'){
+                    var txt2 = errEl.innerText || 'visible';
+                    try{ window.chrome.webview.postMessage(JSON.stringify({type:'blazorErrorUI_poll', txt: txt2.substring(0,2000)})); }catch(e){}
+                }
+            }, 2000);
+        });
+        window.onerror = function(msg, src, line, col, err) {
+            var detail = 'JS ' + msg + ' at ' + src + ':' + line + ':' + col + ' ' + (err && err.stack ? err.stack : '');
+            window._erpErrors.push(detail);
+            var el = document.getElementById('blazor-error-ui');
+            if (el) { el.classList.remove('hidden'); el.style.display = 'flex'; var sp = el.querySelector('span'); if(sp) sp.textContent = detail.substring(0, 600); }
+            try { window.chrome.webview.postMessage(JSON.stringify({type:'jsError', detail: detail})); } catch(e) {}
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function(e){
+            var detail = 'UNHANDLED ' + String(e.reason) + ' ' + (e.reason && e.reason.stack ? e.reason.stack : '');
+            window._erpErrors.push(detail);
+            var el = document.getElementById('blazor-error-ui');
+            if (el) { el.classList.remove('hidden'); el.style.display = 'flex'; var sp = el.querySelector('span'); if(sp) sp.textContent = detail.substring(0,600); }
+            try { window.chrome.webview.postMessage(JSON.stringify({type:'unhandled', detail: detail})); } catch(ex){}
+        });
+    </script>
+    <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+    <script>
+        Blazor.start().catch(function(err){
+            var msg = 'Blazor.start ERR: ' + (err && err.message ? err.message : String(err)) + '\n' + (err && err.stack ? err.stack : '');
+            try{ console.error(msg); }catch(e){}
+            try{ window.chrome.webview.postMessage(JSON.stringify({type:'blazorStart', msg: msg.substring(0,3000)})); }catch(e){}
+            var el=document.getElementById('blazor-error-ui'); if(el){el.classList.remove('hidden'); el.style.display='flex'; var sp=el.querySelector('span'); if(sp) sp.textContent=msg.substring(0,800);}
+        });
+    </script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>

@@ -19,7 +19,10 @@ var builder = WebApplication.CreateBuilder(args);
 // BBDD INICIAL erp.db (maestro) con todos los usuarios duplicados. Por request se resuelve GestionX.db vía claim Tenant.
 // Si no hay Tenant (bootstrap admin@erp.local pasillo) se usa DefaultConnection (maestro).
 var masterConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=erp.db";
-var masterUseSqlite = builder.Configuration.GetValue<bool>("Database:UseSqlite");
+var masterUseSqlite = builder.Configuration.GetValue<bool?>("Database:UseSqlite")
+    ?? builder.Configuration.GetSection("Database").GetValue<bool?>("UseSqlite")
+    ?? builder.Configuration.GetValue<bool?>("Database:UseSqlite", true)
+    ?? true;
 var contentRoot = builder.Environment.ContentRootPath;
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
@@ -41,14 +44,45 @@ builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
     }
     else
     {
-        // Asegurar que maestro apunta a ContentRoot, no a bin
+        // Asegurar que maestro apunta a ContentRoot, no a bin — y compartir erp.db con ERP.Api si existe (web y escritorio mismos usuarios)
         if (masterConnectionString.Contains("Data Source="))
         {
             var mf = masterConnectionString.Split("Data Source=")[1].Split(';')[0].Trim();
-            if (!Path.IsPathRooted(mf)) conn = $"Data Source={Path.Combine(contentRoot, mf)}";
+            if (!Path.IsPathRooted(mf))
+            {
+                var desktopDb = Path.Combine(contentRoot, mf);
+                var sharedCandidates = new[]
+                {
+                    Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "..", "..", "ERP.Api", mf)),
+                    Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "..", "..", "ERP.Api", "erp.db")),
+                    Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "..", "..", "ERP.Api", "erp-fresh.db")),
+                    @"C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Api\erp-fresh.db",
+                    @"C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Api\erp.db",
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ERP", mf)
+                };
+                string? shared = sharedCandidates.FirstOrDefault(File.Exists);
+                // Preferir compartido si Desktop está vacío (0 empresas) o es más pequeño
+                if (shared != null && File.Exists(desktopDb))
+                {
+                    try
+                    {
+                        var di = new FileInfo(desktopDb);
+                        var si = new FileInfo(shared);
+                        // Desktop 749568 con 1 usuario vs Api 749568 con 2 usuarios: misma talla pero distinto contenido -> preferir Api si Desktop tiene 0 empresas
+                        // Heurística: si Desktop fue creado hoy y tiene 0 empresas, usar compartido
+                        if (si.Length >= di.Length) conn = $"Data Source={shared}";
+                        else conn = $"Data Source={desktopDb}";
+                    }
+                    catch { conn = $"Data Source={shared}"; }
+                }
+                else if (shared != null) conn = $"Data Source={shared}";
+                else conn = $"Data Source={desktopDb}";
+                Console.WriteLine($"[DB] shared={shared} desktopDb={desktopDb} conn={conn}");
+            }
         }
     }
-    if (useSqlite) options.UseSqlite(conn); else options.UseSqlServer(conn);
+    if (useSqlite) options.UseSqlite(conn, o => o.UseRelationalNulls()); else options.UseSqlServer(conn);
+    options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 });
 
 // --- 2. CONFIGURACIÓN DE IDENTITY ---
@@ -119,7 +153,14 @@ builder.Services.AddCors(options =>
 {
 options.AddPolicy("AllowBlazorClient", policy =>
 {
-    policy.WithOrigins("http://localhost:5053", "https://localhost:5053", "http://localhost:5109", "https://localhost:5109")
+    // Escritorio WebView2 file:// tiene Origin null/file:// — permitir localhost + file para CORS
+    policy.SetIsOriginAllowed(origin =>
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return true; // file:// -> null
+            if (origin.StartsWith("file://")) return true;
+            if (origin == "null") return true;
+            try { var u = new Uri(origin); return u.Host == "localhost" || u.Host == "127.0.0.1"; } catch { return false; }
+        })
           .AllowAnyMethod()
           .AllowAnyHeader()
           .AllowCredentials();
@@ -205,32 +246,38 @@ using (var scope = app.Services.CreateScope())
         if (!await roleManager.RoleExistsAsync("Admin"))
             await roleManager.CreateAsync(new IdentityRole("Admin"));
 
-        var bootstrapEmail = "admin@erp.local";
-        var bootstrap = await userManager.FindByEmailAsync(bootstrapEmail);
-        if (bootstrap == null)
+        var bootstrapEmails = new[] { "admin@erp.local", "admin@erp.com" };
+        ApplicationUser? bootstrap = null;
+        foreach (var bootstrapEmail in bootstrapEmails)
         {
-            bootstrap = new ApplicationUser
+            bootstrap = await userManager.FindByEmailAsync(bootstrapEmail);
+            if (bootstrap == null)
             {
-                UserName = bootstrapEmail,
-                Email = bootstrapEmail,
-                FullName = "Administrador Inicial",
-                EmpresaId = null, // bootstrap sin empresa; la creará tras el primer login
-                IsActivo = true,
-                EmailConfirmed = true
-            };
-            var createResult = await userManager.CreateAsync(bootstrap, "Admin123!");
-            if (createResult.Succeeded)
-            {
-                await userManager.AddToRoleAsync(bootstrap, "Admin");
-                foreach (var perm in AppPermissions.All)
-                    await userManager.AddClaimAsync(bootstrap, new System.Security.Claims.Claim("Permission", perm));
-            }
-            else
-            {
-                var loggerSeed = services.GetRequiredService<ILogger<Program>>();
-                loggerSeed.LogError("No se pudo crear usuario bootstrap: {Errors}", string.Join(", ", createResult.Errors.Select(e => e.Description)));
+                bootstrap = new ApplicationUser
+                {
+                    UserName = bootstrapEmail,
+                    Email = bootstrapEmail,
+                    FullName = "Administrador Inicial",
+                    EmpresaId = null, // bootstrap sin empresa; la creará tras el primer login
+                    IsActivo = true,
+                    EmailConfirmed = true
+                };
+                var createResult = await userManager.CreateAsync(bootstrap, "Admin123!");
+                if (createResult.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(bootstrap, "Admin");
+                    foreach (var perm in AppPermissions.All)
+                        await userManager.AddClaimAsync(bootstrap, new System.Security.Claims.Claim("Permission", perm));
+                }
+                else
+                {
+                    var loggerSeed = services.GetRequiredService<ILogger<Program>>();
+                    loggerSeed.LogError("No se pudo crear usuario bootstrap {Email}: {Errors}", bootstrapEmail, string.Join(", ", createResult.Errors.Select(e => e.Description)));
+                }
             }
         }
+        // referencia para 8c
+        bootstrap = await userManager.FindByEmailAsync("admin@erp.local") ?? await userManager.FindByEmailAsync("admin@erp.com");
 
         // --- 8c. DETECCIÓN DE ONBOARDING NECESARIO ---
         // Si existe usuario bootstrap y no hay empresas, el próximo login forzará onboarding
@@ -259,7 +306,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions { ServeUnknownFileTypes = true, DefaultContentType = "application/octet-stream" });
 app.UseCors("AllowBlazorClient");
 app.UseAuthentication();
 app.UseAuthorization();

@@ -14,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.WebUtilities;
 using ERP.Api.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.Api.Controllers
 {
@@ -45,47 +46,94 @@ namespace ERP.Api.Controllers
         }
 
         /// <summary>
-        /// Procesa el inicio de sesión, actualiza auditoría y genera el Token JWT con contexto de empresa.
+        /// Flujo bifurcado:
+        /// - Credenciales universales (admin@erp.local) -> solo BBDD INICIAL (erp.db) -> onboarding virgen
+        /// - Credenciales privadas -> escanea todas las Gestion*.db existentes, exclusiva en la BBDD del usuario
         /// </summary>
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            // 1. Localizar usuario
-            var user = await _userManager.FindByEmailAsync(model.Email);
-            if (user == null) 
-                return Unauthorized(new { Message = "Credenciales incorrectas" });
+            var emailNorm = model.Email?.Trim().ToLowerInvariant();
+            var isUniversal = emailNorm == "admin@erp.local" || emailNorm == "admin@erp.com";
 
-            // 2. Validar estado en el CMS (Propiedad de ApplicationUser)
-            if (!user.IsActivo)
+            ApplicationUser? user = null;
+            string? tenantFileForUser = null;
+            // Para privados: guardamos contexto tenant donde se encontró el usuario
+            ERP.Data.ApplicationDbContext? tenantCtx = null;
+            UserManager<ApplicationUser>? tenantUserManager = null;
+
+            if (isUniversal)
             {
-                return BadRequest(new { Message = "Su cuenta está desactivada. Contacte con el administrador." });
-            }
-
-            // 3. Validar Password
-            var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
-
-            if (result.Succeeded)
-            {
-                // --- AUDITORÍA AUTOMÁTICA ---
+                // 1a. Universal -> solo BBDD INICIAL
+                user = await _userManager.FindByEmailAsync(model.Email);
+                if (user == null) return Unauthorized(new { Message = "Credenciales incorrectas" });
+                if (!user.IsActivo) return BadRequest(new { Message = "Su cuenta está desactivada. Contacte con el administrador." });
+                var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
+                if (!result.Succeeded) return Unauthorized(new { Message = "Intento de inicio de sesión no autorizado" });
                 user.UltimoAcceso = DateTime.UtcNow;
                 await _userManager.UpdateAsync(user);
-                // ----------------------------
-
-                // 4. Generar Token JWT con Claims profesionales
-                var token = await GenerateJwtToken(user);
-
-                return Ok(new 
-                { 
-                    Token = token,
-                    UserName = user.UserName,
-                    FullName = user.FullName,
-                    EmpresaId = user.EmpresaId
-                });
+                var tokenU = await GenerateJwtToken(user, tenantFile: null);
+                return Ok(new { Token = tokenU, UserName = user.UserName, FullName = user.FullName, EmpresaId = user.EmpresaId });
             }
+            else
+            {
+                // 1b. Privado -> escanear todas las Gestion*.db existentes
+                var tenantService = HttpContext.RequestServices.GetService(typeof(ERP.Services.Tenant.TenantDatabaseService)) as ERP.Services.Tenant.TenantDatabaseService;
+                var tenantFiles = tenantService?.ListTenantDatabases() ?? Array.Empty<string>();
+                // Fallback: si ListTenantDatabases no devuelve nada, buscar físicamente Gestion*.db en el directorio del maestro
+                if (tenantFiles.Length == 0)
+                {
+                    try
+                    {
+                        var masterConn = _configuration.GetConnectionString("DefaultConnection") ?? "Data Source=erp.db";
+                        var mf = masterConn.Contains("Data Source=") ? masterConn.Split("Data Source=")[1].Split(';')[0].Trim() : "erp.db";
+                        var baseDir = AppContext.BaseDirectory;
+                        var masterPath = Path.IsPathRooted(mf) ? mf : Path.Combine(baseDir, mf);
+                        var dir = Path.GetDirectoryName(masterPath) ?? baseDir;
+                        if (Directory.Exists(dir))
+                            tenantFiles = Directory.GetFiles(dir, "Gestion*.db").Select(Path.GetFileName).ToArray()!;
+                    }
+                    catch { }
+                }
 
-            return Unauthorized(new { Message = "Intento de inicio de sesión no autorizado" });
+                var hasherDirect = new Microsoft.AspNetCore.Identity.PasswordHasher<ApplicationUser>();
+                foreach (var tf in tenantFiles)
+                {
+                    if (string.IsNullOrWhiteSpace(tf)) continue;
+                    var tenantPath = tenantService != null ? Path.Combine(Path.GetDirectoryName(tenantService.GetTenantDbPath("dummy")) ?? AppContext.BaseDirectory, tf) : Path.Combine(AppContext.BaseDirectory, tf);
+                    if (!System.IO.File.Exists(tenantPath)) continue;
+                    var opts = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ERP.Data.ApplicationDbContext>();
+                    opts.UseSqlite($"Data Source={tenantPath}");
+                    var ctx = new ERP.Data.ApplicationDbContext(opts.Options);
+                    var found = await ctx.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == model.Email.ToUpperInvariant() || u.Email == model.Email);
+                    if (found == null) { ctx.Dispose(); continue; }
+                    if (!found.IsActivo) { ctx.Dispose(); return BadRequest(new { Message = "Su cuenta está desactivada. Contacte con el administrador." }); }
+                    var verify = hasherDirect.VerifyHashedPassword(found, found.PasswordHash ?? "", model.Password);
+                    if (verify == Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed) { ctx.Dispose(); continue; }
+                    // Encontrado y password ok -> auditoría y token exclusivo en esta BBDD
+                    found.UltimoAcceso = DateTime.UtcNow;
+                    ctx.Users.Update(found);
+                    await ctx.SaveChangesAsync();
+                    user = found;
+                    tenantFileForUser = tf;
+                    tenantCtx = ctx;
+                    // no UserManager needed for private; keep disposed later via tenantCtx only
+                    break;
+                }
+
+                if (user == null) return Unauthorized(new { Message = "Credenciales incorrectas" });
+                try
+                {
+                    var tokenP = await GenerateJwtToken(user, tenantFileForUser);
+                    return Ok(new { Token = tokenP, UserName = user.UserName, FullName = user.FullName, EmpresaId = user.EmpresaId });
+                }
+                finally
+                {
+                    tenantCtx?.Dispose();
+                }
+            }
         }
 
         /// <summary>
@@ -192,21 +240,48 @@ namespace ERP.Api.Controllers
             return BadRequest(new { Message = errors });
         }
 
-        private async Task<string> GenerateJwtToken(ApplicationUser user)
+        private async Task<string> GenerateJwtToken(ApplicationUser user, string? tenantFile = null)
         {
-            var roles = await _userManager.GetRolesAsync(user);
-            var permissions = await _userManager.GetClaimsAsync(user);
-            
-            // Resolver Tenant file desde BBDD INICIAL (erp.db) — registro maestro de TODOS los usuarios/empresas
-            // El usuario existe duplicado en erp.db (maestro) y en GestionX.db; el login siempre consulta erp.db
-            // porque en ese momento aún no hay claim Tenant, por lo que ApplicationDbContext apunta al maestro.
-            string? tenantFile = null;
-            if (user.EmpresaId.HasValue && user.EmpresaId.Value != 0)
+            // Si tenantFile viene del scan privado ya lo tenemos; si no (universal), resolver desde maestro si hace falta
+            string? resolvedTenant = tenantFile;
+            if (resolvedTenant == null && user.EmpresaId.HasValue && user.EmpresaId.Value != 0)
             {
                 var emp = await _context.Empresas.FindAsync(user.EmpresaId.Value);
-                if (emp != null) tenantFile = ERP.Services.Tenant.TenantDatabaseService.GetTenantFileName(emp.RazonSocial ?? emp.NombreComercial);
+                if (emp != null) resolvedTenant = ERP.Services.Tenant.TenantDatabaseService.GetTenantFileName(emp.RazonSocial ?? emp.NombreComercial);
             }
-
+            var roles = await _userManager.GetRolesAsync(user);
+            var permissions = await _userManager.GetClaimsAsync(user);
+            // Si el usuario vino de un tenant scan, los roles/permissions están en ese tenant, no en maestro
+            if ((roles.Count == 0 && permissions.Count == 0) && !string.IsNullOrWhiteSpace(resolvedTenant))
+            {
+                try
+                {
+                    var ts = HttpContext.RequestServices.GetService(typeof(ERP.Services.Tenant.TenantDatabaseService)) as ERP.Services.Tenant.TenantDatabaseService;
+                    var tp = ts != null ? Path.Combine(Path.GetDirectoryName(ts.GetTenantDbPath("dummy")) ?? AppContext.BaseDirectory, resolvedTenant) : Path.Combine(AppContext.BaseDirectory, resolvedTenant);
+                    if (System.IO.File.Exists(tp))
+                    {
+                        var opts = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ERP.Data.ApplicationDbContext>();
+                        opts.UseSqlite($"Data Source={tp}");
+                        using var tctx = new ERP.Data.ApplicationDbContext(opts.Options);
+                        var tu = await tctx.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+                        if (tu != null)
+                        {
+                            var roleIds = await tctx.UserRoles.Where(ur => ur.UserId == tu.Id).Select(ur => ur.RoleId).ToListAsync();
+                            var roleNames = await tctx.Roles.Where(r => roleIds.Contains(r.Id)).Select(r => r.Name!).ToListAsync();
+                            roles = roleNames;
+                            var userClaims = await tctx.UserClaims.Where(c => c.UserId == tu.Id && c.ClaimType == "Permission").ToListAsync();
+                            permissions = userClaims.Select(c => new Claim(c.ClaimType!, c.ClaimValue!)).ToList();
+                            // Añadir también permisos de rol
+                            foreach (var rid in roleIds)
+                            {
+                                var rc = await tctx.RoleClaims.Where(rc2 => rc2.RoleId == rid && rc2.ClaimType == "Permission").ToListAsync();
+                                foreach (var rcc in rc) permissions.Add(new Claim(rcc.ClaimType!, rcc.ClaimValue!));
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
             // Claims básicos y personalizados para el ERP
             var claims = new List<Claim>
             {
@@ -219,7 +294,7 @@ namespace ERP.Api.Controllers
                 // CLAIM DE TENANCY: Vital para filtrar datos por empresa en los servicios (0 si bootstrap sin empresa)
                 new Claim("EmpresaId", (user.EmpresaId ?? 0).ToString())
             };
-            if (!string.IsNullOrWhiteSpace(tenantFile)) claims.Add(new Claim("Tenant", tenantFile));
+            if (!string.IsNullOrWhiteSpace(resolvedTenant)) claims.Add(new Claim("Tenant", resolvedTenant));
 
             // Mapeo explícito de roles a claims de seguridad
             foreach (var role in roles)

@@ -42,6 +42,13 @@ namespace ERP.Api.Controllers.Fiscal
         {
             var empresaId = GetEmpresaId();
             if (empresaId == 0) return BadRequest(new { Message = "EmpresaId requerido" });
+
+            // ── NUEVO: validar que el ejercicio existe y pertenece a la empresa ──
+            var ejercicioExiste = await _context.EjerciciosContables
+                .AnyAsync(e => e.Id == dto.EjercicioId && e.EmpresaId == empresaId);
+            if (!ejercicioExiste)
+                return BadRequest(new { Message = "EjercicioId no válido para esta empresa" });
+
             if (await _context.ConfiguracionesIVA.AnyAsync(x => x.EmpresaId == empresaId && x.EjercicioId == dto.EjercicioId))
                 return Conflict(new { Message = "Ya existe configuración para ese ejercicio" });
             var entity = new ConfiguracionIVA

@@ -88,7 +88,6 @@ namespace ERP.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserDto model)
         {
-            // Validación manual para devolver mensaje limpio en lugar de ProblemDetails con "errors.Password"
             if (!ModelState.IsValid)
             {
                 var firstError = ModelState.Values.SelectMany(v => v.Errors).FirstOrDefault()?.ErrorMessage ?? "Datos de usuario inválidos";
@@ -97,70 +96,100 @@ namespace ERP.Api.Controllers
             if (string.IsNullOrWhiteSpace(model.Password) || model.Password.Length < 8)
                 return BadRequest(new { Message = "La política de administración exige un mínimo de 8 caracteres." });
 
-            var existingUser = await _userManager.FindByEmailAsync(model.Email);
-            if (existingUser != null)
+            // Flujo exclusivo: usuario privado se crea SOLO en GestionX.db, no en BBDD INICIAL
+            // La BBDD INICIAL solo guarda admin@erp.local (pasillo virgen)
+            if (model.EmpresaId > 0)
             {
-                return BadRequest(new { Message = "El correo electrónico ya está registrado en el sistema" });
-            }
-
-            if (!string.IsNullOrEmpty(model.Role))
-            {
-                var roleExists = await _roleManager.RoleExistsAsync(model.Role);
-                if (!roleExists)
+                var emp = await _context.Empresas.FindAsync(model.EmpresaId);
+                if (emp == null) return BadRequest(new { Message = "Empresa no encontrada para vincular usuario" });
+                var tenantPath = _tenantService.GetTenantDbPath(emp.RazonSocial ?? emp.NombreComercial);
+                // Asegurar DB tenant existe (onboarding ya la creó)
+                if (!System.IO.File.Exists(tenantPath))
                 {
-                    return BadRequest(new { Message = $"El rol '{model.Role}' no existe en el sistema" });
+                    try { await _tenantService.EnsureTenantDatabaseAsync(emp); } catch { }
                 }
-            }
+                // Crear UserManager aislado para este tenant
+                var tOpts = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ERP.Data.ApplicationDbContext>();
+                tOpts.UseSqlite($"Data Source={tenantPath}");
+                using var tCtx = new ERP.Data.ApplicationDbContext(tOpts.Options);
+                // Asegurar roles en tenant
+                var tStore = new Microsoft.AspNetCore.Identity.EntityFrameworkCore.UserStore<ApplicationUser>(tCtx);
+                var tHasher = new Microsoft.AspNetCore.Identity.PasswordHasher<ApplicationUser>();
+                using var tUserManager = new UserManager<ApplicationUser>(tStore, null, tHasher, null, null, null, null, null, null);
+                var tRoleStore = new Microsoft.AspNetCore.Identity.EntityFrameworkCore.RoleStore<IdentityRole>(tCtx);
+                using var tRoleManager = new RoleManager<IdentityRole>(tRoleStore, null, null, null, null);
+                if (!string.IsNullOrEmpty(model.Role) && !await tRoleManager.RoleExistsAsync(model.Role))
+                    await tRoleManager.CreateAsync(new IdentityRole(model.Role));
 
-            var user = new ApplicationUser
-            {
-                UserName = model.Email,
-                Email = model.Email,
-                FullName = model.FullName,
-                IsActivo = true,
-                UltimoAcceso = null, 
-                EmpresaId = model.EmpresaId > 0 ? model.EmpresaId : 1
-            };
+                var existingInTenant = await tUserManager.FindByEmailAsync(model.Email);
+                if (existingInTenant != null) return BadRequest(new { Message = "El correo electrónico ya está registrado en la empresa" });
 
-            var result = await _userManager.CreateAsync(user, model.Password);
-
-            if (result.Succeeded)
-            {
-                var addedRoles = new List<string>();
-                var addedClaims = new List<System.Security.Claims.Claim>();
+                var tUser = new ApplicationUser
+                {
+                    UserName = model.Email,
+                    Email = model.Email,
+                    FullName = model.FullName,
+                    IsActivo = true,
+                    UltimoAcceso = null,
+                    EmpresaId = model.EmpresaId
+                };
+                var tResult = await tUserManager.CreateAsync(tUser, model.Password);
+                if (!tResult.Succeeded)
+                {
+                    var errs = string.Join(", ", tResult.Errors.Select(e => e.Description));
+                    return BadRequest(new { Message = "Error al crear usuario en empresa", Errors = errs });
+                }
                 if (!string.IsNullOrEmpty(model.Role))
                 {
-                    await _userManager.AddToRoleAsync(user, model.Role);
-                    addedRoles.Add(model.Role);
+                    await tUserManager.AddToRoleAsync(tUser, model.Role);
+                    var perms = await tRoleManager.GetClaimsAsync(await tRoleManager.FindByNameAsync(model.Role) ?? new IdentityRole());
+                    foreach (var p in perms.Where(c => c.Type == "Permission"))
+                        await tUserManager.AddClaimAsync(tUser, p);
                 }
-                // Propagar permisos del rol si existen
-                var perms = await _roleManager.GetClaimsAsync(await _roleManager.FindByNameAsync(model.Role ?? "Admin") ?? new IdentityRole());
-                foreach (var p in perms.Where(c => c.Type == "Permission"))
+                // También propagar permisos del rol si el maestro los tiene (fallback)
+                if (!string.IsNullOrEmpty(model.Role))
                 {
-                    await _userManager.AddClaimAsync(user, p);
-                    addedClaims.Add(p);
-                }
-                // Duplicar en GestionX.db si tiene EmpresaId (creación desde onboarding privada)
-                if (user.EmpresaId.HasValue && user.EmpresaId.Value != 0)
-                {
-                    try
+                    var masterRole = await _roleManager.FindByNameAsync(model.Role);
+                    if (masterRole != null)
                     {
-                        var emp = await _context.Empresas.FindAsync(user.EmpresaId.Value);
-                        if (emp != null)
+                        var masterPerms = await _roleManager.GetClaimsAsync(masterRole);
+                        foreach (var p in masterPerms.Where(c => c.Type == "Permission"))
                         {
-                            var tenantPath = _tenantService.GetTenantDbPath(emp.RazonSocial ?? emp.NombreComercial);
-                            if (System.IO.File.Exists(tenantPath))
-                                await _tenantService.EnsureUserInTenantAsync(user, tenantPath, addedRoles, addedClaims);
+                            var already = (await tUserManager.GetClaimsAsync(tUser)).Any(c => c.Type == p.Type && c.Value == p.Value);
+                            if (!already) await tUserManager.AddClaimAsync(tUser, p);
                         }
                     }
-                    catch { /* master ya tiene usuario, tenant se sincroniza luego */ }
                 }
-
-                return Ok(new { Message = "Usuario creado correctamente", UserId = user.Id });
+                return Ok(new { Message = "Usuario creado correctamente en empresa", UserId = tUser.Id });
             }
-
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            return BadRequest(new { Message = "Error al crear usuario", Errors = errors });
+            else
+            {
+                // Sin empresa -> pasillo (no debería usarse, solo admin inicial)
+                var existingUser = await _userManager.FindByEmailAsync(model.Email);
+                if (existingUser != null) return BadRequest(new { Message = "El correo electrónico ya está registrado en el sistema" });
+                if (!string.IsNullOrEmpty(model.Role))
+                {
+                    var roleExists = await _roleManager.RoleExistsAsync(model.Role);
+                    if (!roleExists) return BadRequest(new { Message = $"El rol '{model.Role}' no existe en el sistema" });
+                }
+                var user = new ApplicationUser
+                {
+                    UserName = model.Email,
+                    Email = model.Email,
+                    FullName = model.FullName,
+                    IsActivo = true,
+                    UltimoAcceso = null,
+                    EmpresaId = null
+                };
+                var result = await _userManager.CreateAsync(user, model.Password);
+                if (result.Succeeded)
+                {
+                    if (!string.IsNullOrEmpty(model.Role)) await _userManager.AddToRoleAsync(user, model.Role);
+                    return Ok(new { Message = "Usuario creado correctamente", UserId = user.Id });
+                }
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                return BadRequest(new { Message = "Error al crear usuario", Errors = errors });
+            }
         }
 
         [HttpPut("{id}")]
