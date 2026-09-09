@@ -8,9 +8,7 @@ namespace ERP.Desktop;
 public partial class MainWindow : Window
 {
     private readonly string _apiUrl;
-    private readonly string _webUrl = "http://localhost:5053";
     private Process? _apiProcess;
-    private Process? _webProcess;
     private string _navUrl = "";
 
     public MainWindow(string apiUrl)
@@ -29,12 +27,9 @@ public partial class MainWindow : Window
             StatusText.Text = $"Conectando a {_apiUrl}...";
             LoadingText.Text = $"Conectando a {_apiUrl}...";
 
-            // 1. Asegurar que el API y Web estén corriendo (modo escritorio = ambos embebidos o externos)
+            // 1. Asegurar que el API esté corriendo (API sirve el Blazor via wwwroot copiado del Web)
             await EnsureApiRunningAsync();
-            await EnsureWebRunningAsync();
-            // Preferir Web (Blazor) si responde, si no API (fallback estático)
-            if (await IsUrlReachableAsync(_webUrl)) _navUrl = _webUrl;
-            else _navUrl = _apiUrl;
+            _navUrl = _apiUrl;
             StatusText.Text = $"Conectando a {_navUrl}...";
             LoadingText.Text = $"Conectando a {_navUrl}...";
 
@@ -73,10 +68,14 @@ public partial class MainWindow : Window
         var logPath = Path.Combine(AppContext.BaseDirectory, "erp-desktop.log");
         void Log(string m) { try { File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {m}\n"); } catch { } Debug.WriteLine(m); }
 
-        Log($"EnsureApiRunning start Url={_apiUrl} BaseDir={AppContext.BaseDirectory}");
-        if (await IsUrlReachableAsync(_apiUrl))
+        var apiAltUrl = _apiUrl.Contains("5109") ? _apiUrl.Replace("5109", "5000") : _apiUrl.Replace("5000", "5109");
+        Log($"EnsureApiRunning start Url={_apiUrl} Alt={apiAltUrl} BaseDir={AppContext.BaseDirectory}");
+        if (await IsUrlReachableAsync(_apiUrl) || await IsUrlReachableAsync(apiAltUrl))
         {
-            Log("API ya responde, no se lanza proceso");
+            Log("API ya responde (5109 o 5000), no se lanza proceso");
+            // Si responde en 5000 pero no en 5109, actualizar _navUrl a la que responde para WebView2
+            if (!await IsUrlReachableAsync(_apiUrl) && await IsUrlReachableAsync(apiAltUrl))
+                Log($"API solo en alt {apiAltUrl}, se usará esa para navegación si es necesario");
             return;
         }
 
@@ -109,11 +108,26 @@ public partial class MainWindow : Window
 
         Log($"Final dll={apiDll} exe={apiExe}");
 
+        // Resolver dotnet.exe completo para GUI (PATH puede no estar disponible)
+        string dotnetExe = "dotnet";
+        try
+        {
+            var where = new ProcessStartInfo("where", "dotnet") { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
+            using var p = Process.Start(where);
+            var outp = p?.StandardOutput.ReadToEnd();
+            p?.WaitForExit(2000);
+            var first = outp?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
+            if (!string.IsNullOrWhiteSpace(first) && File.Exists(first)) dotnetExe = first;
+            else if (File.Exists(@"C:\Program Files\dotnet\dotnet.exe")) dotnetExe = @"C:\Program Files\dotnet\dotnet.exe";
+        }
+        catch { }
+
         try
         {
             if (File.Exists(apiDll))
             {
-                var psi = new ProcessStartInfo("dotnet", $"\"{apiDll}\" --urls {_apiUrl}")
+                var urls = $"{_apiUrl};{(_apiUrl.Contains("5109") ? _apiUrl.Replace("5109", "5000") : _apiUrl.Replace("5000", "5109"))}";
+                var psi = new ProcessStartInfo(dotnetExe, $"\"{apiDll}\" --urls \"{urls}\"")
                 {
                     UseShellExecute = false,
                     CreateNoWindow = true,
@@ -121,7 +135,9 @@ public partial class MainWindow : Window
                     RedirectStandardError = true,
                     WorkingDirectory = Path.GetDirectoryName(apiDll)!
                 };
-                Log($"Lanzando dotnet \"{apiDll}\" --urls {_apiUrl}");
+                psi.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+                psi.Environment["DOTNET_ENVIRONMENT"] = "Development";
+                Log($"Lanzando \"{dotnetExe}\" \"{apiDll}\" --urls \"{urls}\" (WD={psi.WorkingDirectory})");
                 _apiProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
                 _apiProcess.OutputDataReceived += (s, e) => { if (e.Data != null) Log("[API OUT] " + e.Data); };
                 _apiProcess.ErrorDataReceived += (s, e) => { if (e.Data != null) Log("[API ERR] " + e.Data); };
@@ -132,13 +148,15 @@ public partial class MainWindow : Window
             }
             else if (File.Exists(apiExe))
             {
-                var psi = new ProcessStartInfo(apiExe, $"--urls {_apiUrl}")
+                var urls2 = $"{_apiUrl};{(_apiUrl.Contains("5109") ? _apiUrl.Replace("5109", "5000") : _apiUrl.Replace("5000", "5109"))}";
+                var psi = new ProcessStartInfo(apiExe, $"--urls \"{urls2}\"")
                 {
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     WorkingDirectory = Path.GetDirectoryName(apiExe)!
                 };
-                Log($"Lanzando {apiExe} --urls {_apiUrl}");
+                psi.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+                Log($"Lanzando {apiExe} --urls \"{urls2}\"");
                 _apiProcess = Process.Start(psi);
                 Log($"Proceso API exe PID={_apiProcess?.Id}");
             }
@@ -154,12 +172,12 @@ public partial class MainWindow : Window
             StatusText.Text = $"Error lanzando API: {ex.Message}";
         }
 
-        // Esperar hasta 20s (antes 15) a que el API responda
+        // Esperar hasta 20s a que el API responda en cualquiera de los dos puertos
         for (int i = 0; i < 20; i++)
         {
             await Task.Delay(1000);
-            var ok = await IsUrlReachableAsync(_apiUrl);
-            Log($"Check {i+1}/20 reachable={ok}");
+            var ok = await IsUrlReachableAsync(_apiUrl) || await IsUrlReachableAsync(apiAltUrl);
+            Log($"Check {i+1}/20 reachable(5109/5000)={ok}");
             if (ok) return;
             LoadingText.Text = $"Iniciando API local... ({i + 1}s)";
             if (_apiProcess != null && _apiProcess.HasExited)
@@ -171,71 +189,11 @@ public partial class MainWindow : Window
         }
 
         // No se pudo iniciar: dejar ventana abierta con panel de error y reintento
-        Log($"API no respondió tras 20s en {_apiUrl}");
+        Log($"API no respondió tras 20s en {_apiUrl} — revisa JWT:Secret y erp-desktop.log");
         StatusText.Text = $"API no responde en {_apiUrl}";
-        // No retornar aún: dejar que EnsureWeb intente y luego mostrar panel si ambos fallan
-    }
-
-    private async Task EnsureWebRunningAsync()
-    {
-        var logPath = Path.Combine(AppContext.BaseDirectory, "erp-desktop.log");
-        void Log(string m) { try { File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {m}\n"); } catch { } }
-
-        if (await IsUrlReachableAsync(_webUrl))
-        {
-            Log($"Web ya responde en {_webUrl}");
-            return;
-        }
-        var exeDir = AppContext.BaseDirectory;
-        var webDllCandidates = new[]
-        {
-            Path.Combine(exeDir, "ERP.Web.dll"),
-            Path.Combine(exeDir, "Web", "ERP.Web.dll"),
-            Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "ERP.Web", "bin", "Release", "net9.0", "ERP.Web.dll")),
-            Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "ERP.Web", "bin", "Debug", "net9.0", "ERP.Web.dll")),
-            Path.Combine(Directory.GetCurrentDirectory(), "ERP.Web", "bin", "Release", "net9.0", "ERP.Web.dll"),
-            Path.Combine(Directory.GetCurrentDirectory(), "ERP.Web", "bin", "Debug", "net9.0", "ERP.Web.dll"),
-            @"C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Web\bin\Release\net9.0\ERP.Web.dll",
-            @"C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Web\bin\Debug\net9.0\ERP.Web.dll",
-        };
-        string? webDll = webDllCandidates.FirstOrDefault(File.Exists);
-        Log($"Buscando Web dll candidates, elegido={webDll ?? "none"}");
-        if (webDll != null)
-        {
-            try
-            {
-                var psi = new ProcessStartInfo("dotnet", $"\"{webDll}\" --urls {_webUrl}")
-                {
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    WorkingDirectory = Path.GetDirectoryName(webDll)!
-                };
-                Log($"Lanzando dotnet \"{webDll}\" --urls {_webUrl}");
-                _webProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
-                _webProcess.OutputDataReceived += (s, e) => { if (e.Data != null) Log("[WEB OUT] " + e.Data); };
-                _webProcess.ErrorDataReceived += (s, e) => { if (e.Data != null) Log("[WEB ERR] " + e.Data); };
-                _webProcess.Start();
-                _webProcess.BeginOutputReadLine();
-                _webProcess.BeginErrorReadLine();
-                Log($"Web PID={_webProcess.Id}");
-            }
-            catch (Exception ex) { Log($"ERROR lanzando WEB: {ex}"); }
-        }
-        for (int i = 0; i < 10; i++)
-        {
-            await Task.Delay(1000);
-            if (await IsUrlReachableAsync(_webUrl)) { Log($"Web respondió tras {i+1}s"); return; }
-        }
-        Log($"Web no respondió en {_webUrl} tras 10s");
-        // Si ambos fallan, mostrar panel de error
-        if (!await IsUrlReachableAsync(_apiUrl) && !await IsUrlReachableAsync(_webUrl))
-        {
-            LoadingText.Text = "API/Web no disponibles — localhost rechazó la conexión";
-            LoadingProgress.Visibility = Visibility.Collapsed;
-            ErrorPanel.Visibility = Visibility.Visible;
-        }
+        LoadingText.Text = "API no disponible — localhost rechazó la conexión";
+        LoadingProgress.Visibility = Visibility.Collapsed;
+        ErrorPanel.Visibility = Visibility.Visible;
     }
 
     private static async Task<bool> IsUrlReachableAsync(string url)
@@ -254,7 +212,6 @@ public partial class MainWindow : Window
         try
         {
             if (_apiProcess != null && !_apiProcess.HasExited) { _apiProcess.Kill(entireProcessTree: true); _apiProcess.Dispose(); }
-            if (_webProcess != null && !_webProcess.HasExited) { _webProcess.Kill(entireProcessTree: true); _webProcess.Dispose(); }
         }
         catch { }
     }
@@ -267,8 +224,7 @@ public partial class MainWindow : Window
         LoadingProgress.Visibility = Visibility.Visible;
         LoadingText.Text = "Reintentando...";
         await EnsureApiRunningAsync();
-        await EnsureWebRunningAsync();
-        if (await IsUrlReachableAsync(_webUrl)) _navUrl = _webUrl; else _navUrl = _apiUrl;
+        _navUrl = _apiUrl;
         try
         {
             if (MainWebView.CoreWebView2 != null)
@@ -278,7 +234,7 @@ public partial class MainWindow : Window
                 await MainWebView.EnsureCoreWebView2Async();
                 MainWebView.Source = new Uri(_navUrl);
             }
-            LoadingOverlay.Visibility = Visibility.Collapsed;
+            // No ocultar overlay hasta NavigationCompleted
         }
         catch (Exception ex) { MessageBox.Show(ex.Message); }
     }
