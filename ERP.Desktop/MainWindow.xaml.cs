@@ -8,12 +8,16 @@ namespace ERP.Desktop;
 public partial class MainWindow : Window
 {
     private readonly string _apiUrl;
+    private readonly string _webUrl = "http://localhost:5053";
     private Process? _apiProcess;
+    private Process? _webProcess;
+    private string _navUrl = "";
 
     public MainWindow(string apiUrl)
     {
         InitializeComponent();
         _apiUrl = apiUrl;
+        _navUrl = apiUrl; // fallback
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
     }
@@ -25,8 +29,14 @@ public partial class MainWindow : Window
             StatusText.Text = $"Conectando a {_apiUrl}...";
             LoadingText.Text = $"Conectando a {_apiUrl}...";
 
-            // 1. Asegurar que el API esté corriendo (modo escritorio = API embebido o externo)
+            // 1. Asegurar que el API y Web estén corriendo (modo escritorio = ambos embebidos o externos)
             await EnsureApiRunningAsync();
+            await EnsureWebRunningAsync();
+            // Preferir Web (Blazor) si responde, si no API (fallback estático)
+            if (await IsUrlReachableAsync(_webUrl)) _navUrl = _webUrl;
+            else _navUrl = _apiUrl;
+            StatusText.Text = $"Conectando a {_navUrl}...";
+            LoadingText.Text = $"Conectando a {_navUrl}...";
 
             // 2. Inicializar WebView2
             try
@@ -34,30 +44,29 @@ public partial class MainWindow : Window
                 await MainWebView.EnsureCoreWebView2Async();
                 MainWebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
                 MainWebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
-                MainWebView.CoreWebView2.NavigationCompleted += (s, args) =>
-                {
-                    LoadingOverlay.Visibility = Visibility.Collapsed;
-                    StatusText.Text = $"Conectado — {_apiUrl}";
-                };
+            MainWebView.CoreWebView2.NavigationCompleted += (s, args) =>
+            {
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+                StatusText.Text = $"Conectado — {_navUrl}";
+            };
 
             // Navegar aunque la API no haya respondido: WebView2 mostrará el error pero la ventana NO se cierra
-            MainWebView.Source = new Uri(_apiUrl);
+            MainWebView.Source = new Uri(_navUrl);
         }
         catch (Exception ex)
         {
             MessageBox.Show($"No se pudo inicializar WebView2:\n{ex.Message}\n\nAsegúrate de tener WebView2 Runtime instalado.", "ERP Escritorio", MessageBoxButton.OK, MessageBoxImage.Error);
             LoadingText.Text = "Error WebView2";
             StatusText.Text = "Error WebView2 — instala WebView2 Runtime";
-            // Mantener overlay visible con botón de reintento: no cerrar app
-        }
-        }
-        catch (Exception ex)
-        {
-            try { File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop-crash.log"), ex.ToString()); } catch { }
-            MessageBox.Show(ex.ToString(), "ERP Escritorio — Error en arranque", MessageBoxButton.OK, MessageBoxImage.Error);
-            LoadingText.Text = "Error de arranque";
         }
     }
+    catch (Exception ex)
+    {
+        try { File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "erp-desktop-crash.log"), ex.ToString()); } catch { }
+        MessageBox.Show(ex.ToString(), "ERP Escritorio — Error en arranque", MessageBoxButton.OK, MessageBoxImage.Error);
+        LoadingText.Text = "Error de arranque";
+    }
+}
 
     private async Task EnsureApiRunningAsync()
     {
@@ -161,11 +170,72 @@ public partial class MainWindow : Window
             }
         }
 
-        // No se pudo iniciar: dejar ventana abierta con mensaje útil en lugar de cerrar
-        Log("API no respondió tras 20s");
+        // No se pudo iniciar: dejar ventana abierta con panel de error y reintento
+        Log($"API no respondió tras 20s en {_apiUrl}");
         StatusText.Text = $"API no responde en {_apiUrl}";
-        LoadingText.Text = "API no disponible";
-        // No throw: la ventana seguirá abierta y WebView2 mostrará error de navegación
+        // No retornar aún: dejar que EnsureWeb intente y luego mostrar panel si ambos fallan
+    }
+
+    private async Task EnsureWebRunningAsync()
+    {
+        var logPath = Path.Combine(AppContext.BaseDirectory, "erp-desktop.log");
+        void Log(string m) { try { File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {m}\n"); } catch { } }
+
+        if (await IsUrlReachableAsync(_webUrl))
+        {
+            Log($"Web ya responde en {_webUrl}");
+            return;
+        }
+        var exeDir = AppContext.BaseDirectory;
+        var webDllCandidates = new[]
+        {
+            Path.Combine(exeDir, "ERP.Web.dll"),
+            Path.Combine(exeDir, "Web", "ERP.Web.dll"),
+            Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "ERP.Web", "bin", "Release", "net9.0", "ERP.Web.dll")),
+            Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "ERP.Web", "bin", "Debug", "net9.0", "ERP.Web.dll")),
+            Path.Combine(Directory.GetCurrentDirectory(), "ERP.Web", "bin", "Release", "net9.0", "ERP.Web.dll"),
+            Path.Combine(Directory.GetCurrentDirectory(), "ERP.Web", "bin", "Debug", "net9.0", "ERP.Web.dll"),
+            @"C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Web\bin\Release\net9.0\ERP.Web.dll",
+            @"C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Web\bin\Debug\net9.0\ERP.Web.dll",
+        };
+        string? webDll = webDllCandidates.FirstOrDefault(File.Exists);
+        Log($"Buscando Web dll candidates, elegido={webDll ?? "none"}");
+        if (webDll != null)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("dotnet", $"\"{webDll}\" --urls {_webUrl}")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    WorkingDirectory = Path.GetDirectoryName(webDll)!
+                };
+                Log($"Lanzando dotnet \"{webDll}\" --urls {_webUrl}");
+                _webProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
+                _webProcess.OutputDataReceived += (s, e) => { if (e.Data != null) Log("[WEB OUT] " + e.Data); };
+                _webProcess.ErrorDataReceived += (s, e) => { if (e.Data != null) Log("[WEB ERR] " + e.Data); };
+                _webProcess.Start();
+                _webProcess.BeginOutputReadLine();
+                _webProcess.BeginErrorReadLine();
+                Log($"Web PID={_webProcess.Id}");
+            }
+            catch (Exception ex) { Log($"ERROR lanzando WEB: {ex}"); }
+        }
+        for (int i = 0; i < 10; i++)
+        {
+            await Task.Delay(1000);
+            if (await IsUrlReachableAsync(_webUrl)) { Log($"Web respondió tras {i+1}s"); return; }
+        }
+        Log($"Web no respondió en {_webUrl} tras 10s");
+        // Si ambos fallan, mostrar panel de error
+        if (!await IsUrlReachableAsync(_apiUrl) && !await IsUrlReachableAsync(_webUrl))
+        {
+            LoadingText.Text = "API/Web no disponibles — localhost rechazó la conexión";
+            LoadingProgress.Visibility = Visibility.Collapsed;
+            ErrorPanel.Visibility = Visibility.Visible;
+        }
     }
 
     private static async Task<bool> IsUrlReachableAsync(string url)
@@ -183,17 +253,46 @@ public partial class MainWindow : Window
     {
         try
         {
-            // No matar el API si fue externo; solo si lo lanzó el escritorio
-            if (_apiProcess != null && !_apiProcess.HasExited)
-            {
-                _apiProcess.Kill(entireProcessTree: true);
-                _apiProcess.Dispose();
-            }
+            if (_apiProcess != null && !_apiProcess.HasExited) { _apiProcess.Kill(entireProcessTree: true); _apiProcess.Dispose(); }
+            if (_webProcess != null && !_webProcess.HasExited) { _webProcess.Kill(entireProcessTree: true); _webProcess.Dispose(); }
         }
         catch { }
     }
 
     private void Reload_Click(object sender, RoutedEventArgs e) => MainWebView.Reload();
+
+    private async void Retry_Click(object sender, RoutedEventArgs e)
+    {
+        ErrorPanel.Visibility = Visibility.Collapsed;
+        LoadingProgress.Visibility = Visibility.Visible;
+        LoadingText.Text = "Reintentando...";
+        await EnsureApiRunningAsync();
+        await EnsureWebRunningAsync();
+        if (await IsUrlReachableAsync(_webUrl)) _navUrl = _webUrl; else _navUrl = _apiUrl;
+        try
+        {
+            if (MainWebView.CoreWebView2 != null)
+                MainWebView.Source = new Uri(_navUrl);
+            else
+            {
+                await MainWebView.EnsureCoreWebView2Async();
+                MainWebView.Source = new Uri(_navUrl);
+            }
+            LoadingOverlay.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception ex) { MessageBox.Show(ex.Message); }
+    }
+
+    private void OpenLog_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var log = Path.Combine(AppContext.BaseDirectory, "erp-desktop.log");
+            if (File.Exists(log)) Process.Start(new ProcessStartInfo("notepad.exe", $"\"{log}\"") { UseShellExecute = true });
+            else MessageBox.Show($"No hay log aún en:\n{log}", "ERP Escritorio");
+        }
+        catch (Exception ex) { MessageBox.Show(ex.Message); }
+    }
 
     private void DevTools_Click(object sender, RoutedEventArgs e)
     {

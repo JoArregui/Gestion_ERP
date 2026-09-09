@@ -12,4 +12,10 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2957.106" />
   </ItemGroup>
 
+  <!-- Copia ERP.Api y ERP.Web publicados junto al exe para que el modo escritorio sea 1-click -->
+  <Target Name="CopyApiToDesktop" AfterTargets="Build">
+    <Exec Command="dotnet publish &quot;$(ProjectDir)..\ERP.Api\ERP.Api.csproj&quot; -c $(Configuration) -o &quot;$(OutDir)&quot;" Condition="Exists('$(ProjectDir)..\ERP.Api\ERP.Api.csproj')" />
+    <Exec Command="dotnet publish &quot;$(ProjectDir)..\ERP.Web\ERP.Web.csproj&quot; -c $(Configuration) -o &quot;$(OutDir)Web&quot;" Condition="Exists('$(ProjectDir)..\ERP.Web\ERP.Web.csproj')" />
+  </Target>
+
 </Project>

@@ -14,13 +14,33 @@
 
         <!-- Overlay carga -->
         <Grid x:Name="LoadingOverlay" Background="#020617" Visibility="Visible">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560">
                 <Border Width="64" Height="64" Background="#2563eb" CornerRadius="16" >
                     <TextBlock Text="E" Foreground="White" FontSize="28" FontWeight="Black" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 </Border>
                 <TextBlock Text="ERP .NET — Escritorio" Foreground="White" FontSize="16" FontWeight="Black" Margin="0,16,0,4" HorizontalAlignment="Center"/>
-                <TextBlock x:Name="LoadingText" Text="Iniciando motor local..." Foreground="#64748b" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
-                <ProgressBar IsIndeterminate="True" Width="200" Height="3" Margin="0,16,0,0" Foreground="#2563eb" Background="#1e293b" BorderThickness="0"/>
+                <TextBlock x:Name="LoadingText" Text="Iniciando motor local..." Foreground="#64748b" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                <ProgressBar x:Name="LoadingProgress" IsIndeterminate="True" Width="200" Height="3" Margin="0,16,0,0" Foreground="#2563eb" Background="#1e293b" BorderThickness="0"/>
+                <!-- Panel error localhost -->
+                <Border x:Name="ErrorPanel" Visibility="Collapsed" Background="#1e293b" CornerRadius="12" Padding="16" Margin="0,16,0,0" BorderBrush="#334155" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="No se pudo conectar a localhost" Foreground="#f87171" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center"/>
+                        <TextBlock Text="El API no respondió en 20s. Opciones:" Foreground="#94a3b8" FontSize="10" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+                        <TextBlock Foreground="#64748b" FontSize="10" Margin="0,8,0,0" TextWrapping="Wrap">
+                            <Run Text="1) Cierra el exe y ejecuta:"/><LineBreak/>
+                            <Run Text="   dotnet publish ERP.Api -c Release -o ERP.Desktop/bin/Release/net9.0-windows/publish" FontFamily="Consolas"/><LineBreak/>
+                            <Run Text="   dotnet build ERP_Sistema.sln -c Release" FontFamily="Consolas"/><LineBreak/><LineBreak/>
+                            <Run Text="2) O lanza el API manual en otra terminal:"/><LineBreak/>
+                            <Run Text="   dotnet run --project ERP.Api --urls http://localhost:5109" FontFamily="Consolas"/><LineBreak/><LineBreak/>
+                            <Run Text="3) Revisa "/><Run Text="erp-desktop.log" FontWeight="Bold"/><Run Text=" junto al exe."/>
+                        </TextBlock>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,0">
+                            <Button Content="⟳ Reintentar" Click="Retry_Click" Padding="12,6" FontSize="11" Background="#2563eb" Foreground="White" BorderThickness="0" Cursor="Hand" Margin="4,0"/>
+                            <Button Content="📄 Ver log" Click="OpenLog_Click" Padding="12,6" FontSize="11" Background="#334155" Foreground="White" BorderThickness="0" Cursor="Hand" Margin="4,0"/>
+                            <Button Content="🛠 DevTools" Click="DevTools_Click" Padding="12,6" FontSize="11" Background="#334155" Foreground="White" BorderThickness="0" Cursor="Hand" Margin="4,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </Grid>
 
