@@ -197,7 +197,7 @@
 
     private async Task ReiniciarConNuevoUsuario()
     {
-        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        try { await JS.InvokeVoidAsync("eval", "localStorage.removeItem('authToken'); localStorage.removeItem('erp_empresas_active_id'); localStorage.removeItem('erp_onboarding_dismissed'); Object.keys(localStorage).forEach(k=>{if(k.startsWith('erp_'))localStorage.removeItem(k)}); try{sessionStorage.clear();}catch(e){}"); } catch { }
         NavManager.NavigateTo("/login", forceLoad:true);
     }
 }

@@ -129,11 +129,12 @@
 
     private async Task HandleLogout()
     {
-        // 1. Llama al servicio para borrar token y notificar estado
+        // Borrado completo: token + EmpresaService en memoria + historial notificaciones
         await AuthService.Logout();
-        
-        // 2. Redirige al login
-        NavigationManager.NavigateTo("login");
+        try { await EmpresaService.ClearAsync(); } catch { }
+        try { NotificationService.ClearHistory(); } catch { }
+        // forceLoad limpia el circuito Blazor y evita remanentes de sesión (pasillo virgen)
+        NavigationManager.NavigateTo("login", forceLoad: true);
     }
 
     public void Dispose()

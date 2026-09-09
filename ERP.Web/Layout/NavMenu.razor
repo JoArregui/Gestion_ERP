@@ -4,6 +4,8 @@
 @using ERP.Web.Components
 @inject ERP.Web.Services.AuthService AuthService
 @inject NavigationManager Navigation
+@inject ERP.Web.Services.EmpresaService EmpresaService
+@inject ERP.Web.Services.NotificationService NotificationService
 
 @* NavMenu.razor - Menú Lateral Acordeón con rutas exactas del proyecto *@
 <div class="flex flex-col h-full bg-[#0f172a] text-slate-400 font-sans shadow-2xl border-r border-slate-800/50">
@@ -454,6 +456,9 @@
     private async Task HandleLogout()
     {
         await AuthService.Logout();
-        Navigation.NavigateTo("/login");
+        try { await EmpresaService.ClearAsync(); } catch { }
+        try { NotificationService.ClearHistory(); } catch { }
+        // forceLoad destruye el circuito Blazor y garantiza pasillo virgen (sin remanentes)
+        Navigation.NavigateTo("/login", forceLoad: true);
     }
 }
