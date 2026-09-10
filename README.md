@@ -1,0 +1,21 @@
+# ERP.Flutter
+
+Cliente Flutter/Dart del ERP.NET. Este proyecto sustituye progresivamente a la aplicación MAUI, que se conserva intacta en `ERP.Movil`.
+
+## Ejecución
+
+```text
+flutter pub get
+flutter run
+```
+
+La URL de la API se selecciona por plataforma:
+
+- Android emulado: `http://10.0.2.2:5109/`
+- Windows, iOS y macOS: `https://localhost:5109/`
+
+Para otro entorno se puede iniciar con `--dart-define=ERP_API_BASE_URL=https://servidor/`.
+
+## Estado
+
+Incluye shell responsive, login real contra `api/auth/login`, almacenamiento seguro del JWT, restauración de sesión, logout y módulos de navegación preparados para conectar a la API. Los módulos funcionales se migrarán uno a uno sin modificar `ERP.Movil`.

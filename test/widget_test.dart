@@ -1,0 +1,13 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:erp_flutter/main.dart';
+import 'package:erp_flutter/core/erp_api.dart';
+
+void main() {
+  testWidgets('muestra el formulario de acceso', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: LoginPage(auth: AuthService(), onLogin: (_) {})));
+    await tester.pump();
+    expect(find.byType(LoginPage), findsOneWidget);
+    expect(find.textContaining('PYMES'), findsOneWidget);
+  });
+}
