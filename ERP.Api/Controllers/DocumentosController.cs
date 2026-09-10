@@ -1,15 +1,23 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities;
 using ERP.Services;
+using System.Security.Claims;
 
 namespace ERP.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class DocumentosController : ControllerBase
     {
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+        private bool IsGeneric => string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase);
         private readonly ApplicationDbContext _context;
         private readonly CicloFacturacionService _cicloService;
         private readonly PdfService _pdfService;
@@ -24,30 +32,34 @@ namespace ERP.Api.Controllers
             _pdfService = pdfService;
         }
 
-        // GET: api/Documentos
+        // GET: api/Documentos — filtrado por EmpresaId (RGPD)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<DocumentoComercial>>> GetDocumentos()
         {
+            var empresaIdClaim = User.FindFirst("EmpresaId")?.Value;
+            if (!int.TryParse(empresaIdClaim, out var empresaId) || empresaId == 0)
+                return Ok(new List<DocumentoComercial>());
             return await _context.Documentos
+                .Where(d => d.EmpresaId == empresaId)
                 .Include(d => d.Cliente)
                 .Include(d => d.Proveedor)
                 .OrderByDescending(d => d.Fecha)
                 .ToListAsync();
         }
 
-        // GET: api/Documentos/5
+        // GET: api/Documentos/5 — RGPD solo propio
         [HttpGet("{id}")]
         public async Task<ActionResult<DocumentoComercial>> GetDocumento(int id)
         {
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
             var documento = await _context.Documentos
                 .Include(d => d.Lineas)
                 .Include(d => d.Empresa)
                 .Include(d => d.Cliente)
                 .Include(d => d.Proveedor)
-                .FirstOrDefaultAsync(d => d.Id == id);
-
+                .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
             if (documento == null) return NotFound();
-
             return documento;
         }
 
@@ -55,6 +67,10 @@ namespace ERP.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<DocumentoComercial>> PostDocumento(DocumentoComercial documento)
         {
+            if (IsGeneric) return Unauthorized("Genérico sin empresa no crea documentos.");
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Unauthorized("Sesión sin empresa.");
+            documento.EmpresaId = empresaId;
             try
             {
                 var nuevoDoc = await _cicloService.CrearDocumento(documento);
@@ -66,10 +82,14 @@ namespace ERP.Api.Controllers
             }
         }
 
-        // POST: api/Documentos/convertir/5?nuevoTipo=Factura
+        // POST: api/Documentos/convertir/5?nuevoTipo=Factura — RGPD
         [HttpPost("convertir/{id}")]
         public async Task<ActionResult<DocumentoComercial>> Convertir(int id, [FromQuery] TipoDocumento nuevoTipo)
         {
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
+            var doc = await _context.Documentos.FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
+            if (doc == null) return NotFound();
             try
             {
                 var destino = await _cicloService.ConvertirDocumento(id, nuevoTipo);
@@ -81,15 +101,17 @@ namespace ERP.Api.Controllers
             }
         }
 
-        // GET: api/Documentos/5/pdf
+        // GET: api/Documentos/5/pdf — RGPD solo propio
         [HttpGet("{id}/pdf")]
         public async Task<IActionResult> DescargarPdf(int id)
         {
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
             var doc = await _context.Documentos
                 .Include(d => d.Lineas)
                 .Include(d => d.Empresa)
                 .Include(d => d.Cliente)
-                .FirstOrDefaultAsync(d => d.Id == id);
+                .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
 
             if (doc == null) return NotFound("Documento no encontrado.");
             if (doc.EsCompra) return BadRequest("La generación de PDF solo está disponible para documentos de venta.");
@@ -107,11 +129,13 @@ namespace ERP.Api.Controllers
             }
         }
 
-        // DELETE: api/Documentos/5
+        // DELETE: api/Documentos/5 — RGPD solo propio
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDocumento(int id)
         {
-            var documento = await _context.Documentos.FindAsync(id);
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
+            var documento = await _context.Documentos.FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
             if (documento == null) return NotFound();
 
             // Nota profesional: En ERPs reales se suele usar "Borrado Lógico" (isDeleted) 

@@ -75,13 +75,13 @@ namespace ERP.Api.Controllers
         [HttpGet("descargar-pdf/{id}")]
         public async Task<IActionResult> DescargarPdf(int id)
         {
+            var empresaIdClaim = User.FindFirst("EmpresaId")?.Value;
+            if (!int.TryParse(empresaIdClaim, out var empresaId) || empresaId == 0 || string.Equals(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase) || string.Equals(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase)) return Forbid();
             var factura = await _context.Documentos
                 .Include(d => d.Lineas)
                 .Include(d => d.Cliente)
-                .FirstOrDefaultAsync(d => d.Id == id);
-
+                .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
             if (factura == null) return NotFound();
-
             var empresa = await _context.Empresas.FindAsync(factura.EmpresaId);
             
             // Generación de PDF A4 estándar
@@ -97,13 +97,13 @@ namespace ERP.Api.Controllers
         [HttpGet("descargar-ticket/{id}")]
         public async Task<IActionResult> DescargarTicket(int id)
         {
+            var empresaIdClaim2 = User.FindFirst("EmpresaId")?.Value;
+            if (!int.TryParse(empresaIdClaim2, out var empresaId2) || empresaId2 == 0 || string.Equals(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase) || string.Equals(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase)) return Forbid();
             var factura = await _context.Documentos
                 .Include(d => d.Lineas)
                 .Include(d => d.Cliente)
-                .FirstOrDefaultAsync(d => d.Id == id);
-
+                .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId2);
             if (factura == null) return NotFound();
-
             var empresa = await _context.Empresas.FindAsync(factura.EmpresaId);
 
             // Aquí llamamos a un método específico del PdfService para formato Ticket

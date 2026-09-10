@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +56,7 @@ builder.Services.AddAuthentication(options =>
 {
     options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.SaveToken = true;
+    options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
@@ -63,7 +65,9 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = jwtIssuer,
         ValidateAudience = true,
         ValidAudience = jwtAudience,
-        ClockSkew = TimeSpan.Zero 
+        ClockSkew = TimeSpan.Zero,
+        NameClaimType = ClaimTypes.Name,
+        RoleClaimType = ClaimTypes.Role
     };
 });
 
@@ -191,6 +195,25 @@ using (var scope = app.Services.CreateScope())
                 var loggerSeed = services.GetRequiredService<ILogger<Program>>();
                 loggerSeed.LogError("No se pudo crear usuario bootstrap: {Errors}", string.Join(", ", createResult.Errors.Select(e => e.Description)));
             }
+        }
+
+        // Bootstrap genérico nunca debe quedar asignado a una empresa (vacío por diseño, RGPD)
+        // Si por una asignación previa quedó con EmpresaId, lo limpiamos para que no vea datos de ninguna empresa
+        if (bootstrap != null && bootstrap.EmpresaId != null)
+        {
+            bootstrap.EmpresaId = null;
+            bootstrap.SetupTutorialVisto = false;
+            bootstrap.SetupTutorialCompletado = false;
+            await userManager.UpdateAsync(bootstrap);
+        }
+        // También limpiar admin@erp.com si existe (alias del genérico usado en pruebas)
+        var bootstrapCom = await userManager.FindByEmailAsync("admin@erp.com");
+        if (bootstrapCom != null && bootstrapCom.EmpresaId != null)
+        {
+            bootstrapCom.EmpresaId = null;
+            bootstrapCom.SetupTutorialVisto = false;
+            bootstrapCom.SetupTutorialCompletado = false;
+            await userManager.UpdateAsync(bootstrapCom);
         }
 
         // --- 8c. DETECCIÓN DE ONBOARDING NECESARIO ---

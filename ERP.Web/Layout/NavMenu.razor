@@ -454,6 +454,7 @@
     private async Task HandleLogout()
     {
         await AuthService.Logout();
-        Navigation.NavigateTo("/login");
+        // forceLoad destruye el circuito Blazor y purga servicios Scoped (EmpresaService cache por empresa) — evita fuga RGPD
+        Navigation.NavigateTo("/login", forceLoad: true);
     }
 }

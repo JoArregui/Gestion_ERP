@@ -20,6 +20,7 @@ namespace ERP.Data
         }
 
         public DbSet<Empresa> Empresas { get; set; }
+        public DbSet<UserEmpresa> UserEmpresas { get; set; }
         public DbSet<Cliente> Clientes { get; set; }
         public DbSet<Proveedor> Proveedores { get; set; }
         public DbSet<Acreedor> Acreedores { get; set; }
@@ -146,6 +147,36 @@ namespace ERP.Data
                 .HasOne(u => u.Empresa)
                 .WithMany()
                 .HasForeignKey(u => u.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<UserEmpresa>()
+                .HasKey(ue => new { ue.UserId, ue.EmpresaId });
+            modelBuilder.Entity<UserEmpresa>()
+                .HasOne(ue => ue.User)
+                .WithMany(u => u.UserEmpresas)
+                .HasForeignKey(ue => ue.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<UserEmpresa>()
+                .HasOne(ue => ue.Empresa)
+                .WithMany()
+                .HasForeignKey(ue => ue.EmpresaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Multi-tenant: Familia / Proveedor / Acreedor aislados por Empresa
+            modelBuilder.Entity<Familia>()
+                .HasOne(f => f.Empresa)
+                .WithMany()
+                .HasForeignKey(f => f.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Proveedor>()
+                .HasOne(p => p.Empresa)
+                .WithMany()
+                .HasForeignKey(p => p.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Acreedor>()
+                .HasOne(a => a.Empresa)
+                .WithMany()
+                .HasForeignKey(a => a.EmpresaId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Articulo>()

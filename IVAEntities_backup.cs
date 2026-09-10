@@ -70,7 +70,7 @@ namespace ERP.Domain.Entities.Fiscal
         public DateTime? FechaInicioIVACaja { get; set; }
         public DateTime? FechaFinIVACaja { get; set; }
         [Column(TypeName = "decimal(18,2)")]
-        public decimal? LimiteVolumenOperacionesIVACaja { get; set; } // 2.000.000 â‚¬
+        public decimal? LimiteVolumenOperacionesIVACaja { get; set; } // 2.000.000 €
 
         // --- OTROS ---
         public bool InversionSujetoPasivoHabitual { get; set; } = false; // Art. 84 LIVA
@@ -86,7 +86,7 @@ namespace ERP.Domain.Entities.Fiscal
     }
 
     /// <summary>
-    /// LiquidaciÃ³n IVA periÃ³dica (Modelo 303) - CÃ¡lculo automÃ¡tico con prorrata/sectores
+    /// Liquidación IVA periódica (Modelo 303) - Cálculo automático con prorrata/sectores
     /// </summary>
     public class LiquidacionIVA
     {

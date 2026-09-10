@@ -1,14 +1,17 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ERP.Domain.Entities;
 using ERP.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace ERP.API.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class FamiliasController : ControllerBase
@@ -20,13 +23,23 @@ namespace ERP.API.Controllers
             _context = context;
         }
 
-        // GET: api/Familias
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+        private bool IsGeneric => string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.com", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.com", StringComparison.OrdinalIgnoreCase);
+
+        // GET: api/Familias — RGPD: solo propias (genérico ve vacío)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Familia>>> GetFamilias()
         {
             try
             {
+                if (IsGeneric) return Ok(new List<Familia>());
+                var empresaId = GetEmpresaId();
+                if (empresaId == 0) return Ok(new List<Familia>());
                 return await _context.Familia
+                    .Where(f => f.EmpresaId == empresaId)
                     .OrderBy(f => f.Nombre)
                     .ToListAsync();
             }
@@ -40,9 +53,11 @@ namespace ERP.API.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Familia>> GetFamilia(int id)
         {
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
             var familia = await _context.Familia
                 .Include(f => f.Articulos)
-                .FirstOrDefaultAsync(f => f.Id == id);
+                .FirstOrDefaultAsync(f => f.Id == id && f.EmpresaId == empresaId);
 
             if (familia == null)
             {
@@ -56,13 +71,12 @@ namespace ERP.API.Controllers
         [HttpPost]
         public async Task<ActionResult<Familia>> PostFamilia(Familia familia)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0 || IsGeneric) return Unauthorized("Sesión sin empresa — complete el onboarding.");
             try
             {
+                familia.EmpresaId = empresaId;
                 familia.FechaCreacion = DateTime.Now;
                 _context.Familia.Add(familia);
                 await _context.SaveChangesAsync();
@@ -79,12 +93,10 @@ namespace ERP.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutFamilia(int id, Familia familia)
         {
-            if (id != familia.Id)
-            {
-                return BadRequest("El ID proporcionado no coincide con la entidad.");
-            }
-
-            var existente = await _context.Familia.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id);
+            if (id != familia.Id) return BadRequest("El ID proporcionado no coincide con la entidad.");
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0 || IsGeneric) return Unauthorized();
+            var existente = await _context.Familia.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id && f.EmpresaId == empresaId);
             if (existente == null)
             {
                 return NotFound();
@@ -92,6 +104,7 @@ namespace ERP.API.Controllers
 
             familia.FechaCreacion = existente.FechaCreacion;
             familia.UltimaModificacion = DateTime.Now;
+            familia.EmpresaId = empresaId;
 
             _context.Entry(familia).State = EntityState.Modified;
 
@@ -116,11 +129,12 @@ namespace ERP.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteFamilia(int id)
         {
-            var familia = await _context.Familia.FindAsync(id);
-            if (familia == null)
-            {
-                return NotFound();
-            }
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0 || IsGeneric) return Unauthorized();
+            var familia = await _context.Familia.FirstOrDefaultAsync(f => f.Id == id && f.EmpresaId == empresaId);
+            if (familia == null) return NotFound();
+            // Verificar que pertenece a la empresa
+            if (familia.EmpresaId != empresaId) return Forbid();
 
             // Validación de integridad: No desactivar si tiene artículos
             var tieneArticulos = await _context.Articulos.AnyAsync(a => a.FamiliaId == id);

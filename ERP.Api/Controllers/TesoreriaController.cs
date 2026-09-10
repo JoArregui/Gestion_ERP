@@ -107,8 +107,9 @@ namespace ERP.Api.Controllers
 
             if (vencimiento.Estado == "Pagado")
                 return BadRequest("Este vencimiento ya fue liquidado anteriormente.");
+            if (vencimiento.Estado == "Anulado")
+                return BadRequest("No se puede liquidar un vencimiento anulado.");
 
-            // Actualización de estado profesional
             vencimiento.Estado = "Pagado";
             vencimiento.FechaPago = DateTime.Now;
             vencimiento.MetodoPago = string.IsNullOrEmpty(metodoPago) ? "Efectivo/Caja" : metodoPago;
@@ -119,6 +120,35 @@ namespace ERP.Api.Controllers
                 Status = "Success", 
                 Message = $"Vencimiento {id} marcado como pagado el {vencimiento.FechaPago}." 
             });
+        }
+
+        [HttpPut("vencimiento/{id}")]
+        public async Task<IActionResult> ModificarVencimiento(int id, [FromBody] Vencimiento dto)
+        {
+            var venc = await _context.Vencimientos.FirstOrDefaultAsync(v => v.Id == id && v.EmpresaId == GetEmpresaId());
+            if (venc == null) return NotFound("Vencimiento no encontrado");
+            if (venc.Estado == "Pagado") return BadRequest(new { Message = "No se puede modificar un vencimiento ya pagado. Anule y cree uno nuevo." });
+            if (venc.Estado == "Anulado") return BadRequest(new { Message = "Vencimiento anulado no editable." });
+            // Solo se permite modificar importe, fecha y método si es pendiente
+            if (dto.Importe <= 0) return BadRequest(new { Message = "Importe debe ser positivo" });
+            venc.Importe = dto.Importe;
+            venc.FechaVencimiento = dto.FechaVencimiento;
+            if (!string.IsNullOrWhiteSpace(dto.MetodoPago)) venc.MetodoPago = dto.MetodoPago;
+            await _context.SaveChangesAsync();
+            return Ok(venc);
+        }
+
+        [HttpPost("anular/{id}")]
+        public async Task<IActionResult> AnularVencimiento(int id)
+        {
+            var venc = await _context.Vencimientos.FirstOrDefaultAsync(v => v.Id == id && v.EmpresaId == GetEmpresaId());
+            if (venc == null) return NotFound("Vencimiento no encontrado");
+            if (venc.Estado == "Pagado") return BadRequest(new { Message = "No se puede anular un vencimiento pagado. Genere rectificativa." });
+            if (venc.Estado == "Anulado") return BadRequest(new { Message = "Ya está anulado" });
+            venc.Estado = "Anulado";
+            venc.FechaPago = null;
+            await _context.SaveChangesAsync();
+            return Ok(new { Message = "Vencimiento anulado correctamente" });
         }
     }
 }

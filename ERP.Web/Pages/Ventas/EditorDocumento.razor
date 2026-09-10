@@ -66,8 +66,8 @@
                                 <td class="p-3 font-mono font-bold">@d.NumeroDocumento</td>
                                 <td class="p-3 text-slate-400">@d.Fecha.ToString("dd/MM/yyyy")</td>
                                 <td class="p-3 text-[11px]">@(d.Empresa?.NombreComercial ?? $"Emp.{d.EmpresaId}")</td>
-                                <td class="p-3">@(d.Cliente?.RazonSocial ?? "â€”")</td>
-                                <td class="p-3 text-right font-bold">@d.Total.ToString("N2")â‚¬</td>
+                                <td class="p-3">@(d.Cliente?.RazonSocial ?? "€”")</td>
+                                <td class="p-3 text-right font-bold">@d.Total.ToString("N2") €</td>
                                 <td class="p-3"><span class="px-2 py-1 rounded-full text-[10px] font-black uppercase @(d.Estado == EstadoDocumento.Emitido ? "bg-emerald-500/20 text-emerald-400" : d.Estado == EstadoDocumento.Borrador ? "bg-amber-500/20 text-amber-400" : d.Estado==EstadoDocumento.Anulado ? "bg-rose-500/20 text-rose-400" : "bg-slate-700 text-slate-300")">@d.Estado @(d.EstaEmitidaFormalmente ? "Â·Emitida" : "")</span></td>
                                 <td class="p-3">
                                     <div class="flex gap-1 justify-center">
@@ -105,7 +105,7 @@ else
             <button @onclick="Volver" class="h-10 w-10 rounded-xl bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700"><i class="bi bi-arrow-left"></i></button>
             <div>
                 <h1 class="text-2xl font-black text-white uppercase tracking-tighter">@(modoEdicion ? "Editar Documento" : "Detalle Documento")</h1>
-                <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">@(Documento.NumeroDocumento ?? "â€”") Â· @Documento.Tipo Â· @Documento.Fecha.ToString("dd/MM/yyyy") @(EsEditable(Documento) ? "" : "Â· No editable") @(Documento.EstaEmitidaFormalmente ? "Â· Emitida formalmente" : "Â· No emitida")</p>
+                <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">@(Documento.NumeroDocumento ?? "€”") Â· @Documento.Tipo Â· @Documento.Fecha.ToString("dd/MM/yyyy") @(EsEditable(Documento) ? "" : "Â· No editable") @(Documento.EstaEmitidaFormalmente ? "Â· Emitida formalmente" : "Â· No emitida")</p>
             </div>
         </div>
         @if (cargando)
@@ -130,7 +130,7 @@ else
                     <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Empresa emisora</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@(Documento.Empresa?.NombreComercial ?? $"Emp. {Documento.EmpresaId}")</div></div>
                     <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Cliente</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@(Documento.Cliente?.RazonSocial ?? $"ID {Documento.ClienteId}")</div></div>
                     <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Estado</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@Documento.Estado @(Documento.EstaEmitidaFormalmente ? "(Emitida)" : "(No emitida)")</div></div>
-                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Total</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-emerald-400 font-black">@Documento.Total.ToString("N2") â‚¬</div></div>
+                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Total</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-emerald-400 font-black">@Documento.Total.ToString("N2") €</div></div>
                     <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Enviad­o / Hacienda</label>
                         <div class="text-[11px] text-slate-300">Cliente: @(Documento.EnviadaCliente ? $"Sí­ {Documento.FechaEnvioCliente:dd/MM}" : "No") · Hacienda: @(Documento.PresentadaHacienda ? "Sí­" : "No")</div>
                     </div>
@@ -148,11 +148,11 @@ else
                         <thead class="bg-slate-800/50 text-slate-400 text-[10px] uppercase"><tr><th class="p-3 text-left">Artí­culo</th><th class="p-3 text-center">Cant.</th><th class="p-3 text-end">Precio</th><th class="p-3 text-end">Subtotal</th></tr></thead>
                         <tbody class="divide-y divide-slate-800">
                             @foreach (var l in Documento.Lineas)
-                            { <tr class="text-white"><td class="p-3">@l.DescripcionArticulo</td><td class="p-3 text-center">@l.Cantidad</td><td class="p-3 text-end">@l.PrecioUnitario.ToString("N2") â‚¬</td><td class="p-3 text-end font-bold">@l.Subtotal.ToString("N2") €</td></tr> }
+                            { <tr class="text-white"><td class="p-3">@l.DescripcionArticulo</td><td class="p-3 text-center">@l.Cantidad</td><td class="p-3 text-end">@l.PrecioUnitario.ToString("N2") €</td><td class="p-3 text-end font-bold">@l.Subtotal.ToString("N2") €</td></tr> }
                         </tbody>
                     </table>
                 }
-                else { <div class="p-8 text-center text-slate-500"><i class="bi bi-grid text-3xl mb-3 block"></i><p>No hay lÃ­neas.</p></div> }
+                else { <div class="p-8 text-center text-slate-500"><i class="bi bi-grid text-3xl mb-3 block"></i><p>No hay lí­neas.</p></div> }
             </div>
             <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800">
                 <div class="grid grid-cols-1 gap-3">
@@ -203,7 +203,8 @@ else
     private IEnumerable<DocumentoComercial> DocumentosFiltrados => documentos.Where(d =>
         (string.IsNullOrWhiteSpace(filtro) || d.NumeroDocumento.Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
         (d.Cliente?.RazonSocial?.Contains(filtro, StringComparison.OrdinalIgnoreCase) ?? false)) &&
-        (string.IsNullOrEmpty(filtroTipo) || d.Tipo.ToString() == filtroTipo)
+        (string.IsNullOrEmpty(filtroTipo) || d.Tipo.ToString() == filtroTipo) &&
+        (EmpresaService.EmpresaId == 0 || d.EmpresaId == EmpresaService.EmpresaId)
     ).OrderByDescending(d => d.Fecha);
 
     private bool EsEditable(DocumentoComercial d)
@@ -285,7 +286,7 @@ else
     }
     private async Task AnularInterna()
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "Â¿Anular factura interna no enviada?")) return;
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Anular factura interna no enviada?")) return;
         var res = await Http.PostAsync($"api/CicloFacturacion/{Documento.Id}/anular-interna", null);
         var msg = await res.Content.ReadAsStringAsync();
         await JS.InvokeVoidAsync("alert", msg);
@@ -302,11 +303,11 @@ else
     }
     private async Task CrearDevolucion()
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "Â¿Crear albarÃ¡n de devoluciÃ³n/abono por esta factura? Se generarÃ¡ albarÃ¡n de devoluciÃ³n en fecha actual.")) return;
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Crear albarán de devolución/abono por esta factura? Se generará albarán de devolución en fecha actual.")) return;
         var payload = Documento.Lineas.Select(l => new { l.ArticuloId, l.DescripcionArticulo, l.Cantidad, l.PrecioUnitario, l.PorcentajeIva, l.CategoriaNombre }).ToList();
         var res = await Http.PostAsJsonAsync($"api/CicloFacturacion/{Documento.Id}/albaran-devolucion", payload);
         var msg = await res.Content.ReadAsStringAsync();
-        await JS.InvokeVoidAsync("alert", res.IsSuccessStatusCode ? "AlbarÃ¡n de devoluciÃ³n creado. Genere rectificativa." : msg);
+        await JS.InvokeVoidAsync("alert", res.IsSuccessStatusCode ? "Albarán de devolución creado. Genere rectificativa." : msg);
         if (res.IsSuccessStatusCode) Nav.NavigateTo("/ventas/editor");
     }
     private async Task MarcarEnviada()

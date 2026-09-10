@@ -1,0 +1,192 @@
+@using ERP.Domain.Dtos
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@if (mostrar)
+{
+    <div class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
+        <div class="w-full max-w-3xl bg-white rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in my-6">
+            <div class="bg-[#020617] text-white p-6 md:p-8">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-xl font-black shrink-0">E</div>
+                    <div class="flex-1">
+                        <h2 class="text-xl md:text-2xl font-black uppercase tracking-tight">Configura tu empresa — Tutorial</h2>
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Has entrado por primera vez con tus credenciales. Te guiamos en 5 pasos.</p>
+                    </div>
+                    <span class="hidden md:inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest">@progresoTexto</span>
+                </div>
+                <div class="mt-6">
+                    <div class="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                        <span>Progreso obligatorio</span>
+                        <span>@status?.PasosObligatoriosCompletados / @status?.PasosObligatoriosTotales</span>
+                    </div>
+                    <div class="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-600 transition-all duration-500" style="width:@(progresoPct)%"></div>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2">Los pasos marcados <span class="text-amber-400 font-bold">Opcional</span> puedes omitirlos si no los necesitas para tu actividad.</p>
+                </div>
+            </div>
+
+            <div class="p-6 md:p-8 space-y-4 max-h-[60vh] overflow-y-auto">
+                @foreach (var paso in pasos)
+                {
+                    var completado = IsCompletado(paso.Key);
+                    var omitido = omitidos.Contains(paso.Key);
+                    <div class="flex gap-4 p-4 rounded-2xl border @(completado ? "bg-emerald-50 border-emerald-200" : omitido ? "bg-slate-50 border-slate-200 opacity-60" : "bg-white border-slate-200 hover:border-blue-200 hover:shadow-md") transition">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 @(completado ? "bg-emerald-500 text-white" : omitido ? "bg-slate-300 text-white" : "bg-slate-900 text-white")">
+                            @if (completado) { <i class="bi bi-check-lg"></i> } else if (omitido) { <i class="bi bi-dash-lg"></i> } else { <i class="bi @paso.Icon"></i> }
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-black text-slate-800 text-sm">@paso.Titulo</span>
+                                @if (paso.Opcional) { <span class="px-2 py-0.5 bg-amber-100 text-amber-700 border border-amber-200 rounded-full text-[9px] font-black uppercase">Opcional</span> }
+                                @if (!paso.Opcional) { <span class="px-2 py-0.5 bg-blue-600 text-white rounded-full text-[9px] font-black uppercase">Obligatorio</span> }
+                                @if (completado) { <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase">Completado (@GetCount(paso.Key))</span> }
+                                else if (omitido) { <span class="px-2 py-0.5 bg-slate-200 text-slate-600 rounded-full text-[9px] font-black uppercase">Omitido</span> }
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1 leading-relaxed">@paso.Descripcion</p>
+                            <p class="text-[11px] text-slate-400 mt-1 font-mono">@paso.Ruta</p>
+                        </div>
+                        <div class="flex flex-col gap-2 shrink-0">
+                            @if (completado)
+                            {
+                                <span class="px-3 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase text-center">✓ Hecho</span>
+                            }
+                            else if (omitido)
+                            {
+                                <button @onclick="() => QuitarOmitido(paso.Key)" class="px-3 py-2 bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase hover:bg-slate-300">Reactivar</button>
+                            }
+                            else
+                            {
+                                <button @onclick="() => IrA(paso.Ruta)" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black uppercase hover:bg-blue-600 transition text-center">Crear / Ver</button>
+                                @if (paso.Opcional)
+                                {
+                                    <button @onclick="() => Omitir(paso.Key)" class="px-3 py-1 bg-white border border-slate-200 text-slate-500 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50">Omitir</button>
+                                }
+                            }
+                        </div>
+                    </div>
+                }
+
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <p class="text-xs font-bold text-blue-900">💡 Consejo tutorial</p>
+                    <p class="text-xs text-blue-700 mt-1">Crea primero <b>Familias</b> porque los <b>Artículos</b> requieren familia. Proveedores, clientes y trabajadores son opcionales: si tu empresa no los usa, pulsa <b>Omitir</b> y podrás crearlos más tarde desde el menú.</p>
+                </div>
+
+                <label class="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer select-none">
+                    <input type="checkbox" @bind="noVolverMostrar" class="rounded" /> No volver a mostrar este tutorial
+                </label>
+
+                <div class="flex gap-3 pt-2">
+                    <button @onclick="Completar" disabled="@(!PuedeCompletar && !noVolverMostrar)" class="flex-1 bg-blue-600 disabled:bg-slate-300 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-500 transition">
+                        @(PuedeCompletar ? "Finalizar tutorial — Ir al escritorio" : "Cerrar por ahora")
+                    </button>
+                    <button @onclick="Descartar" class="px-6 bg-slate-100 text-slate-600 py-4 rounded-xl font-black text-xs uppercase hover:bg-slate-200 transition">Recordar más tarde</button>
+                </div>
+                @if (!PuedeCompletar)
+                {
+                    <p class="text-[11px] text-amber-600 text-center">Completa los 2 pasos obligatorios (Familias y Artículos) o marca “No volver a mostrar” para cerrar. Los opcionales puedes omitirlos.</p>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool mostrar = false;
+    private bool noVolverMostrar = false;
+    private SetupStatusDto? status;
+    private HashSet<string> omitidos = new();
+
+    private string progresoTexto => status == null ? "—" : $"{status.PasosObligatoriosCompletados}/{status.PasosObligatoriosTotales} obligatorios";
+    private int progresoPct => status == null || status.PasosObligatoriosTotales == 0 ? 0 : (int)(status.ProgresoObligatorio * 100);
+    private bool PuedeCompletar => status != null && status.PasosObligatoriosCompletados >= status.PasosObligatoriosTotales;
+
+    private record PasoInfo(string Key, string Titulo, string Descripcion, string Icon, string Ruta, bool Opcional);
+
+    private PasoInfo[] pasos = new[]
+    {
+        new PasoInfo("familias", "1. Familias de artículos", "Agrupan tus productos (ej. Bebidas, Tornillería). Sin familia no puedes dar de alta artículos. Crea al menos una.", "bi-tags-fill", "/maestros/familias", false),
+        new PasoInfo("articulos", "2. Artículos / Productos", "Ficha del producto con código, precios, IVA y stock. Requiere familia previa. Crea al menos un artículo para poder vender.", "bi-box-seam-fill", "/maestros/articulos", false),
+        new PasoInfo("proveedores", "3. Proveedores", "Empresas a las que compras mercadería. Opcional si solo vendes stock inicial o servicios.", "bi-truck", "/maestros/proveedores", true),
+        new PasoInfo("clientes", "4. Clientes", "Crea fichas de clientes si facturas nominativas. Opcional si vendes a público general.", "bi-person-badge-fill", "/maestros/clientes", true),
+        new PasoInfo("empleados", "5. Trabajadores / Empleados", "Alta de empleados para fichaje, control horario y nóminas. Opcional si eres autónomo sin plantilla.", "bi-people-fill", "/rrhh/empleados", true),
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Cargar estado 2º onboarding; si no debe mostrarse, no renderizar
+            status = await Http.GetFromJsonAsync<SetupStatusDto>("api/onboarding/setup-status");
+            if (status != null && status.DebeMostrar)
+            {
+                // Restaurar omitidos previos de localStorage por usuario+empresa
+                try
+                {
+                    var key = $"erp_setup_omitidos_{status.EmpresaId}_{status.UserId}";
+                    var raw = await JS.InvokeAsync<string>("localStorage.getItem", key);
+                    if (!string.IsNullOrEmpty(raw))
+                    {
+                        foreach (var k in raw.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                            omitidos.Add(k);
+                    }
+                } catch {}
+                mostrar = true;
+            }
+        }
+        catch { /* 401 u otro -> no mostrar */ }
+    }
+
+    private int GetCount(string key) => key switch
+    {
+        "familias" => status?.Familias ?? 0,
+        "articulos" => status?.Articulos ?? 0,
+        "proveedores" => status?.Proveedores ?? 0,
+        "clientes" => status?.Clientes ?? 0,
+        "empleados" => status?.Empleados ?? 0,
+        _ => 0
+    };
+
+    private bool IsCompletado(string key) => GetCount(key) > 0;
+
+    private void IrA(string ruta) => Nav.NavigateTo(ruta);
+
+    private async Task Omitir(string key)
+    {
+        omitidos.Add(key);
+        if (status != null)
+        {
+            var k = $"erp_setup_omitidos_{status.EmpresaId}_{status.UserId}";
+            await JS.InvokeVoidAsync("localStorage.setItem", k, string.Join(",", omitidos));
+        }
+    }
+
+    private async Task QuitarOmitido(string key)
+    {
+        omitidos.Remove(key);
+        if (status != null)
+        {
+            var k = $"erp_setup_omitidos_{status.EmpresaId}_{status.UserId}";
+            await JS.InvokeVoidAsync("localStorage.setItem", k, string.Join(",", omitidos));
+        }
+    }
+
+    private async Task Descartar()
+    {
+        if (noVolverMostrar)
+            await Http.PostAsync("api/onboarding/setup-dismiss", null);
+        mostrar = false;
+    }
+
+    private async Task Completar()
+    {
+        // Si marcó no volver a mostrar o completó obligatorios, persistir
+        if (noVolverMostrar || PuedeCompletar)
+            await Http.PostAsync("api/onboarding/setup-complete", null);
+        else
+            await Http.PostAsync("api/onboarding/setup-dismiss", null);
+        mostrar = false;
+    }
+}

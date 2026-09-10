@@ -27,17 +27,41 @@ namespace ERP.Api.Controllers
         }
 
         /// <summary>
-        /// Obtiene el listado completo de empresas activas
+        /// Obtiene empresas visibles (RGPD + multi-empresa).
+        /// - Genérico bootstrap → solo empresas sin usuarios (recién creadas para onboarding).
+        /// - Usuario con N empresas → todas las asignadas.
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Empresa>>> GetEmpresas()
         {
-            var empresas = await _context.Empresas
-                .Where(e => e.IsActiva)
-                .ToListAsync();
-
-            return Ok(empresas);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = userId != null ? await _userManager.FindByIdAsync(userId) : null;
+            if (user == null) return Unauthorized();
+            if (IsGenericBootstrap(user))
+            {
+                // Bootstrap ve solo empresas huérfanas (sin usuarios) para poder asignar el primer usuario
+                var todas = await _context.Empresas.Where(e => e.IsActiva).ToListAsync();
+                var conUsuario = await _context.Users.Where(u => u.EmpresaId != null).Select(u => u.EmpresaId!.Value).ToListAsync();
+                var conCruce = await _context.UserEmpresas.Select(ue => ue.EmpresaId).ToListAsync();
+                var ocupadas = conUsuario.Concat(conCruce).Distinct().ToHashSet();
+                var libres = todas.Where(e => !ocupadas.Contains(e.Id)).ToList();
+                return Ok(libres);
+            }
+            var ids = new List<int>();
+            if (user.EmpresaId.HasValue) ids.Add(user.EmpresaId.Value);
+            var extras = await _context.UserEmpresas.Where(ue => ue.UserId == user.Id).Select(ue => ue.EmpresaId).ToListAsync();
+            ids.AddRange(extras);
+            ids = ids.Distinct().ToList();
+            if (!ids.Any()) return Ok(new List<Empresa>());
+            var list = await _context.Empresas.Where(e => e.IsActiva && ids.Contains(e.Id)).ToListAsync();
+            return Ok(list);
         }
+
+        private static bool IsGenericBootstrap(ApplicationUser u)
+            => string.Equals(u.Email, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(u.Email, "admin@erp.com", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(u.UserName, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(u.UserName, "admin@erp.com", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Crea la primera empresa durante el onboarding inicial
@@ -80,8 +104,9 @@ namespace ERP.Api.Controllers
             _context.Empresas.Add(empresa);
             await _context.SaveChangesAsync();
 
-            // Vincular automáticamente al usuario bootstrap (admin@erp.local) si aún no tiene empresa
-            // o al usuario autenticado si lo hay
+            // Vinculación automática deshabilitada para el bootstrap genérico:
+            // admin@erp.local / admin@erp.com es solo para el primer onboarding y NO debe quedar
+            // asignado a ninguna empresa (debe permanecer vacío). Solo se vincula si es usuario real.
             try
             {
                 ApplicationUser? targetUser = null;
@@ -91,33 +116,33 @@ namespace ERP.Api.Controllers
                     if (!string.IsNullOrEmpty(userId))
                         targetUser = await _userManager.FindByIdAsync(userId);
                 }
-                if (targetUser == null)
-                    targetUser = await _userManager.FindByEmailAsync("admin@erp.local");
-
-                if (targetUser != null && targetUser.EmpresaId == null)
+                if (targetUser != null && !IsGenericBootstrap(targetUser) && targetUser.EmpresaId == null)
                 {
                     targetUser.EmpresaId = empresa.Id;
                     await _userManager.UpdateAsync(targetUser);
                 }
             }
-            catch { /* no bloquea la creación si falla la vinculación */ }
+            catch { }
 
             return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
         }
 
         /// <summary>
-        /// Obtiene el detalle de una empresa por ID
+        /// Obtiene detalle — solo si el usuario pertenece a esa empresa (multi-tenant).
         /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<Empresa>> GetEmpresa(int id)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = userId != null ? await _userManager.FindByIdAsync(userId) : null;
+            if (user == null) return Unauthorized();
+            if (IsGenericBootstrap(user)) return Forbid();
+            var ids = new List<int>();
+            if (user.EmpresaId.HasValue) ids.Add(user.EmpresaId.Value);
+            ids.AddRange(await _context.UserEmpresas.Where(ue => ue.UserId == user.Id).Select(ue => ue.EmpresaId).ToListAsync());
+            if (!ids.Contains(id)) return Forbid();
             var empresa = await _context.Empresas.FindAsync(id);
-
-            if (empresa == null)
-            {
-                return NotFound(new { Message = "Empresa no encontrada" });
-            }
-
+            if (empresa == null) return NotFound(new { Message = "Empresa no encontrada" });
             return empresa;
         }
 
@@ -135,14 +160,14 @@ namespace ERP.Api.Controllers
                 _context.Empresas.Add(empresa);
                 await _context.SaveChangesAsync();
 
-                // Si es la primera empresa y el usuario bootstrap aún no tiene EmpresaId, vincularla
+                // Vinculación solo para usuarios reales, nunca para el bootstrap genérico
                 try
                 {
                     var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                     if (!string.IsNullOrEmpty(userId))
                     {
                         var u = await _userManager.FindByIdAsync(userId);
-                        if (u != null && u.EmpresaId == null)
+                        if (u != null && !IsGenericBootstrap(u) && u.EmpresaId == null)
                         {
                             u.EmpresaId = empresa.Id;
                             await _userManager.UpdateAsync(u);

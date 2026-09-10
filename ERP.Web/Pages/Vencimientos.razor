@@ -112,9 +112,20 @@
                                         <i class="bi bi-eye"></i>
                                     </button>
                                     <button @onclick="() => Liquidar(v)" 
-                                            class="p-2 bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-lg hover:shadow-blue-900/20">
-                                        <i class="bi bi-cash-stack"></i> Liquidar
+                                            class="p-2 bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-lg hover:shadow-blue-900/20" title="Liquidar">
+                                        <i class="bi bi-cash-stack"></i>
                                     </button>
+                                    @if (!VerCobros)
+                                    {
+                                        <button @onclick="() => IniciarEdicion(v)" title="Modificar obligación"
+                                                class="p-2 bg-amber-600/10 text-amber-400 hover:bg-amber-600 hover:text-white rounded-xl transition-all" disabled="@(v.Estado!="Pendiente")">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button @onclick="() => Anular(v)" title="Anular obligación"
+                                                class="p-2 bg-rose-600/10 text-rose-400 hover:bg-rose-600 hover:text-white rounded-xl transition-all" disabled="@(v.Estado!="Pendiente")">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    }
                                 </div>
                             </td>
                         </tr>
@@ -123,6 +134,31 @@
             </tbody>
         </table>
     </div>
+
+    @if (mostrarEdicion && editando != null)
+    {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
+            <div class="bg-[#0f172a] border border-slate-700 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+                <div class="p-6 border-b border-slate-800 flex justify-between items-center">
+                    <h3 class="text-white font-black uppercase text-sm">Modificar Obligación — @editando.Documento?.NumeroDocumento</h3>
+                    <button @onclick="CancelarEdicion" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-400 flex items-center justify-center"><i class="bi bi-x-lg"></i></button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div><label class="text-[10px] font-black uppercase text-slate-400">Importe €</label><input type="number" step="0.01" @bind="editando.Importe" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" /></div>
+                    <div><label class="text-[10px] font-black uppercase text-slate-400">Fecha Vencimiento</label><input type="date" @bind="editando.FechaVencimiento" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" /></div>
+                    <div><label class="text-[10px] font-black uppercase text-slate-400">Método Pago</label><input @bind="editando.MetodoPago" placeholder="Transferencia, Efectivo..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" /></div>
+                    @if (!string.IsNullOrEmpty(errorEdicion))
+                    {
+                        <div class="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3 rounded-xl">@errorEdicion</div>
+                    }
+                </div>
+                <div class="p-6 border-t border-slate-800 flex gap-3 justify-end">
+                    <button @onclick="CancelarEdicion" class="px-6 py-3 rounded-xl bg-slate-800 text-slate-300 text-xs font-black uppercase">Cancelar</button>
+                    <button @onclick="GuardarEdicion" disabled="@guardandoEdicion" class="px-8 py-3 rounded-xl bg-amber-600 text-white text-xs font-black uppercase disabled:opacity-50">@(guardandoEdicion?"Guardando...":"Guardar")</button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -171,19 +207,16 @@
     {
         try
         {
-            // Unifica visualización: el backend decide si es factura o nómina y genera el PDF
             var resp = await Http.GetAsync($"api/tesoreria/vencimiento/{v.Id}/pdf");
             if (resp.IsSuccessStatusCode)
             {
                 var bytes = await resp.Content.ReadAsByteArrayAsync();
                 var fileName = v.DocumentoId.HasValue ? $"DOC_{v.Documento?.NumeroDocumento ?? v.Id.ToString()}.pdf" : $"NOMINA_{v.FechaVencimiento:yyyy_MM}.pdf";
                 await JS.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(bytes));
-                // Además, si es documento comercial, ofrece navegación al editor
                 if (v.DocumentoId.HasValue) Notification.Info($"PDF generado. También puede ver el detalle en el editor.");
             }
             else
             {
-                // Fallback a navegación si no hay PDF (ej. nómina sin empleado)
                 if (v.DocumentoId.HasValue) Navigation.NavigateTo($"/ventas/editor/{v.DocumentoId.Value}");
                 else Navigation.NavigateTo("/rrhh/nominas");
                 var msg = await resp.Content.ReadAsStringAsync();
@@ -194,5 +227,36 @@
         {
             Notification.Error($"Error al visualizar: {ex.Message}");
         }
+    }
+
+    private Vencimiento? editando;
+    private bool mostrarEdicion = false;
+    private bool guardandoEdicion = false;
+    private string? errorEdicion;
+
+    private void IniciarEdicion(Vencimiento v)
+    {
+        if (v.Estado != "Pendiente") { Notification.Error("Solo se pueden modificar vencimientos pendientes"); return; }
+        editando = new Vencimiento { Id = v.Id, DocumentoId = v.DocumentoId, FechaVencimiento = v.FechaVencimiento, Importe = v.Importe, Estado = v.Estado, MetodoPago = v.MetodoPago, EmpresaId = v.EmpresaId };
+        errorEdicion = null;
+        mostrarEdicion = true;
+    }
+    private void CancelarEdicion(){ mostrarEdicion=false; editando=null; errorEdicion=null; }
+    private async Task GuardarEdicion()
+    {
+        if (editando == null) return;
+        guardandoEdicion = true; errorEdicion = null;
+        var (ok, err) = await TesoreriaService.ModificarVencimiento(editando);
+        if (ok) { mostrarEdicion=false; editando=null; await CargarDatos(); Notification.Success("Vencimiento modificado"); }
+        else errorEdicion = err ?? "Error al guardar";
+        guardandoEdicion = false;
+    }
+    private async Task Anular(Vencimiento v)
+    {
+        if (v.Estado != "Pendiente") { Notification.Error("Solo se pueden anular pendientes"); return; }
+        if (!await JS.InvokeAsync<bool>("confirm", $"¿Anular obligación {v.Importe:C2} vencimiento {v.FechaVencimiento:dd/MM/yyyy}?")) return;
+        var (ok, err) = await TesoreriaService.AnularVencimiento(v.Id);
+        if (ok) { Notification.Success("Anulado correctamente"); await CargarDatos(); }
+        else Notification.Error(err ?? "Error al anular");
     }
 }

@@ -2,6 +2,7 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject ERP.Web.Services.AuthService AuthService
 
 @if (mostrar)
 {
@@ -71,7 +72,7 @@
 
     private async Task CerrarSesion()
     {
-        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        await AuthService.Logout();
         Nav.NavigateTo("/login", forceLoad:true);
     }
 }

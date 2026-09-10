@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities;
+using System.Security.Claims;
 
 namespace ERP.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class EmpleadosController : ControllerBase
@@ -16,14 +19,21 @@ namespace ERP.Api.Controllers
             _context = context;
         }
 
-        // GET: api/Empleados
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+        private bool IsGeneric => string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.com", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.com", StringComparison.OrdinalIgnoreCase);
+
+        // GET: api/Empleados — RGPD solo propios (genérico vacío)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Empleado>>> GetEmpleados()
         {
-            // Cargamos los empleados incluyendo los datos de empresa si es necesario
-            // El filtro de FechaBaja == null suele gestionarse globalmente o aquí
+            if (IsGeneric) return Ok(new List<Empleado>());
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new List<Empleado>());
             return await _context.Empleados
-                .Where(e => e.FechaBaja == null)
+                .Where(e => e.EmpresaId == empresaId && e.FechaBaja == null)
                 .OrderBy(e => e.Apellidos)
                 .ToListAsync();
         }
@@ -32,7 +42,9 @@ namespace ERP.Api.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Empleado>> GetEmpleado(int id)
         {
-            var empleado = await _context.Empleados.FindAsync(id);
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
+            var empleado = await _context.Empleados.FirstOrDefaultAsync(e => e.Id == id && e.EmpresaId == empresaId);
             if (empleado == null) return NotFound();
             return empleado;
         }
@@ -41,19 +53,17 @@ namespace ERP.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<Empleado>> PostEmpleado(Empleado empleado)
         {
-            try 
+            if (IsGeneric) return Unauthorized("Genérico sin empresa no opera empleados.");
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Unauthorized("Sesión sin empresa.");
+            try
             {
-                // Limpieza de navegación: Evitamos que EF intente crear una empresa nueva
-                empleado.Empresa = null!; 
-                
+                empleado.Empresa = null!;
+                empleado.EmpresaId = empresaId;
                 if (empleado.FechaAlta == default) empleado.FechaAlta = DateTime.Now;
-                
-                // Aseguramos que el estado inicial sea activo
                 empleado.FechaBaja = null;
-
                 _context.Empleados.Add(empleado);
                 await _context.SaveChangesAsync();
-
                 return CreatedAtAction(nameof(GetEmpleado), new { id = empleado.Id }, empleado);
             }
             catch (Exception)
@@ -67,12 +77,13 @@ namespace ERP.Api.Controllers
         public async Task<IActionResult> PutEmpleado(int id, Empleado empleado)
         {
             if (id != empleado.Id) return BadRequest("El ID no coincide.");
-
-            // Desvinculamos la entidad Empresa para que no de error al actualizar
+            if (IsGeneric) return Unauthorized();
+            var empresaId = GetEmpresaId();
+            var existente = await _context.Empleados.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id && e.EmpresaId == empresaId);
+            if (existente == null) return NotFound();
             empleado.Empresa = null!;
+            empleado.EmpresaId = empresaId;
             _context.Entry(empleado).State = EntityState.Modified;
-
-            // Evitamos que se modifiquen campos sensibles por accidente en el PUT simple
             _context.Entry(empleado).Property(x => x.FechaAlta).IsModified = false;
 
             try
@@ -92,19 +103,19 @@ namespace ERP.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEmpleado(int id)
         {
-            var empleado = await _context.Empleados.FindAsync(id);
+            if (IsGeneric) return Unauthorized();
+            var empresaId = GetEmpresaId();
+            var empleado = await _context.Empleados.FirstOrDefaultAsync(e => e.Id == id && e.EmpresaId == empresaId);
             if (empleado == null) return NotFound();
-
-            // Marcamos la baja y guardamos
             empleado.FechaBaja = DateTime.Now;
-            
             await _context.SaveChangesAsync();
             return NoContent();
         }
 
         private bool EmpleadoExists(int id)
         {
-            return _context.Empleados.Any(e => e.Id == id);
+            var empresaId = GetEmpresaId();
+            return _context.Empleados.Any(e => e.Id == id && e.EmpresaId == empresaId);
         }
     }
 }

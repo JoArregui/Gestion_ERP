@@ -1,13 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Security.Claims;
 
 namespace ERP.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class AcreedoresController : ControllerBase
@@ -19,12 +22,21 @@ namespace ERP.Api.Controllers
             _context = context;
         }
 
-        // GET: api/Acreedores
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+        private bool IsGeneric => string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase);
+
+        // GET: api/Acreedores — RGPD solo propios
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Acreedor>>> Get()
         {
+            if (IsGeneric) return Ok(new List<Acreedor>());
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new List<Acreedor>());
             return await _context.Acreedores
-                .Where(a => a.IsActivo)
+                .Where(a => a.IsActivo && a.EmpresaId == empresaId)
                 .OrderBy(a => a.RazonSocial)
                 .ToListAsync();
         }
@@ -33,7 +45,9 @@ namespace ERP.Api.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Acreedor>> Get(int id)
         {
-            var acreedor = await _context.Acreedores.FindAsync(id);
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
+            var acreedor = await _context.Acreedores.FirstOrDefaultAsync(a => a.Id == id && a.EmpresaId == empresaId);
             if (acreedor == null) return NotFound();
             return acreedor;
         }
@@ -43,10 +57,11 @@ namespace ERP.Api.Controllers
         public async Task<ActionResult<Acreedor>> Post(Acreedor acreedor)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0 || IsGeneric) return Unauthorized("Sesión sin empresa.");
+            acreedor.EmpresaId = empresaId;
             _context.Acreedores.Add(acreedor);
             await _context.SaveChangesAsync();
-
             return CreatedAtAction(nameof(Get), new { id = acreedor.Id }, acreedor);
         }
 
@@ -55,7 +70,11 @@ namespace ERP.Api.Controllers
         public async Task<IActionResult> Put(int id, Acreedor acreedor)
         {
             if (id != acreedor.Id) return BadRequest("El ID no coincide");
-
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0 || IsGeneric) return Unauthorized();
+            var existente = await _context.Acreedores.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id && a.EmpresaId == empresaId);
+            if (existente == null) return NotFound();
+            acreedor.EmpresaId = empresaId;
             _context.Entry(acreedor).State = EntityState.Modified;
 
             try
@@ -75,8 +94,11 @@ namespace ERP.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var acreedor = await _context.Acreedores.FindAsync(id);
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0 || IsGeneric) return Unauthorized();
+            var acreedor = await _context.Acreedores.FirstOrDefaultAsync(a => a.Id == id && a.EmpresaId == empresaId);
             if (acreedor == null) return NotFound();
+            if (acreedor.EmpresaId != empresaId) return Forbid();
 
             // En un ERP profesional, no solemos borrar físicamente para mantener trazabilidad contable
             acreedor.IsActivo = false;

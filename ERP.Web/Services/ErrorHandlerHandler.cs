@@ -66,28 +66,27 @@ namespace ERP.Web.Services
             }
             catch { alreadyOnLogin = false; }
 
-            // Si ya estamos en login, no hacer nada para evitar bucle infinito / spinner
             if (alreadyOnLogin) return;
 
             try
             {
-                try { await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken"); } catch { }
+                // Purga RGPD completa — mismo que AuthService.Logout para evitar fuga entre empresas
+                try { await _jsRuntime.InvokeVoidAsync("eval", "localStorage.removeItem('authToken'); Object.keys(localStorage).forEach(k=>{if(k.startsWith('erp_'))localStorage.removeItem(k)}); try{sessionStorage.clear();}catch(e){}"); } catch { }
                 var authProvider = _serviceProvider.GetService<AuthenticationStateProvider>();
-                if (authProvider is CustomAuthenticationProvider provider)
+                if (authProvider is CustomAuthenticationProvider provider) provider.NotifyUserLogout();
+                try { var es = _serviceProvider.GetService<EmpresaService>(); if (es != null) await es.ClearAsync(); } catch { }
+                try { _serviceProvider.GetService<NotificationService>()?.ClearHistory(); } catch { }
+                try
                 {
-                    provider.NotifyUserLogout();
-                }
+                    var http = _serviceProvider.GetService<HttpClient>();
+                    if (http != null) http.DefaultRequestHeaders.Authorization = null;
+                } catch { }
                 _notify.Error("Sesión expirada. Por favor, vuelva a iniciar sesión.");
             }
             catch { }
             finally
             {
-                try
-                {
-                    // forceLoad:false evita recarga completa que dispara blazor-error-ui
-                    _navManager.NavigateTo("/login", forceLoad: false);
-                }
-                catch { }
+                try { _navManager.NavigateTo("/login", forceLoad: true); } catch { }
             }
         }
 }

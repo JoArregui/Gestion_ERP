@@ -70,10 +70,10 @@
                         <span class="text-blue-500 font-bold text-[9px] uppercase tracking-widest mt-1">Conectado</span>
                     </div>
                     
-                    @* BOTÃ“N CERRAR SESIÃ“N *@
+                    @* BOTÓN CERRAR SESIÓN *@
                     <button @onclick="HandleLogout" 
                             class="w-10 h-10 bg-slate-800/50 hover:bg-red-500/10 border border-slate-700/50 hover:border-red-500/50 text-slate-400 hover:text-red-500 rounded-xl transition-all flex items-center justify-center group shadow-lg"
-                            title="Cerrar SesiÃ³n">
+                            title="Cerrar Sesión">
                         <i class="bi bi-power text-xl group-hover:scale-110 transition-transform"></i>
                     </button>
                 </div>
@@ -129,11 +129,8 @@
 
     private async Task HandleLogout()
     {
-        // 1. Llama al servicio para borrar token y notificar estado
         await AuthService.Logout();
-        
-        // 2. Redirige al login
-        NavigationManager.NavigateTo("login");
+        NavigationManager.NavigateTo("login", forceLoad: true);
     }
 
     public void Dispose()

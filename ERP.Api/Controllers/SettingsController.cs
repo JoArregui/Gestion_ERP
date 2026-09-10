@@ -1,19 +1,27 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities;
-using ERP.Services; // Para IEmailService
+using ERP.Services;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using ERP.Api.Services;
 
 namespace ERP.Api.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class SettingsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
         private readonly IEmailService _emailService;
+
+        private bool IsGeneric => string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase);
 
         public SettingsController(ApplicationDbContext context, IEmailService emailService)
         {
@@ -22,44 +30,40 @@ namespace ERP.Api.Controllers
         }
 
         /// <summary>
-        /// Obtiene la configuración de email actual. 
-        /// Si no existe, devuelve un objeto con valores por defecto.
+        /// Obtiene configuración email — genérico vacío (no revela credenciales SMTP).
         /// </summary>
         [HttpGet("email")]
         public async Task<ActionResult<EmailConfigDto>> GetEmailSettings()
         {
-            // Buscamos en una tabla de configuración genérica o devolvemos defaults
-            // Aquí asumo que podrías tener una tabla de Config o lo manejas por constantes
+            if (IsGeneric) return Ok(new EmailConfigDto());
             var config = await _context.Set<ConfiguracionGeneral>()
                 .FirstOrDefaultAsync(c => c.Clave == "SMTP_CONFIG");
-
-            if (config == null)
-            {
-                return Ok(new EmailConfigDto());
-            }
-
-            // Aquí deberías deserializar el JSON de la base de datos (System.Text.Json)
+            if (config == null) return Ok(new EmailConfigDto());
             var dto = System.Text.Json.JsonSerializer.Deserialize<EmailConfigDto>(config.Valor);
+            // No exponer password a menos que sea Admin de su empresa
+            if (dto != null) dto.Password = string.IsNullOrEmpty(dto.Password) ? "" : "********";
             return Ok(dto);
         }
 
         /// <summary>
-        /// Guarda o actualiza la configuración SMTP en la base de datos
+        /// Guarda SMTP — solo usuarios con empresa, genérico prohibido (RGPD).
         /// </summary>
         [HttpPost("email")]
         public async Task<IActionResult> SaveEmailSettings(EmailConfigDto dto)
         {
+            if (IsGeneric) return Forbid();
+            var empresaId = int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+            if (empresaId == 0) return Unauthorized();
             var jsonValor = System.Text.Json.JsonSerializer.Serialize(dto);
             var config = await _context.Set<ConfiguracionGeneral>()
                 .FirstOrDefaultAsync(c => c.Clave == "SMTP_CONFIG");
-
             if (config == null)
             {
-                _context.Set<ConfiguracionGeneral>().Add(new ConfiguracionGeneral 
-                { 
-                    Clave = "SMTP_CONFIG", 
+                _context.Set<ConfiguracionGeneral>().Add(new ConfiguracionGeneral
+                {
+                    Clave = "SMTP_CONFIG",
                     Valor = jsonValor,
-                    UltimaModificacion = System.DateTime.Now 
+                    UltimaModificacion = System.DateTime.Now
                 });
             }
             else
@@ -67,7 +71,6 @@ namespace ERP.Api.Controllers
                 config.Valor = jsonValor;
                 config.UltimaModificacion = System.DateTime.Now;
             }
-
             await _context.SaveChangesAsync();
             return Ok();
         }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using ERP.Services;
 using ERP.Data;
 using ERP.Domain.Entities;
@@ -7,15 +8,23 @@ using System.Threading.Tasks;
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Security.Claims;
 
 namespace ERP.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class FichajeController : ControllerBase
     {
         private readonly RRHHService _rrhhService;
         private readonly ApplicationDbContext _context;
+
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+        private bool IsGeneric => string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.com", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.com", StringComparison.OrdinalIgnoreCase);
 
         public FichajeController(RRHHService rrhhService, ApplicationDbContext context)
         {
@@ -26,8 +35,15 @@ namespace ERP.Api.Controllers
         [HttpGet("historial")]
         public async Task<ActionResult<IEnumerable<object>>> GetHistorial([FromQuery] int? empleadoId)
         {
-            var q = _context.ControlesHorarios.Include(c => c.Empleado).AsQueryable();
-            if (empleadoId.HasValue) q = q.Where(c => c.EmpleadoId == empleadoId.Value);
+            if (IsGeneric) return Ok(new List<object>());
+            var empresaId = GetEmpresaId();
+            var q = _context.ControlesHorarios.Include(c => c.Empleado).Where(c => c.Empleado != null && c.Empleado.EmpresaId == empresaId).AsQueryable();
+            if (empleadoId.HasValue)
+            {
+                var empOk = await _context.Empleados.AnyAsync(e => e.Id == empleadoId.Value && e.EmpresaId == empresaId);
+                if (!empOk) return Forbid();
+                q = q.Where(c => c.EmpleadoId == empleadoId.Value);
+            }
             var lista = await q.OrderByDescending(c => c.Entrada).Take(50)
                 .Select(c => new {
                     c.Id,
@@ -43,6 +59,10 @@ namespace ERP.Api.Controllers
         [HttpGet("estado/{empleadoId}")]
         public async Task<ActionResult<object>> GetEstado(int empleadoId)
         {
+            if (IsGeneric) return Ok(new { fichado = false });
+            var empresaId = GetEmpresaId();
+            var empOk = await _context.Empleados.AnyAsync(e => e.Id == empleadoId && e.EmpresaId == empresaId);
+            if (!empOk) return Forbid();
             var activo = await _context.ControlesHorarios.AnyAsync(c => c.EmpleadoId == empleadoId && c.Salida == null);
             return Ok(new { fichado = activo });
         }

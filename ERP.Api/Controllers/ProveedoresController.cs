@@ -1,13 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Security.Claims;
 
 namespace ERP.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class ProveedoresController : ControllerBase
@@ -19,11 +22,21 @@ namespace ERP.Api.Controllers
             _context = context;
         }
 
-        // GET: api/Proveedores
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+        private bool IsGeneric => string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase);
+
+        // GET: api/Proveedores — RGPD solo propios (genérico vacío)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Proveedor>>> Get()
         {
+            if (IsGeneric) return Ok(new List<Proveedor>());
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new List<Proveedor>());
             return await _context.Proveedores
+                .Where(p => p.EmpresaId == empresaId)
                 .OrderBy(p => p.RazonSocial)
                 .ToListAsync();
         }
@@ -32,7 +45,9 @@ namespace ERP.Api.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Proveedor>> Get(int id)
         {
-            var proveedor = await _context.Proveedores.FindAsync(id);
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
+            var proveedor = await _context.Proveedores.FirstOrDefaultAsync(p => p.Id == id && p.EmpresaId == empresaId);
             if (proveedor == null) return NotFound();
             return proveedor;
         }
@@ -42,10 +57,11 @@ namespace ERP.Api.Controllers
         public async Task<ActionResult<Proveedor>> Post(Proveedor proveedor)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0 || IsGeneric) return Unauthorized("Sesión sin empresa.");
+            proveedor.EmpresaId = empresaId;
             _context.Proveedores.Add(proveedor);
             await _context.SaveChangesAsync();
-
             return CreatedAtAction(nameof(Get), new { id = proveedor.Id }, proveedor);
         }
 
@@ -54,7 +70,11 @@ namespace ERP.Api.Controllers
         public async Task<IActionResult> Put(int id, Proveedor proveedor)
         {
             if (id != proveedor.Id) return BadRequest("El ID no coincide");
-
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0 || IsGeneric) return Unauthorized();
+            var existente = await _context.Proveedores.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id && p.EmpresaId == empresaId);
+            if (existente == null) return NotFound();
+            proveedor.EmpresaId = empresaId;
             _context.Entry(proveedor).State = EntityState.Modified;
 
             try
@@ -74,8 +94,11 @@ namespace ERP.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var proveedor = await _context.Proveedores.FindAsync(id);
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0 || IsGeneric) return Unauthorized();
+            var proveedor = await _context.Proveedores.FirstOrDefaultAsync(p => p.Id == id && p.EmpresaId == empresaId);
             if (proveedor == null) return NotFound();
+            if (proveedor.EmpresaId != empresaId) return Forbid();
 
             // En un ERP profesional, no solemos borrar físicamente para mantener trazabilidad contable
             proveedor.IsActivo = false; 

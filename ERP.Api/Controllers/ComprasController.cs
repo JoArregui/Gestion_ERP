@@ -48,11 +48,16 @@ namespace ERP.API.Controllers
         [HttpGet("pendientes")]
         public async Task<ActionResult<IEnumerable<DocumentoComercial>>> GetPedidosPendientes()
         {
+            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? User.FindFirst("email")?.Value;
+            if (string.Equals(email, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase) || string.Equals(email, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase))
+                return Ok(new List<DocumentoComercial>());
+            if (!int.TryParse(User.FindFirst("EmpresaId")?.Value, out var empresaId) || empresaId == 0)
+                return Ok(new List<DocumentoComercial>());
             return await _context.Documentos
                 .Include(d => d.Proveedor)
                 .Include(d => d.Lineas)
                     .ThenInclude(l => l.Articulo)
-                .Where(d => d.EsCompra && d.Tipo == TipoDocumento.Pedido && !d.IsContabilizado)
+                .Where(d => d.EmpresaId == empresaId && d.EsCompra && d.Tipo == TipoDocumento.Pedido && !d.IsContabilizado)
                 .OrderByDescending(d => d.Fecha)
                 .ToListAsync();
         }

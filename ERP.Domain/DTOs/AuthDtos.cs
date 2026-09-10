@@ -54,7 +54,10 @@ namespace ERP.Domain.Dtos
         public string FullName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public bool IsActive { get; set; }
-        public DateTime? LastLogin { get; set; } // Permitimos null si nunca se ha logueado
+        public DateTime? LastLogin { get; set; }
+        public int? EmpresaId { get; set; }
+        public List<int> EmpresaIds { get; set; } = new();
+        public List<string> EmpresaNombres { get; set; } = new();
     }
 
     public class CreateUserDto
@@ -66,16 +69,15 @@ namespace ERP.Domain.Dtos
         [EmailAddress(ErrorMessage = "Formato de email inválido.")]
         public string Email { get; set; } = string.Empty;
 
-        // Password es obligatorio al crear (8+), opcional al editar (vacío = no cambia).
-        // Sin DataAnnotation para permitir vacío en edición; se valida manualmente en el controlador.
         public string? Password { get; set; }
 
         [Required(ErrorMessage = "El rol es obligatorio para definir permisos.")]
         public string Role { get; set; } = string.Empty;
         
-        [Required(ErrorMessage = "Debe especificar el ID de la empresa.")]
-        [Range(1, int.MaxValue, ErrorMessage = "El ID de empresa debe ser un valor válido.")]
+        [Required(ErrorMessage = "Debe especificar al menos una empresa.")]
         public int EmpresaId { get; set; }
+        // Multi-empresa: si se envía, se asignan todas; si solo viene EmpresaId, se usa esa
+        public List<int>? EmpresaIds { get; set; }
     }
 
     // ============================================

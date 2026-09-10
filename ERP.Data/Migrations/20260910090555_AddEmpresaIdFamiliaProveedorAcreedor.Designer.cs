@@ -3,6 +3,7 @@ using System;
 using ERP.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERP.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260910090555_AddEmpresaIdFamiliaProveedorAcreedor")]
+    partial class AddEmpresaIdFamiliaProveedorAcreedor
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.20");
@@ -4269,21 +4272,6 @@ namespace ERP.Data.Migrations
                     b.ToTable("RetiradasLote");
                 });
 
-            modelBuilder.Entity("ERP.Domain.Entities.UserEmpresa", b =>
-                {
-                    b.Property<string>("UserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("EmpresaId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("UserId", "EmpresaId");
-
-                    b.HasIndex("EmpresaId");
-
-                    b.ToTable("UserEmpresas");
-                });
-
             modelBuilder.Entity("ERP.Domain.Entities.Vencimiento", b =>
                 {
                     b.Property<int>("Id")
@@ -5232,25 +5220,6 @@ namespace ERP.Data.Migrations
                     b.Navigation("Lote");
                 });
 
-            modelBuilder.Entity("ERP.Domain.Entities.UserEmpresa", b =>
-                {
-                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
-                        .WithMany()
-                        .HasForeignKey("EmpresaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ERP.Domain.Entities.ApplicationUser", "User")
-                        .WithMany("UserEmpresas")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Empresa");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("ERP.Domain.Entities.Vencimiento", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.DocumentoComercial", "Documento")
@@ -5317,11 +5286,6 @@ namespace ERP.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("ERP.Domain.Entities.ApplicationUser", b =>
-                {
-                    b.Navigation("UserEmpresas");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Bancario.CuentaBancaria", b =>
