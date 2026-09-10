@@ -1,0 +1,200 @@
+@page "/rrhh/nominas"
+@using ERP.Domain.Entities
+@using ERP.Web.Services
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<div class="space-y-6">
+    @* CABECERA *@
+    <div class="flex justify-between items-end">
+        <div>
+            <h1 class="text-3xl font-black text-white tracking-tight uppercase">Gestión de Nóminas</h1>
+            <p class="text-slate-500 font-medium">Procesamiento mensual de salarios, complementos y obligaciones.</p>
+        </div>
+        <div class="flex gap-3">
+            <select @onchange="OnPeriodoChanged" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white text-xs font-bold outline-none">
+                @for (int i = 1; i <= 12; i++) { 
+                    <option value="@i" selected="@(i == MesSeleccionado)">@(new DateTime(2000, i, 1).ToString("MMMM").ToUpper())</option> 
+                }
+            </select>
+            <select @onchange="OnAnioChanged" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white text-xs font-bold outline-none">
+                <option value="2025" selected="@(AnioSeleccionado == 2025)">2025</option>
+                <option value="2026" selected="@(AnioSeleccionado == 2026)">2026</option>
+            </select>
+        </div>
+    </div>
+
+    @* KPI RÁPIDOS *@
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[32px]">
+            <p class="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-1">Total Neto Mes</p>
+            <p class="text-3xl font-black text-white">@TotalNetoMes.ToString("N2")€</p>
+        </div>
+        <div class="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-[32px]">
+            <p class="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-1">Nóminas Pagadas</p>
+            <p class="text-3xl font-black text-white">@NominasPagadas / @ListaNominas.Count</p>
+        </div>
+        <div class="bg-rose-500/10 border border-rose-500/20 p-6 rounded-[32px]">
+            <p class="text-[10px] font-black text-rose-400 uppercase tracking-[0.2em] mb-1">Pendiente Tesorería</p>
+            <p class="text-3xl font-black text-white">@TotalPendiente.ToString("N2")€</p>
+        </div>
+    </div>
+
+    @* TABLA DE NÓMINAS *@
+    <div class="bg-[#0f172a] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+        <div class="p-6 border-b border-slate-800 bg-slate-900/30 flex justify-between items-center">
+            <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Registros de @(new DateTime(AnioSeleccionado, MesSeleccionado, 1).ToString("MMMM yyyy"))</h3>
+            <button @onclick="GenerarNominasMasivas" disabled="@generando" class="text-[10px] font-black bg-white text-black px-4 py-2 rounded-xl uppercase hover:bg-blue-500 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                @(generando ? "Generando..." : "Generar Remesa Mensual")
+            </button>
+        </div>
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-slate-900/50 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">
+                    <th class="p-5">Empleado</th>
+                    <th class="p-5">Salario Base</th>
+                    <th class="p-5">H. Extras / Compl.</th>
+                    <th class="p-5">Deducciones (15%)</th>
+                    <th class="p-5">Total Neto</th>
+                    <th class="p-5 text-right">Acciones / Estado</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/50">
+                @if (ListaNominas == null || !ListaNominas.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="p-10 text-center text-slate-600 text-xs font-bold uppercase tracking-widest">No hay nóminas generadas para este periodo</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var nom in ListaNominas)
+                    {
+                        <tr class="hover:bg-white/[0.02] transition-colors group font-mono text-xs">
+                            <td class="p-5 font-sans">
+                                <span class="text-white font-bold">@nom.Empleado?.Nombre @nom.Empleado?.Apellidos</span>
+                            </td>
+                            <td class="p-5 text-slate-300">@nom.SalarioBase.ToString("N2")€</td>
+                            <td class="p-5 text-emerald-400">+@nom.Complementos.ToString("N2")€</td>
+                            <td class="p-5 text-rose-400">-@nom.Deducciones.ToString("N2")€</td>
+                            <td class="p-5">
+                                <span class="text-white font-black bg-slate-800 px-3 py-1 rounded-lg">@nom.TotalNeto.ToString("N2")€</span>
+                            </td>
+                            <td class="p-5 text-right">
+                                @if (nom.EstaPagada)
+                                {
+                                    <div class="flex items-center justify-end gap-2 text-emerald-500">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                        <span class="font-black uppercase text-[10px]">Pagada</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <button @onclick="() => ConfirmarPago(nom)" class="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-xl transition-all uppercase text-[10px] font-black border border-blue-600/20">
+                                        Confirmar Pago
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private int MesSeleccionado = DateTime.Now.Month;
+    private int AnioSeleccionado = DateTime.Now.Year;
+    private List<Nomina> ListaNominas = new();
+
+    private decimal TotalNetoMes => ListaNominas?.Sum(n => n.TotalNeto) ?? 0;
+    private int NominasPagadas => ListaNominas?.Count(n => n.EstaPagada) ?? 0;
+    private decimal TotalPendiente => ListaNominas?.Where(n => !n.EstaPagada).Sum(n => n.TotalNeto) ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarNominas();
+    }
+
+    private async Task CargarNominas()
+    {
+        try 
+        {
+            var response = await Http.GetFromJsonAsync<List<Nomina>>($"api/nominas?mes={MesSeleccionado}&anio={AnioSeleccionado}");
+            if (response != null) ListaNominas = response;
+        }
+        catch { 
+            ListaNominas = new();
+        }
+    }
+
+    private async Task OnPeriodoChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int mes))
+        {
+            MesSeleccionado = mes;
+            await CargarNominas();
+        }
+    }
+
+    private async Task OnAnioChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int anio))
+        {
+            AnioSeleccionado = anio;
+            await CargarNominas();
+        }
+    }
+
+    private bool generando = false;
+
+    private async Task GenerarNominasMasivas()
+    {
+        if (generando) return;
+        generando = true;
+        try
+        {
+            // 1. Obtener empleados activos (misma fuente que /rrhh/empleados)
+            var empleados = await Http.GetFromJsonAsync<List<Empleado>>("api/empleados");
+            if (empleados == null || !empleados.Any())
+            {
+                await JS.InvokeVoidAsync("alert", "No hay empleados activos para generar nóminas.");
+                return;
+            }
+            int creadas = 0, omitidas = 0, errores = 0;
+            foreach (var emp in empleados)
+            {
+                try
+                {
+                    var resp = await Http.PostAsync($"api/nominas/generar/{emp.Id}?mes={MesSeleccionado}&anio={AnioSeleccionado}", null);
+                    if (resp.IsSuccessStatusCode) creadas++;
+                    else
+                    {
+                        var msg = await resp.Content.ReadAsStringAsync();
+                        if (msg.Contains("Ya existe")) omitidas++;
+                        else errores++;
+                    }
+                }
+                catch { errores++; }
+            }
+            await JS.InvokeVoidAsync("alert", $"Remesa: {creadas} creadas, {omitidas} ya existían, {errores} errores.");
+            await CargarNominas();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error al generar remesa: {ex.Message}");
+        }
+        finally { generando = false; }
+    }
+
+    private async Task ConfirmarPago(Nomina nomina)
+    {
+        var response = await Http.PostAsync($"api/nominas/pagar/{nomina.Id}", null);
+        if (response.IsSuccessStatusCode)
+        {
+            nomina.EstaPagada = true;
+            StateHasChanged();
+        }
+    }
+}

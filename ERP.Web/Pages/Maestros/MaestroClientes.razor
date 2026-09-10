@@ -1,0 +1,399 @@
+@page "/maestros/clientes"
+@using ERP.Domain.Entities
+@using ERP.Web.Services
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NotificationService Notify
+@inject NavigationManager Nav
+@implements IDisposable
+
+<div class="max-w-[1400px] mx-auto p-6 animate-in fade-in duration-700">
+    
+    @* --- SISTEMA DE NOTIFICACIONES LOCAL (TOASTS) --- *@
+    <div class="fixed top-5 right-5 z-[100] flex flex-col gap-3">
+        @foreach (var note in activeNotifications)
+        {
+            <div class="p-4 rounded-lg shadow-2xl border-l-4 @GetNoteStyle(note.Type) animate-in slide-in-from-right duration-300 min-w-[320px] flex justify-between items-center bg-white">
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-black uppercase opacity-50">Notificación del Sistema</span>
+                    <span class="text-xs font-bold uppercase">@note.Message</span>
+                </div>
+                <button @onclick="() => activeNotifications.Remove(note)" class="opacity-50 hover:opacity-100 ml-4">✕</button>
+            </div>
+        }
+    </div>
+
+    @* --- CABECERA DE MÓDULO --- *@
+    <div class="flex justify-between items-end mb-8 border-b border-slate-200 pb-6">
+        <div>
+            <nav class="text-[10px] font-black text-blue-600 uppercase mb-2 tracking-widest">Administración > Comercial</nav>
+            <h1 class="text-4xl font-black text-slate-900 uppercase tracking-tighter italic">Maestro de Clientes</h1>
+        </div>
+        <div class="flex gap-3">
+            <button @onclick="CargarClientes" class="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition shadow-sm text-slate-500">
+                <span class="text-xl">🔄</span>
+            </button>
+            <button @onclick="NuevoCliente" class="bg-slate-900 hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-black text-xs transition-all shadow-xl flex items-center gap-3 uppercase tracking-widest active:scale-95">
+                <span class="text-lg">＋</span> Crear Ficha Cliente
+            </button>
+        </div>
+    </div>
+
+    @* --- BARRA DE FILTROS --- *@
+    <div class="bg-slate-50 p-2 rounded-2xl mb-8 flex items-center gap-2 border border-slate-200/60 shadow-inner">
+        <div class="relative flex-1">
+            <input type="text" @bind="searchTerm" @bind:event="oninput" @onkeyup="Filtrar"
+                   placeholder="Búsqueda por CIF, Razón Social o Código..." 
+                   class="w-full pl-6 pr-4 py-3 bg-white border-none rounded-xl text-sm shadow-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition" />
+        </div>
+        
+        <select value="@filtroEstado" @onchange="OnFiltroEstadoChanged" 
+                class="bg-white border-none rounded-xl py-3 px-6 text-[10px] font-black text-slate-500 shadow-sm outline-none cursor-pointer hover:bg-slate-100 transition">
+            <option value="TODOS">TODOS LOS REGISTROS</option>
+            <option value="ACTIVOS">SOLO ACTIVOS</option>
+            <option value="BLOQUEADOS">BLOQUEADOS / RIESGO</option>
+        </select>
+    </div>
+
+    @* --- GRID DE DATOS --- *@
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        @if (clientesFiltrados == null)
+        {
+            <div class="p-20 text-center">
+                <div class="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando con Servidor SQL...</p>
+            </div>
+        }
+        else
+        {
+            <table class="w-full text-left">
+                <thead class="bg-slate-50/50 border-b border-slate-100">
+                    <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <th class="p-5">Cliente / Razón Social</th>
+                        <th class="p-5">Contacto / Localización</th>
+                        <th class="p-5 text-center">Condiciones</th>
+                        <th class="p-5 text-center">Estado</th>
+                        <th class="p-5 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                    @foreach (var cliente in clientesFiltrados)
+                    {
+                        <tr class="hover:bg-slate-50/80 transition-colors group">
+                            <td class="p-5">
+                                <div class="flex items-center gap-4">
+                                    <div class="h-10 w-10 bg-slate-100 rounded-lg flex items-center justify-center font-black text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all uppercase">
+                                        @(string.IsNullOrEmpty(cliente.RazonSocial) ? "?" : cliente.RazonSocial.Substring(0, 1))
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-black text-slate-800 uppercase tracking-tight">@cliente.RazonSocial</div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">@cliente.CodigoCliente</span>
+                                            <span class="text-[9px] font-mono text-slate-400">@cliente.CIF</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-5">
+                                <div class="text-xs font-bold text-slate-600">@cliente.Poblacion, @cliente.Provincia</div>
+                                <div class="text-[10px] text-slate-400">@cliente.Email</div>
+                            </td>
+                            <td class="p-5 text-center">
+                                <div class="inline-flex flex-col">
+                                    <span class="text-[10px] font-black text-slate-700">@cliente.FormaPago</span>
+                                    <span class="text-[9px] font-bold text-slate-400 uppercase">Día Pago: @cliente.DiaPagoHabitual</span>
+                                </div>
+                            </td>
+                            <td class="p-5 text-center">
+                                @if (cliente.IsBloqueado)
+                                {
+                                    <span class="bg-red-50 text-red-600 border border-red-100 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter" title="@cliente.MotivoBloqueo">⚠️ Bloqueado</span>
+                                }
+                                else if (!cliente.IsActivo)
+                                {
+                                    <span class="bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter">Baja</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-emerald-50 text-emerald-600 border border-emerald-100 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter">✓ Activo</span>
+                                }
+                            </td>
+                            <td class="p-5 text-right">
+                                <div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button @onclick="() => Editar(cliente.Id)" class="p-2 hover:bg-slate-900 hover:text-white rounded-lg transition-all">✏️</button>
+                                    <button @onclick="() => Eliminar(cliente.Id)" class="p-2 hover:bg-red-600 hover:text-white rounded-lg transition-all">🗑️</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    @* --- DRAWER LATERAL (FORMULARIO FIEL A ENTIDAD) --- *@
+    @if (mostrarFormulario)
+    {
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-end">
+            <div class="w-full max-w-3xl bg-white h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
+                <div class="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 uppercase tracking-tighter">Ficha de Cliente</h2>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Datos Fiscales y Comerciales</p>
+                    </div>
+                    <button @onclick="CerrarFormulario" class="h-10 w-10 flex items-center justify-center rounded-full hover:bg-white transition-all text-slate-400 border border-slate-200 shadow-sm">✕</button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-10">
+                    <EditForm Model="clienteActual" OnValidSubmit="GuardarCliente">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="space-y-8">
+                            @* SECCIÓN: IDENTIFICACIÓN *@
+                            <div class="grid grid-cols-2 gap-6">
+                                <div class="col-span-2">
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Razón Social (Fiscal)</label>
+                                    <InputText @bind-Value="clienteActual.RazonSocial" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold uppercase" />
+                                    <ValidationMessage For="@(() => clienteActual.RazonSocial)" class="text-red-500 text-[10px] mt-1 font-bold" />
+                                </div>
+
+                                <div class="col-span-2">
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Nombre Comercial</label>
+                                    <InputText @bind-Value="clienteActual.NombreComercial" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl" />
+                                </div>
+
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">CIF / NIF</label>
+                                    <InputText @bind-Value="clienteActual.CIF" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase" />
+                                    <ValidationMessage For="@(() => clienteActual.CIF)" class="text-red-500 text-[10px] mt-1 font-bold" />
+                                </div>
+
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Código Interno</label>
+                                    <InputText @bind-Value="clienteActual.CodigoCliente" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold" />
+                                    <ValidationMessage For="@(() => clienteActual.CodigoCliente)" class="text-red-500 text-[10px] mt-1 font-bold" />
+                                </div>
+                            </div>
+
+                            @* SECCIÓN: LOCALIZACIÓN Y CONTACTO *@
+                            <div class="grid grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+                                <div class="col-span-2">
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Dirección Fiscal</label>
+                                    <InputText @bind-Value="clienteActual.Direccion" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Población</label>
+                                    <InputText @bind-Value="clienteActual.Poblacion" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Provincia</label>
+                                    <InputText @bind-Value="clienteActual.Provincia" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Código Postal</label>
+                                    <InputText @bind-Value="clienteActual.CodigoPostal" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Teléfono</label>
+                                    <InputText @bind-Value="clienteActual.Telefono" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl" />
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Email para Facturación</label>
+                                    <InputText @bind-Value="clienteActual.Email" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl lowercase" />
+                                    <ValidationMessage For="@(() => clienteActual.Email)" class="text-red-500 text-[10px] mt-1 font-bold" />
+                                </div>
+                            </div>
+
+                            @* SECCIÓN: CONFIGURACIÓN FINANCIERA *@
+                            <div class="grid grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Forma de Pago</label>
+                                    <InputText @bind-Value="clienteActual.FormaPago" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Día Pago Habitual</label>
+                                    <InputNumber @bind-Value="clienteActual.DiaPagoHabitual" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Descuento (%)</label>
+                                    <InputNumber @bind-Value="clienteActual.DescuentoFijo" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl" />
+                                </div>
+                                <div class="flex items-center gap-3 pt-6">
+                                    <InputCheckbox @bind-Value="clienteActual.TieneRecargoEquivalencia" class="h-5 w-5 rounded border-slate-300 text-blue-600" />
+                                    <span class="text-[10px] font-black text-slate-700 uppercase">Recargo Equivalencia</span>
+                                </div>
+                            </div>
+
+                            @* SECCIÓN: ESTADO *@
+                            <div class="space-y-4 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div class="flex gap-10">
+                                    <label class="flex items-center gap-3 cursor-pointer">
+                                        <InputCheckbox @bind-Value="clienteActual.IsActivo" class="h-5 w-5 rounded border-slate-300 text-emerald-600" />
+                                        <span class="text-[10px] font-black text-slate-700 uppercase">Cliente Activo</span>
+                                    </label>
+                                    <label class="flex items-center gap-3 cursor-pointer">
+                                        <InputCheckbox @bind-Value="clienteActual.IsBloqueado" class="h-5 w-5 rounded border-slate-300 text-red-600" />
+                                        <span class="text-[10px] font-black text-slate-700 uppercase">Bloquear (Riesgo)</span>
+                                    </label>
+                                </div>
+                                @if (clienteActual.IsBloqueado)
+                                {
+                                    <div class="animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <label class="text-[10px] font-black text-red-500 uppercase mb-2 block">Motivo del Bloqueo</label>
+                                        <InputTextArea @bind-Value="clienteActual.MotivoBloqueo" class="w-full p-4 bg-white border border-red-200 rounded-xl text-sm" placeholder="Indique el motivo técnico o financiero..." />
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="flex gap-4 pt-6">
+                                <button type="submit" class="flex-1 bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl active:scale-95">
+                                    Sincronizar Maestro
+                                </button>
+                                <button type="button" @onclick="CerrarFormulario" class="px-8 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase hover:bg-slate-200 transition-all">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Cliente>? clientes;
+    private List<Cliente> clientesFiltrados = new();
+    private string searchTerm = "";
+    private string filtroEstado = "TODOS";
+    private bool mostrarFormulario = false;
+    private Cliente clienteActual = new();
+    private List<NotificationItem> activeNotifications = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Suscribirse al servicio global de notificaciones
+        Notify.OnShow += HandleGlobalNotification;
+        await CargarClientes();
+    }
+
+    private void HandleGlobalNotification(string msg, NotificationType type)
+    {
+        // Esta lógica permite que si otro componente llama a Notify.ShowNotification,
+        // este componente lo muestre en sus Toasts locales.
+        var note = new NotificationItem { Message = msg, Type = type };
+        activeNotifications.Add(note);
+        StateHasChanged();
+        Task.Delay(4000).ContinueWith(_ => { 
+            activeNotifications.Remove(note); 
+            InvokeAsync(StateHasChanged); 
+        });
+    }
+
+    private async Task CargarClientes()
+    {
+        try {
+            clientes = await Http.GetFromJsonAsync<List<Cliente>>("api/clientes");
+            Filtrar();
+            if (clientes == null || !clientes.Any()) {
+                Notify.Warning("No hay clientes en la base de datos.");
+            }
+        } catch (HttpRequestException ex) when (ex.Message.Contains("401") || ex.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
+            await NavToLogin();
+        } catch (HttpRequestException ex) {
+            AddNotification($"Error de conexión: {ex.Message}", NotificationType.Error);
+        } catch {
+            AddNotification("Error inesperado al cargar clientes", NotificationType.Error);
+        }
+    }
+
+    private async Task NavToLogin() {
+        await Task.Delay(800);
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+
+    private void OnFiltroEstadoChanged(ChangeEventArgs e)
+    {
+        filtroEstado = e.Value?.ToString() ?? "TODOS";
+        Filtrar();
+    }
+
+    private void Filtrar()
+    {
+        if (clientes == null) return;
+        var s = searchTerm.ToLower();
+        clientesFiltrados = clientes.Where(c => 
+            (c.RazonSocial != null && c.RazonSocial.ToLower().Contains(s)) || 
+            (c.CIF != null && c.CIF.ToLower().Contains(s)) ||
+            (c.CodigoCliente != null && c.CodigoCliente.ToLower().Contains(s))
+        ).ToList();
+
+        if (filtroEstado == "ACTIVOS") clientesFiltrados = clientesFiltrados.Where(c => c.IsActivo && !c.IsBloqueado).ToList();
+        if (filtroEstado == "BLOQUEADOS") clientesFiltrados = clientesFiltrados.Where(c => c.IsBloqueado).ToList();
+        StateHasChanged();
+    }
+
+    private void NuevoCliente() { 
+        clienteActual = new Cliente { 
+            EmpresaId = 1, 
+            FechaAlta = DateTime.Now,
+            IsActivo = true,
+            FormaPago = "TRANSFERENCIA 30 DÍAS",
+            DiaPagoHabitual = 1
+        }; 
+        mostrarFormulario = true; 
+    }
+    
+    private async Task Editar(int id) { 
+        clienteActual = await Http.GetFromJsonAsync<Cliente>($"api/clientes/{id}") ?? new(); 
+        mostrarFormulario = true; 
+    }
+
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task GuardarCliente()
+    {
+        HttpResponseMessage response;
+        if (clienteActual.Id == 0) response = await Http.PostAsJsonAsync("api/clientes", clienteActual);
+        else response = await Http.PutAsJsonAsync($"api/clientes/{clienteActual.Id}", clienteActual);
+
+        if (response.IsSuccessStatusCode) {
+            AddNotification($"Cliente {clienteActual.CodigoCliente} procesado con éxito", NotificationType.Success);
+            await CargarClientes();
+            CerrarFormulario();
+        } else {
+            AddNotification("Error al validar los datos en el servidor", NotificationType.Error);
+        }
+    }
+
+    private async Task Eliminar(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Confirmar baja del registro?")) {
+            var response = await Http.DeleteAsync($"api/clientes/{id}");
+            if (response.IsSuccessStatusCode) {
+                AddNotification("Cliente dado de baja (Desactivado)", NotificationType.Warning);
+                await CargarClientes();
+            }
+        }
+    }
+
+    private void AddNotification(string msg, NotificationType type) 
+    {
+        // Llamamos al servicio para que otros componentes se enteren
+        Notify.ShowNotification(msg, type);
+    }
+
+    private string GetNoteStyle(NotificationType type) => type switch {
+        NotificationType.Success => "border-emerald-500 text-emerald-800",
+        NotificationType.Error => "border-red-500 text-red-800",
+        _ => "border-amber-500 text-amber-800"
+    };
+
+    public void Dispose()
+    {
+        // Limpieza del evento para evitar fugas de memoria
+        Notify.OnShow -= HandleGlobalNotification;
+    }
+
+    private class NotificationItem { public string Message { get; set; } = string.Empty; public NotificationType Type { get; set; } }
+}

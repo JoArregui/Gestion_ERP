@@ -1,0 +1,327 @@
+@page "/configuracion/empresas"
+@using ERP.Domain.Entities
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<div class="max-w-[1400px] mx-auto p-6 animate-in fade-in duration-700">
+    
+    @* --- CABECERA --- *@
+    <div class="flex justify-between items-end mb-8 border-b border-slate-200 pb-6">
+        <div>
+            <nav class="text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Configuración > Estructura Organizativa</nav>
+            <h1 class="text-4xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Entidades Jurídicas</h1>
+        </div>
+        <div class="flex gap-3">
+            @if (mostrarFormulario)
+            {
+                <button @onclick="() => mostrarFormulario = false" class="bg-slate-100 text-slate-500 px-6 py-3 rounded-xl font-black text-xs transition-all uppercase tracking-widest hover:bg-slate-200">
+                    Volver al Listado
+                </button>
+            }
+            else
+            {
+                <button @onclick="NuevaEmpresa" class="bg-blue-600 hover:bg-slate-900 text-white px-8 py-3 rounded-xl font-black text-xs transition-all shadow-xl flex items-center gap-3 uppercase tracking-widest">
+                    <i class="bi bi-plus-lg"></i> Registrar Sede
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (!mostrarFormulario)
+    {
+        @* --- VISTA DE TARJETAS (GRID) --- *@
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            @if (empresas == null)
+            {
+                @for(int i=0; i<3; i++) {
+                    <div class="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-sm animate-pulse">
+                        <div class="h-12 w-12 bg-slate-100 rounded-2xl mb-4"></div>
+                        <div class="h-6 w-3/4 bg-slate-100 rounded mb-2"></div>
+                        <div class="h-4 w-1/2 bg-slate-50 rounded"></div>
+                    </div>
+                }
+            }
+            else
+            {
+                @foreach (var emp in empresas)
+                {
+                    <div class="group bg-white rounded-[3rem] p-8 border border-slate-200 shadow-sm hover:shadow-2xl transition-all duration-500 relative overflow-hidden flex flex-col justify-between min-h-[320px]">
+                        <div class="absolute top-0 right-0 w-32 h-32 opacity-5 translate-x-10 -translate-y-10 rounded-full" style="background-color: @emp.ColorHex"></div>
+                        
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 overflow-hidden shadow-inner">
+                                    @if (!string.IsNullOrEmpty(emp.LogoBase64))
+                                    {
+                                        <img src="@emp.LogoBase64" class="max-h-12 max-w-12 object-contain grayscale group-hover:grayscale-0 transition-all" />
+                                    }
+                                    else
+                                    {
+                                        <span class="font-black text-slate-300 text-2xl">@emp.NombreComercial.Substring(0, 1)</span>
+                                    }
+                                </div>
+                                <span class="text-[9px] font-black px-3 py-1 rounded-full @(emp.IsActiva ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-rose-50 text-rose-600 border border-rose-100") uppercase tracking-widest">
+                                    @(emp.IsActiva ? "Operativa" : "Inactiva")
+                                </span>
+                            </div>
+
+                            <h3 class="text-xl font-black text-slate-900 uppercase tracking-tighter mb-1">@emp.NombreComercial</h3>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">@emp.RazonSocial</p>
+
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-3 text-[11px] font-bold text-slate-500 uppercase">
+                                    <i class="bi bi-person-badge text-blue-500"></i> @emp.CIF
+                                </div>
+                                <div class="flex items-center gap-3 text-[11px] font-bold text-slate-500 uppercase">
+                                    <i class="bi bi-geo-alt-fill text-blue-500"></i> @emp.Poblacion
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 mt-8">
+                            <button @onclick="() => Editar(emp)" class="flex-1 bg-slate-900 text-white py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-600 transition-all active:scale-95 shadow-lg shadow-slate-200">
+                                Gestionar Sede
+                            </button>
+                            <button @onclick="() => Eliminar(emp.Id)" class="px-4 bg-rose-50 text-rose-400 rounded-2xl hover:bg-rose-600 hover:text-white transition-all border border-rose-100">
+                                <i class="bi bi-trash3-fill"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+    else
+    {
+        @* --- FORMULARIO DE EDICIÓN --- *@
+        <div class="max-w-5xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
+            <EditForm Model="empresaActual" OnValidSubmit="GuardarEmpresa">
+                <DataAnnotationsValidator />
+                
+                <div class="bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden">
+                    <div class="h-32 w-full bg-slate-900 relative" style="background-color: @empresaActual.ColorHex">
+                        <div class="absolute -bottom-12 left-12 p-2 bg-white rounded-3xl shadow-xl">
+                            <div class="w-24 h-24 bg-slate-50 rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-slate-200 group hover:border-blue-500 transition-all cursor-pointer overflow-hidden relative">
+                                @if (!string.IsNullOrEmpty(empresaActual.LogoBase64))
+                                {
+                                    <img src="@empresaActual.LogoBase64" class="w-full h-full object-contain" />
+                                    <InputFile OnChange="HandleFileSelected" class="absolute inset-0 opacity-0 cursor-pointer" />
+                                }
+                                else
+                                {
+                                    <i class="bi bi-camera text-slate-300 text-xl"></i>
+                                    <span class="text-[8px] font-black text-slate-400 uppercase">Logo</span>
+                                    <InputFile OnChange="HandleFileSelected" class="absolute inset-0 opacity-0 cursor-pointer" />
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-12 pt-20">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                            
+                            <div class="space-y-6">
+                                <h2 class="text-xs font-black text-blue-600 uppercase tracking-[0.3em] flex items-center gap-2">
+                                    <span class="w-8 h-px bg-blue-600"></span> Identidad Legal
+                                </h2>
+                                
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block ml-1 tracking-widest">Nombre Comercial</label>
+                                    <InputText @bind-Value="empresaActual.NombreComercial" class="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all" />
+                                    <ValidationMessage For="@(() => empresaActual.NombreComercial)" class="text-[10px] text-rose-500 font-bold mt-1 ml-2" />
+                                </div>
+
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block ml-1 tracking-widest">Razón Social</label>
+                                    <InputText @bind-Value="empresaActual.RazonSocial" class="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all" />
+                                    <ValidationMessage For="@(() => empresaActual.RazonSocial)" class="text-[10px] text-rose-500 font-bold mt-1 ml-2" />
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block ml-1 tracking-widest">CIF / NIF</label>
+                                        <InputText @bind-Value="empresaActual.CIF" class="w-full p-4 bg-slate-50 border-0 rounded-2xl font-mono font-black uppercase text-blue-600" />
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block ml-1 tracking-widest">Color Marca</label>
+                                        <div class="flex gap-2 bg-slate-50 p-2 rounded-2xl">
+                                            <input type="color" @bind="empresaActual.ColorHex" class="w-full h-10 bg-transparent border-0 cursor-pointer" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-6">
+                                <h2 class="text-xs font-black text-emerald-600 uppercase tracking-[0.3em] flex items-center gap-2">
+                                    <span class="w-8 h-px bg-emerald-600"></span> Parámetros de Negocio
+                                </h2>
+                                
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="bg-blue-50/30 p-4 rounded-3xl border border-blue-50">
+                                        <label class="text-[10px] font-black text-blue-400 uppercase mb-2 block tracking-widest">Serie Factura</label>
+                                        <InputText @bind-Value="empresaActual.SerieFacturacion" class="w-full bg-transparent border-0 font-black text-blue-700 p-0 text-xl outline-none uppercase" />
+                                    </div>
+                                    <div class="bg-slate-50 p-4 rounded-3xl">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">IVA Defecto %</label>
+                                        <InputNumber @bind-Value="empresaActual.IvaDefecto" class="w-full bg-transparent border-0 font-black text-slate-700 p-0 text-xl outline-none" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block ml-1 tracking-widest">Registro Mercantil</label>
+                                    <InputTextArea @bind-Value="empresaActual.RegistroMercantil" class="w-full p-4 bg-slate-50 border-0 rounded-2xl text-xs font-medium min-h-[100px] leading-relaxed" placeholder="Inscrita en el tomo... folio..." />
+                                </div>
+                            </div>
+
+                            <div class="md:col-span-2 pt-8 border-t border-slate-100">
+                                <h2 class="text-xs font-black text-slate-800 uppercase tracking-[0.3em] mb-6">03. Ubicación y Contacto</h2>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div class="md:col-span-2">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block ml-1">Dirección Postal</label>
+                                        <InputText @bind-Value="empresaActual.Direccion" class="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold shadow-sm" />
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block ml-1">Población</label>
+                                        <InputText @bind-Value="empresaActual.Poblacion" class="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold shadow-sm" />
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block ml-1">C.P.</label>
+                                        <InputText @bind-Value="empresaActual.CodigoPostal" class="w-full p-4 bg-slate-50 border-0 rounded-2xl font-bold shadow-sm" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4 mt-12">
+                            <button type="submit" class="flex-1 bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-blue-600 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3">
+                                <i class="bi bi-cloud-check-fill text-lg"></i> Sincronizar Entidad
+                            </button>
+                            <button type="button" @onclick="() => mostrarFormulario = false" class="px-10 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">
+                                Descartar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </EditForm>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Empresa>? empresas;
+    private Empresa empresaActual = new();
+    private bool mostrarFormulario = false;
+
+    protected override async Task OnInitializedAsync() => await CargarEmpresas();
+
+    private async Task CargarEmpresas()
+    {
+        try 
+        {
+            empresas = await Http.GetFromJsonAsync<List<Empresa>>("api/empresas");
+        } 
+        catch (Exception ex) 
+        { 
+            await Notificar($"Error de conexión: {ex.Message}", "error"); 
+        }
+    }
+
+    private void NuevaEmpresa()
+    {
+        empresaActual = new Empresa 
+        { 
+            IsActiva = true, 
+            SerieFacturacion = DateTime.Now.Year.ToString(),
+            ColorHex = "#3b82f6",
+            IvaDefecto = 21,
+            FechaAlta = DateTime.Now
+        };
+        mostrarFormulario = true;
+    }
+
+    private void Editar(Empresa emp)
+    {
+        // Clonación manual completa para evitar mutación de la lista original antes de guardar
+        empresaActual = new Empresa 
+        {
+            Id = emp.Id,
+            NombreComercial = emp.NombreComercial,
+            RazonSocial = emp.RazonSocial,
+            CIF = emp.CIF,
+            Direccion = emp.Direccion,
+            Poblacion = emp.Poblacion,
+            CodigoPostal = emp.CodigoPostal,
+            Provincia = emp.Provincia,
+            Email = emp.Email,
+            Telefono = emp.Telefono,
+            Web = emp.Web,
+            RegistroMercantil = emp.RegistroMercantil,
+            LogoBase64 = emp.LogoBase64,
+            ColorHex = emp.ColorHex,
+            Eslogan = emp.Eslogan,
+            SerieFacturacion = emp.SerieFacturacion,
+            UltimoNumeroFactura = emp.UltimoNumeroFactura,
+            IvaDefecto = emp.IvaDefecto,
+            IsActiva = emp.IsActiva,
+            FechaAlta = emp.FechaAlta
+        };
+        mostrarFormulario = true;
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file.Size > 1024 * 500) // 500 KB limit
+        {
+            await Notificar("El logo no debe superar los 500KB", "error");
+            return;
+        }
+
+        var buffer = new byte[file.Size];
+        await file.OpenReadStream().ReadAsync(buffer);
+        empresaActual.LogoBase64 = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+    }
+
+    private async Task GuardarEmpresa()
+    {
+        try 
+        {
+            HttpResponseMessage response;
+            if (empresaActual.Id == 0) 
+                response = await Http.PostAsJsonAsync("api/empresas", empresaActual);
+            else 
+                response = await Http.PutAsJsonAsync($"api/empresas/{empresaActual.Id}", empresaActual);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await Notificar("Sede corporativa actualizada", "success");
+                await CargarEmpresas();
+                mostrarFormulario = false;
+            }
+            else 
+            {
+                await Notificar("Error en la validación del servidor", "error");
+            }
+        }
+        catch 
+        {
+            await Notificar("Error crítico al guardar", "error");
+        }
+    }
+
+    private async Task Eliminar(int id)
+    {
+        var confirm = await JS.InvokeAsync<bool>("confirm", "¿Confirmas la desactivación de esta sede?");
+        if (confirm)
+        {
+            var response = await Http.DeleteAsync($"api/empresas/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                await Notificar("Entidad dada de baja correctamente", "success");
+                await CargarEmpresas();
+            }
+        }
+    }
+
+    private async Task Notificar(string msg, string tipo) => await JS.InvokeVoidAsync("showToast", msg, tipo);
+}

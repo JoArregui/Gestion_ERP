@@ -1,0 +1,148 @@
+@page "/compras/nuevo-pedido"
+@using ERP.Domain.DTOs
+@using ERP.Domain.Entities
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Nuevo Pedido de Compra | ERP</PageTitle>
+
+<div class="max-w-5xl mx-auto p-8">
+    <div class="flex items-end justify-between mb-8">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-widest text-blue-600">Compras / Suministros</p>
+            <h1 class="text-4xl font-black italic uppercase tracking-tighter text-slate-900">Nuevo Pedido de Compra</h1>
+            <p class="text-sm text-slate-500 mt-2">Introduce el proveedor y la mercancía solicitada.</p>
+        </div>
+        <button @onclick='() => Navigation.NavigateTo("/compras")' class="px-5 py-3 border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600">Volver</button>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-3xl shadow-sm p-8 space-y-8">
+        <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Proveedor</label>
+            <select @bind="proveedorId" class="w-full rounded-xl border border-slate-200 p-4 bg-slate-50">
+                <option value="0">Selecciona un proveedor</option>
+                @foreach (var proveedor in proveedores)
+                {
+                    <option value="@proveedor.Id">@proveedor.RazonSocial</option>
+                }
+            </select>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div class="md:col-span-6">
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Artículo</label>
+                <select @bind="articuloId" class="w-full rounded-xl border border-slate-200 p-4 bg-slate-50">
+                    <option value="0">Selecciona un artículo</option>
+                    @foreach (var articulo in articulos)
+                    {
+                        <option value="@articulo.Id">@articulo.Codigo - @articulo.Descripcion</option>
+                    }
+                </select>
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Cantidad</label>
+                <input @bind="cantidad" type="number" min="1" step="0.01" class="w-full rounded-xl border border-slate-200 p-4 bg-slate-50" />
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Precio</label>
+                <input @bind="precio" type="number" min="0" step="0.01" class="w-full rounded-xl border border-slate-200 p-4 bg-slate-50" />
+            </div>
+            <button @onclick="AnadirLinea" class="md:col-span-2 rounded-xl bg-slate-900 text-white p-4 text-xs font-black uppercase">Añadir línea</button>
+        </div>
+
+        @if (lineas.Count > 0)
+        {
+            <div class="border border-slate-200 rounded-2xl overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-900 text-white text-[10px] uppercase tracking-widest">
+                        <tr><th class="p-4">Artículo</th><th class="p-4">Cantidad</th><th class="p-4">Precio</th><th class="p-4">Total</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var linea in lineas)
+                        {
+                            <tr class="border-b border-slate-100">
+                                <td class="p-4 font-bold">@linea.Descripcion</td>
+                                <td class="p-4">@linea.Cantidad</td>
+                                <td class="p-4">@linea.PrecioUnitario.ToString("C2")</td>
+                                <td class="p-4 font-black">@((linea.Cantidad * linea.PrecioUnitario).ToString("C2"))</td>
+                                <td class="p-4 text-right"><button @onclick="() => lineas.Remove(linea)" class="text-rose-600 text-xs font-black">Eliminar</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="flex items-center justify-between border-t border-slate-100 pt-6">
+            <span class="text-sm font-black uppercase text-slate-500">Total estimado: @lineas.Sum(l => l.Cantidad * l.PrecioUnitario).ToString("C2")</span>
+            <button @onclick="CrearPedido" disabled="@(procesando || proveedorId == 0 || lineas.Count == 0)" class="rounded-2xl bg-blue-600 disabled:bg-slate-300 text-white px-8 py-4 text-xs font-black uppercase tracking-widest">@(procesando ? "Guardando..." : "Crear pedido")</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Proveedor> proveedores = new();
+    private List<Articulo> articulos = new();
+    private List<LineaFormulario> lineas = new();
+    private int proveedorId;
+    private int articuloId;
+    private decimal cantidad = 1;
+    private decimal precio;
+    private bool procesando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        proveedores = await Http.GetFromJsonAsync<List<Proveedor>>("api/proveedores") ?? new();
+        articulos = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos") ?? new();
+    }
+
+    private async Task AnadirLinea()
+    {
+        var articulo = articulos.FirstOrDefault(a => a.Id == articuloId);
+        if (articulo is null || cantidad <= 0 || precio < 0)
+        {
+            await JS.InvokeVoidAsync("alert", "Selecciona un artículo e introduce una cantidad y precio válidos.");
+            return;
+        }
+
+        lineas.Add(new LineaFormulario(articulo.Id, articulo.Descripcion, cantidad, precio));
+        articuloId = 0;
+        cantidad = 1;
+        precio = 0;
+    }
+
+    private async Task CrearPedido()
+    {
+        procesando = true;
+        try
+        {
+            var request = new PedidoCompraRequest
+            {
+                ProveedorId = proveedorId,
+                Lineas = lineas.Select(l => new LineaPedidoCompraRequest
+                {
+                    ArticuloId = l.ArticuloId,
+                    Cantidad = l.Cantidad,
+                    PrecioUnitario = l.PrecioUnitario
+                }).ToList()
+            };
+            var response = await Http.PostAsJsonAsync("api/compras/crear-pedido", request);
+            var mensaje = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                await JS.InvokeVoidAsync("alert", $"No se pudo crear el pedido: {mensaje}");
+                return;
+            }
+
+            await JS.InvokeVoidAsync("alert", "Pedido creado. Ya está disponible en Recepción de Pedidos.");
+            Navigation.NavigateTo("/compras/recepcion");
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private sealed record LineaFormulario(int ArticuloId, string Descripcion, decimal Cantidad, decimal PrecioUnitario);
+}

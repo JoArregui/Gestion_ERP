@@ -1,0 +1,80 @@
+@page "/configuracion"
+@inject NavigationManager Navigation
+
+<div class="p-8 animate-fade-in">
+    @* CABECERA *@
+    <div class="flex items-center justify-between mb-10">
+        <div>
+            <h1 class="text-4xl font-black text-slate-900 tracking-tighter uppercase">Panel de Control</h1>
+            <div class="flex items-center gap-2 mt-1">
+                <span class="h-1.5 w-1.5 rounded-full bg-blue-600"></span>
+                <p class="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Ajustes Globales del Sistema</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button class="px-5 py-2 bg-white border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 transition-all shadow-sm">
+                Exportar Backup
+            </button>
+            <button class="px-5 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-900/20">
+                Guardar Cambios
+            </button>
+        </div>
+    </div>
+
+    @* GRILLA DE OPCIONES *@
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        @* Card: Empresa - RUTA CORREGIDA A /configuracion/empresas *@
+        <div @onclick='() => Navigation.NavigateTo("configuracion/empresas")' 
+             class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer">
+            <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
+                <i class="bi bi-building-fill-gear text-2xl"></i>
+            </div>
+            <h3 class="font-black text-slate-800 uppercase text-xs tracking-widest mb-3">Identidad Corporativa</h3>
+            <p class="text-slate-500 text-[11px] leading-relaxed mb-6">Configura el nombre legal, CIF, dirección fiscal y los logotipos que aparecerán en tus facturas y reportes.</p>
+            
+            <NavLink href="configuracion/empresas" class="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 group-hover:gap-3 transition-all no-underline">
+                Configurar <i class="bi bi-arrow-right"></i>
+            </NavLink>
+        </div>
+
+        @* Card: SMTP / Email *@
+        <div @onclick='() => Navigation.NavigateTo("configuracion/email")'
+             class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer">
+            <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 mb-6 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-500">
+                <i class="bi bi-envelope-at-fill text-2xl"></i>
+            </div>
+            <h3 class="font-black text-slate-800 uppercase text-xs tracking-widest mb-3">Servidor de Correo</h3>
+            <p class="text-slate-500 text-[11px] leading-relaxed mb-6">Ajusta las credenciales SMTP para el envío automático de facturas y notificaciones a tus clientes.</p>
+            
+            <NavLink href="configuracion/email" class="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2 group-hover:gap-3 transition-all no-underline">
+                Configurar <i class="bi bi-arrow-right"></i>
+            </NavLink>
+        </div>
+
+        @* Card: Usuarios *@
+        <div @onclick='() => Navigation.NavigateTo("configuracion/seguridad")'
+             class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer">
+            <div class="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 mb-6 group-hover:bg-rose-600 group-hover:text-white transition-all duration-500">
+                <i class="bi bi-shield-lock-fill text-2xl"></i>
+            </div>
+            <h3 class="font-black text-slate-800 uppercase text-xs tracking-widest mb-3">Seguridad y Roles</h3>
+            <p class="text-slate-500 text-[11px] leading-relaxed mb-6">Gestiona quién tiene acceso al sistema, cambia contraseñas y define los niveles de permisos por usuario.</p>
+            
+            <NavLink href="configuracion/seguridad" class="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-2 group-hover:gap-3 transition-all no-underline">
+                Configurar <i class="bi bi-arrow-right"></i>
+            </NavLink>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .animate-fade-in {
+        animation: fadeIn 0.5s ease-out;
+    }
+    @@keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>

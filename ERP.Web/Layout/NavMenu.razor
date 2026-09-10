@@ -1,0 +1,408 @@
+﻿@namespace ERP.Web.Layout
+@using ERP.Domain.Constants
+@using Microsoft.AspNetCore.Components.Authorization
+@using ERP.Web.Components
+@inject ERP.Web.Services.AuthService AuthService
+@inject NavigationManager Navigation
+
+@* NavMenu.razor - Menú Lateral Acordeón con rutas exactas del proyecto *@
+<div class="flex flex-col h-full bg-[#0f172a] text-slate-400 font-sans shadow-2xl border-r border-slate-800/50">
+
+    @* LOGO *@
+    <div class="p-8 mb-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black shadow-xl shadow-blue-500/20 ring-1 ring-white/20">
+                E
+            </div>
+            <div class="flex flex-col leading-none">
+                <span class="text-white font-black tracking-tighter text-lg uppercase">SISTEMA <span class="text-blue-500">ERP</span></span>
+                <span class="text-[8px] font-bold text-slate-500 tracking-[0.3em] mt-1 uppercase">ERP para PYMES</span>
+            </div>
+        </div>
+    </div>
+
+    @* NAVEGACIÓN PRINCIPAL *@
+    <nav class="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
+
+        @* ACCESO DIRECTO: INICIO / HOME *@
+        <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                 href="" Match="NavLinkMatch.All"
+                 ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+            <i class="bi bi-house-door-fill text-lg"></i>
+            <span class="text-[10px] uppercase font-black tracking-widest">Escritorio Principal</span>
+        </NavLink>
+
+        @* CATEGORÍA: GENERAL *@
+        <div>
+            <button @onclick='() => ToggleSection("general")'
+                    class="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/5 hover:text-white text-left focus:outline-none select-none">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">General</span>
+                <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "general" ? "rotate-0" : "-rotate-90")"></i>
+            </button>
+            <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "general" ? "block" : "hidden")">
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="dashboard" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-pie-chart-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Insights / Dashboard</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="agenda" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-calendar-event-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Agenda</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="llamadas" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-chat-left-text-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Comunicaciones</span>
+                </NavLink>
+            </div>
+        </div>
+
+        @* CATEGORÍA: OPERATIVA TPV Y VENTAS *@
+        <div>
+            <button @onclick='() => ToggleSection("ventas")'
+                    class="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/5 hover:text-white text-left focus:outline-none select-none">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Operativa y Ventas</span>
+                <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "ventas" ? "rotate-0" : "-rotate-90")"></i>
+            </button>
+            <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "ventas" ? "block" : "hidden")">
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="ventas/nueva" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-calculator-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Nueva Venta (TPV)</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="cierre-caja" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-safe2-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Cierre de Caja</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="ventas/cierres" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-clock-history text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Historial Cierres</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="ventas/presupuestos" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-file-earmark-text-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Presupuestos</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="ventas/albaranes" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-truck-flatbed text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Albaranes</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="ventas/facturas" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-receipt-cutoff text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Facturas de Venta</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="ventas/nueva-factura" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-file-earmark-plus-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Nueva Factura / Doc</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="ventas/editor" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-pencil-square text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Editor Documento</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="ventas/documentos" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-files text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Listado Documentos</span>
+                </NavLink>
+            </div>
+        </div>
+
+        @* CATEGORÍA: TESORERÍA *@
+        <div>
+            <button @onclick='() => ToggleSection("tesoreria")'
+                    class="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/5 hover:text-white text-left focus:outline-none select-none">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Tesorería</span>
+                <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "tesoreria" ? "rotate-0" : "-rotate-90")"></i>
+            </button>
+            <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "tesoreria" ? "block" : "hidden")">
+                <button @onclick="() => mostrarModalGasto = true"
+                        class="w-full flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 border border-transparent hover:border-rose-500/20 text-left">
+                    <i class="bi bi-dash-circle-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Registrar Gasto</span>
+                </button>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="vencimientos" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-calendar-check-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Vencimientos</span>
+                </NavLink>
+            </div>
+        </div>
+
+        @* CATEGORÍA: COMPRAS *@
+        <div>
+            <button @onclick='() => ToggleSection("compras")'
+                    class="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/5 hover:text-white text-left focus:outline-none select-none">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Compras</span>
+                <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "compras" ? "rotate-0" : "-rotate-90")"></i>
+            </button>
+            <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "compras" ? "block" : "hidden")">
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="compras" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-cart-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Panel de Compras</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="compras/nuevo-pedido" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-cart-plus-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Nuevo Pedido</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="compras/recepcion" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-box-arrow-in-down text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Recepción Pedidos</span>
+                </NavLink>
+            </div>
+        </div>
+
+        @* CATEGORÍA: RECURSOS HUMANOS *@
+<div>
+    <button @onclick='() => ToggleSection("rrhh")'
+            class="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/5 hover:text-white text-left focus:outline-none select-none">
+        <span class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Recursos Humanos</span>
+        <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "rrhh" ? "rotate-0" : "-rotate-90")"></i>
+    </button>
+    
+    <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "rrhh" ? "block" : "hidden")">
+        <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                 href="rrhh/kiosko" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+            <i class="bi bi-display text-lg"></i>
+            <span class="text-[10px] uppercase font-black tracking-widest">Kiosko Fichajes</span>
+        </NavLink>
+
+        <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                 href="rrhh/control-horario" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+            <i class="bi bi-clock-history text-lg"></i>
+            <span class="text-[10px] uppercase font-black tracking-widest">Control Horario</span>
+        </NavLink>
+
+        <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                 href="rrhh/empleados" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+            <i class="bi bi-people-fill text-lg"></i>
+            <span class="text-[10px] uppercase font-black tracking-widest">Gestión Empleados</span>
+        </NavLink>
+
+        <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                 href="rrhh/empleados" Match="NavLinkMatch.All" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+            <i class="bi bi-person-plus-fill text-lg"></i>
+            <span class="text-[10px] uppercase font-black tracking-widest">Ficha del Trabajador</span>
+        </NavLink>
+
+        <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                 href="rrhh/nominas" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+            <i class="bi bi-file-earmark-spreadsheet-fill text-lg"></i>
+            <span class="text-[10px] uppercase font-black tracking-widest">Nóminas</span>
+        </NavLink>
+    </div>
+</div>
+
+        @* CATEGORÍA: STOCK Y LOGÍSTICA *@
+        <div>
+            <button @onclick='() => ToggleSection("stock")'
+                    class="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/5 hover:text-white text-left focus:outline-none select-none">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Stock y Logística</span>
+                <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "stock" ? "rotate-0" : "-rotate-90")"></i>
+            </button>
+            <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "stock" ? "block" : "hidden")">
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="stock/ajuste" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-sliders text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Ajuste de Inventario</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="stock/valoracion" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-diagram-3-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Valoración Almacén</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="stock/etiquetas" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-qr-code text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Impresión Etiquetas</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="stock/auditoria" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-clipboard-check-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Informe Auditoría</span>
+                </NavLink>
+            </div>
+        </div>
+
+        @* CATEGORÍA: MAESTROS *@
+        <div>
+            <button @onclick='() => ToggleSection("maestros")'
+                    class="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/5 hover:text-white text-left focus:outline-none select-none">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Maestros</span>
+                <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "maestros" ? "rotate-0" : "-rotate-90")"></i>
+            </button>
+            <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "maestros" ? "block" : "hidden")">
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="maestros/articulos" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-box-seam-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Artículos</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="maestros/familias" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-tags-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Familias</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="maestros/clientes" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-person-badge-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Clientes</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="maestros/proveedores" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-truck text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Proveedores</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="maestros/acreedores" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-building text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Acreedores</span>
+                </NavLink>
+            </div>
+        </div>
+
+        @* CATEGORÍA: INFORMES *@
+        <div>
+            <button @onclick='() => ToggleSection("informes")'
+                    class="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/5 hover:text-white text-left focus:outline-none select-none">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Informes</span>
+                <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "informes" ? "rotate-0" : "-rotate-90")"></i>
+            </button>
+            <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "informes" ? "block" : "hidden")">
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="informes/rentabilidad" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-graph-up-arrow text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Informe Rentabilidad</span>
+                </NavLink>
+            </div>
+        </div>
+
+        @* CATEGORÍA: CONFIGURACIÓN SISTEMA *@
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <div>
+                    <button @onclick='() => ToggleSection("configuracion")'
+                            class="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/5 hover:text-white text-left focus:outline-none select-none">
+                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Configuración Sistema</span>
+                        <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "configuracion" ? "rotate-0" : "-rotate-90")"></i>
+                    </button>
+                    <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "configuracion" ? "block" : "hidden")">
+                        <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                                 href="configuracion/empresas" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                            <i class="bi bi-building-gear text-lg"></i>
+                            <span class="text-[10px] uppercase font-black tracking-widest">Empresas</span>
+                        </NavLink>
+
+                        <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                                 href="configuracion/seguridad" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                            <i class="bi bi-shield-lock-fill text-lg"></i>
+                            <span class="text-[10px] uppercase font-black tracking-widest">Seguridad</span>
+                        </NavLink>
+
+                        <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                                 href="configuracion/seguridad/permisos" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                            <i class="bi bi-person-gear text-lg"></i>
+                            <span class="text-[10px] uppercase font-black tracking-widest">Permisos y Roles</span>
+                        </NavLink>
+
+                        <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                                 href="configuracion/email" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                            <i class="bi bi-envelope-paper-fill text-lg"></i>
+                            <span class="text-[10px] uppercase font-black tracking-widest">Configuración Email</span>
+                        </NavLink>
+                    </div>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+    </nav>
+
+    @* FOOTER CON AJUSTES Y LOGOUT *@
+    <div class="p-4 space-y-2">
+        <NavLink class="flex items-center gap-3 p-3 rounded-2xl bg-slate-800/30 border border-slate-800 text-slate-400 hover:text-white transition-all no-underline group text-inherit"
+                 href="configuracion">
+            <i class="bi bi-gear-fill group-hover:rotate-90 transition-transform duration-500"></i>
+            <span class="text-[10px] uppercase font-black tracking-widest">Ajustes Generales</span>
+        </NavLink>
+
+        <button @onclick="HandleLogout"
+                class="w-full flex items-center gap-3 p-3 rounded-2xl bg-rose-900/10 border border-rose-900/20 text-rose-500 hover:bg-rose-600 hover:text-white transition-all group">
+            <i class="bi bi-box-arrow-left"></i>
+            <span class="text-[10px] uppercase font-black tracking-widest">Cerrar Sesión</span>
+        </button>
+    </div>
+</div>
+
+@* MODAL DE GASTO DE CAJA *@
+<GastoCajaModal Mostrar="mostrarModalGasto" OnCerrar="() => mostrarModalGasto = false" />
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #1e293b;
+        border-radius: 10px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #334155;
+    }
+</style>
+
+@code {
+    private bool mostrarModalGasto = false;
+
+    private string? activeSection = null;
+
+    private void ToggleSection(string section)
+    {
+        if (activeSection == section)
+        {
+            activeSection = null;
+        }
+        else
+        {
+            activeSection = section;
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.Logout();
+        Navigation.NavigateTo("/login");
+    }
+}

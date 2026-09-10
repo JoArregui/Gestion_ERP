@@ -1,0 +1,447 @@
+@page "/ventas/nueva"
+@using ERP.Domain.Entities
+@using ERP.Web.Components
+@using ERP.Web.Models
+@using ERP.Web.Services
+@using Microsoft.JSInterop
+@implements IDisposable
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NotificationService NotificationService
+@inject NavigationManager Navigation
+
+<div class="grid grid-cols-12 gap-8 relative p-4 lg:p-8 bg-slate-50 min-h-screen">
+    
+    @* BARRA SUPERIOR DE ESTADO *@
+    <div class="col-span-12 flex justify-between items-center mb-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center gap-4">
+            <div class="h-3 w-3 rounded-full @(IsProcesando ? "bg-amber-500 animate-spin" : "bg-emerald-500 animate-pulse")"></div>
+            <span class="text-slate-700 font-bold text-sm tracking-tight">@(IsProcesando ? "PROCESANDO TRANSACCIÓN..." : "SISTEMA ONLINE")</span>
+            <span class="text-slate-300">|</span>
+            <span class="text-slate-500 text-xs">Terminal: TPV-01 (Zaragoza)</span>
+        </div>
+        <div class="flex gap-4">
+             <div class="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg border border-slate-200">
+                <kbd class="px-2 py-0.5 bg-white border border-slate-300 rounded text-[10px] shadow-sm">F10</kbd>
+                <span class="text-[11px] font-bold text-slate-600">Factura A4</span>
+            </div>
+            <div class="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg border border-slate-200">
+                <kbd class="px-2 py-0.5 bg-white border border-slate-300 rounded text-[10px] shadow-sm">F12</kbd>
+                <span class="text-[11px] font-bold text-slate-600">Ticket</span>
+            </div>
+        </div>
+    </div>
+
+    @* COLUMNA IZQUIERDA: ENTRADA DE DATOS *@
+    <div class="col-span-12 lg:col-span-5 space-y-6">
+        <div class="bg-white p-6 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100">
+             <h3 class="text-slate-800 font-black mb-4 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a7 7 0 00-7 7v1h11v-1a7 7 0 00-7-7z" />
+                </svg>
+                CLIENTE Y ARTÍCULOS
+            </h3>
+            <ClienteSelector OnClienteSeleccionado="AsignarCliente" />
+            <div class="mt-6">
+                <ArticuloSelector @ref="articuloSelectorRef" OnArticuloSeleccionado="AgregarALaCesta" />
+            </div>
+        </div>
+
+        @* INDICADORES DE RENTABILIDAD *@
+        <div class="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100">
+            <h4 class="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-4">Análisis de Operación</h4>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="p-4 bg-slate-50 rounded-2xl">
+                    <p class="text-slate-400 text-[10px] font-bold uppercase">Artículos</p>
+                    <p class="text-xl font-black text-slate-700">@Lineas.Sum(l => l.Cantidad)</p>
+                </div>
+                <div class="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                    <p class="text-blue-400 text-[10px] font-bold uppercase">Margen Est.</p>
+                    <p class="text-xl font-black text-blue-700">@CalcularMargenTotal().ToString("N2")€</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-blue-600 p-6 rounded-[2rem] text-white shadow-xl shadow-blue-500/20">
+            <h4 class="font-bold text-sm mb-2 opacity-80 uppercase tracking-widest">Control de Stock</h4>
+            <p class="text-sm leading-relaxed font-light">
+                El sistema bloquea automáticamente ventas sin existencias a menos que se autorice lo contrario en configuración.
+            </p>
+        </div>
+    </div>
+
+    @* COLUMNA DERECHA: LA CESTA DIGITAL *@
+    <div class="col-span-12 lg:col-span-7">
+        <div class="bg-slate-900 rounded-[3rem] shadow-2xl overflow-hidden flex flex-col h-[750px] border border-white/5 relative">
+            <div class="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/10 blur-[100px] rounded-full"></div>
+
+            <div class="p-8 bg-white/5 border-b border-white/10 backdrop-blur-md">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-white text-2xl font-black tracking-tight">Detalle de Venta</h3>
+                        <p class="text-white/40 text-xs font-mono uppercase mt-1">Ref: @CodigoTransaccion</p>
+                    </div>
+                    <div class="bg-white/10 p-4 rounded-2xl text-right">
+                        @if (ClienteFactura != null) {
+                            <p class="text-emerald-400 font-black text-sm uppercase">@ClienteFactura.RazonSocial</p>
+                            <p class="text-white/30 text-[10px]">CIF: @ClienteFactura.CIF</p>
+                        } else {
+                            <span class="text-rose-500 text-[10px] font-black animate-pulse uppercase tracking-widest italic">⚠️ Seleccione Cliente</span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-8 space-y-4 scrollbar-hide">
+                @if (!Lineas.Any()) {
+                    <div class="h-full flex flex-col items-center justify-center">
+                        <div class="w-32 h-32 bg-white/5 rounded-full flex items-center justify-center mb-6 text-white/10">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                        </div>
+                        <p class="text-white/20 font-medium tracking-wide">La cesta está vacía</p>
+                    </div>
+                } else {
+                    @foreach (var linea in Lineas) {
+                        <div class="bg-white/5 border border-white/10 rounded-3xl p-5 flex items-center gap-6 group hover:bg-white/[0.08] transition-all">
+                            <div class="flex-1">
+                                <h4 class="text-white font-bold text-lg leading-tight">@linea.Articulo.Descripcion</h4>
+                                <div class="flex items-center gap-3 mt-2">
+                                    <span class="text-[10px] font-mono px-2 py-1 bg-black/40 text-blue-400 rounded-lg border border-white/5">@linea.Articulo.Codigo</span>
+                                    
+                                    @{
+                                        var stockDisponible = linea.Articulo.Stock - linea.Articulo.StockReservado;
+                                        var stockColor = stockDisponible < linea.Cantidad ? "text-rose-400 bg-rose-400/10" : "text-emerald-400 bg-emerald-400/10";
+                                    }
+                                    <span class="text-[10px] px-2 py-1 rounded-lg border border-white/5 @stockColor font-bold uppercase">
+                                        Disp: @stockDisponible.ToString("0")
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="flex items-center bg-black/60 rounded-2xl p-1.5 border border-white/10">
+                                <button @onclick="() => ModificarCantidad(linea, -1)" class="w-10 h-10 text-white/40 hover:text-rose-500 font-bold transition-colors">－</button>
+                                <span class="w-12 text-center text-white font-black text-lg">@linea.Cantidad.ToString("0")</span>
+                                <button @onclick="() => ModificarCantidad(linea, 1)" class="w-10 h-10 text-white/40 hover:text-emerald-500 font-bold transition-colors">＋</button>
+                            </div>
+                            <div class="text-right min-w-[120px]">
+                                <p class="text-white font-black text-xl tracking-tighter">@linea.Total.ToString("N2")€</p>
+                                <button @onclick="() => Lineas.Remove(linea)" class="text-rose-500/40 text-[10px] font-black uppercase hover:text-rose-500 transition-colors mt-1">Eliminar</button>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="p-10 bg-black/40 backdrop-blur-2xl border-t border-white/10">
+                <div class="flex justify-between items-end mb-8">
+                    <div>
+                        <p class="text-white/30 text-[10px] font-black tracking-[.3em] uppercase mb-2">Base: @BaseImponible.ToString("N2")€ | IVA: @TotalIva.ToString("N2")€</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-emerald-400 text-[10px] font-black tracking-[.3em] uppercase mb-1">Total a Pagar</p>
+                        <p class="text-white text-6xl font-black tracking-tighter italic">@TotalFactura.ToString("N2")<small class="text-2xl ml-1 font-light opacity-50">€</small></p>
+                    </div>
+                </div>
+
+                <button @onclick="AbrirPasarelaPago" 
+                        class="w-full py-6 rounded-3xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black text-xl uppercase tracking-widest transition-all shadow-2xl shadow-emerald-500/20 active:scale-95 disabled:opacity-20 disabled:grayscale"
+                        disabled="@(IsInvalidVenta || IsProcesando)">
+                    @(IsProcesando ? "COMUNICANDO..." : "PROCESAR PAGO")
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @* MODAL DE PAGO *@
+    @if (MostrarModalPago)
+    {
+        <div class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/95 backdrop-blur-xl p-4">
+            <div class="bg-white w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col lg:flex-row animate-in fade-in zoom-in duration-300">
+                
+                <div class="flex-1 p-12 bg-slate-50 border-r border-slate-100">
+                    <h3 class="text-slate-400 font-black text-xs uppercase tracking-[0.3em] mb-2">Total de la Venta</h3>
+                    <div class="text-6xl font-black text-slate-800 mb-10 italic">@TotalFactura.ToString("N2")€</div>
+                    
+                    <div class="space-y-6">
+                        <div class="p-8 bg-white rounded-[2rem] border-2 border-slate-200 focus-within:border-blue-500 transition-all shadow-sm">
+                            <label class="text-[10px] font-black text-slate-400 uppercase block mb-2 tracking-widest">Efectivo Entregado</label>
+                            <div class="flex items-center">
+                                <span class="text-3xl font-black text-slate-300 mr-2">€</span>
+                                <input @bind="ImporteEntregado" @bind:event="oninput" type="number" step="0.01"
+                                       class="w-full text-5xl font-black text-blue-600 focus:outline-none bg-transparent" placeholder="0.00" autofocus />
+                            </div>
+                        </div>
+
+                        <div class="p-8 @(CambioADevolver >= 0 ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100") rounded-[2rem] border-2 transition-colors">
+                            <label class="text-[10px] font-black @(CambioADevolver >= 0 ? "text-emerald-500" : "text-rose-500") uppercase block mb-2 tracking-widest">
+                                @(CambioADevolver >= 0 ? "Cambio a Devolver" : "Importe Restante")
+                            </label>
+                            <div class="text-5xl font-black @(CambioADevolver >= 0 ? "text-emerald-600" : "text-rose-600") tracking-tighter">
+                                @Math.Abs(CambioADevolver).ToString("N2")€
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 p-12 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-slate-400 font-black text-xs uppercase tracking-[0.3em] mb-6">Método de Pago</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button @onclick='() => MetodoPago = "Efectivo"' class='p-8 rounded-3xl border-2 transition-all flex flex-col items-center gap-3 @(MetodoPago == "Efectivo" ? "border-blue-500 bg-blue-50 text-blue-600 shadow-lg shadow-blue-500/10" : "border-slate-100 text-slate-400")'>
+                                <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                <span class="font-black text-xs uppercase tracking-widest">Efectivo</span>
+                            </button>
+                            <button @onclick='() => MetodoPago = "Tarjeta"' class='p-8 rounded-3xl border-2 transition-all flex flex-col items-center gap-3 @(MetodoPago == "Tarjeta" ? "border-blue-500 bg-blue-50 text-blue-600 shadow-lg shadow-blue-500/10" : "border-slate-100 text-slate-400")'>
+                                <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                <span class="font-black text-xs uppercase tracking-widest">Tarjeta</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <button @onclick="() => FinalizarVenta(true)" 
+                                disabled="@(IsProcesando || (CambioADevolver < 0 && MetodoPago == "Efectivo"))"
+                                class="w-full py-8 rounded-[2rem] bg-slate-900 text-white font-black uppercase tracking-[0.2em] shadow-2xl hover:bg-slate-800 transition-all disabled:opacity-20 flex flex-col items-center">
+                            <span class="text-lg">@(IsProcesando ? "Emitiendo..." : "Confirmar Ticket")</span>
+                            <span class="text-[10px] opacity-40 mt-1">Presiona F12</span>
+                        </button>
+                        
+                        <button @onclick="() => FinalizarVenta(false)" 
+                                disabled="@(IsProcesando || (CambioADevolver < 0 && MetodoPago == "Efectivo"))"
+                                class="w-full py-4 text-slate-400 font-black uppercase text-[10px] tracking-[0.3em] hover:text-slate-600 transition-colors">
+                            Emitir Factura A4 (F10)
+                        </button>
+
+                        <button @onclick="() => MostrarModalPago = false" class="w-full text-rose-500 text-[10px] font-black uppercase tracking-widest pt-4">Cancelar Operación</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* MODAL DE TICKET *@
+    @if (MostrarModalTicket) {
+        <div class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
+             <div class="bg-white text-slate-900 w-full max-w-[400px] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
+                <div class="bg-slate-50 p-6 flex justify-between items-center border-b border-slate-100">
+                    <h3 class="font-black text-slate-800 uppercase text-xs tracking-widest italic">Impresión de Ticket</h3>
+                    <button @onclick="CerrarModal" class="text-slate-400">✕</button>
+                </div>
+                <div class="p-10 font-mono text-[13px] leading-relaxed ticket-paper">
+                    <div class="text-center mb-8">
+                        <h2 class="font-black text-lg uppercase tracking-tight">Software ERP Premium</h2>
+                        <p class="text-[11px] opacity-70">Zaragoza - España</p>
+                    </div>
+                    @foreach (var l in LineasTicketPrevia) {
+                        <div class="flex justify-between font-bold uppercase mb-1">
+                            <span>@l.DescripcionArticulo</span>
+                            <span>@((l.Cantidad * l.PrecioUnitario).ToString("N2"))</span>
+                        </div>
+                    }
+                    <div class="border-b border-dashed border-slate-300 my-6"></div>
+                    <div class="flex justify-between items-center font-black text-2xl tracking-tighter">
+                        <span>TOTAL</span>
+                        <span>@TotalFacturaTicketPrevia.ToString("N2")€</span>
+                    </div>
+                    <div class="mt-4 text-[11px] font-bold">
+                        <p>MÉTODO: @MetodoPago.ToUpper()</p>
+                        <p>ENTREGADO: @ImporteEntregado.ToString("N2")€</p>
+                        <p>CAMBIO: @(CambioADevolver > 0 ? CambioADevolver.ToString("N2") : "0,00")€</p>
+                    </div>
+                </div>
+                <div class="p-6 bg-slate-50 flex gap-4">
+                    <button @onclick="ConfirmarEImprimirTicket" class="flex-1 py-5 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-500 transition-all uppercase text-xs tracking-widest">
+                        Imprimir Ahora
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .ticket-paper { background-image: linear-gradient(#fff 2px, transparent 2px); background-size: 100% 2.5rem; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+</style>
+
+@code {
+    private Cliente? ClienteFactura;
+    private List<LineaVenta> Lineas = new();
+    private bool IsProcesando = false;
+    private bool MostrarModalPago = false;
+    private bool MostrarModalTicket = false;
+    private string CodigoTransaccion = Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
+    
+    private decimal ImporteEntregado = 0;
+    private string MetodoPago = "Efectivo";
+    private decimal CambioADevolver => ImporteEntregado - TotalFactura;
+
+    private ArticuloSelector? articuloSelectorRef;
+    private List<DocumentoLinea> LineasTicketPrevia = new();
+    private decimal TotalFacturaTicketPrevia = 0;
+    private int? UltimaFacturaIdIdGenerada;
+
+    private decimal BaseImponible => Lineas.Sum(l => l.Subtotal);
+    private decimal TotalIva => Lineas.Sum(l => (decimal)l.ImporteIva);
+    private decimal TotalFactura => Lineas.Sum(l => l.Total);
+    private bool IsInvalidVenta => ClienteFactura == null || !Lineas.Any();
+
+    private DotNetObjectReference<NuevaVenta>? objRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender) {
+        if (firstRender) {
+            objRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("window.addEventListener", "keydown", objRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task HandleKeyDown(KeyboardEventArgs e) {
+        if (IsProcesando) return;
+        switch (e.Key) {
+            case "F10": 
+                if (MostrarModalPago && !(CambioADevolver < 0 && MetodoPago == "Efectivo")) 
+                    await FinalizarVenta(false); 
+                break;
+            case "F12": 
+                if (MostrarModalPago && !(CambioADevolver < 0 && MetodoPago == "Efectivo")) 
+                    await FinalizarVenta(true); 
+                break;
+            case "Escape": 
+                MostrarModalPago = false; 
+                MostrarModalTicket = false; 
+                StateHasChanged();
+                break;
+        }
+    }
+
+    private decimal CalcularMargenTotal() {
+        return Lineas.Sum(l => (l.PrecioUnitario - (decimal)l.Articulo.PrecioCompra) * l.Cantidad);
+    }
+
+    private void AsignarCliente(Cliente? c) => ClienteFactura = c;
+
+    private void AgregarALaCesta(Articulo art) {
+        var existente = Lineas.FirstOrDefault(l => l.Articulo.Id == art.Id);
+        decimal disponible = art.Stock - art.StockReservado;
+        
+        if (existente != null && existente.Cantidad >= disponible) {
+            NotificationService.ShowNotification($"Atención: Superando stock disponible", NotificationType.Warning);
+        }
+
+        if (existente != null) {
+            existente.Cantidad++;
+        } else {
+            Lineas.Add(new LineaVenta { 
+                Articulo = art, 
+                PrecioUnitario = art.PrecioVenta, 
+                Cantidad = 1 
+            });
+        }
+        NotificationService.ShowNotification($"{art.Codigo} añadido", NotificationType.Success);
+    }
+
+    private void ModificarCantidad(LineaVenta linea, decimal delta) {
+        decimal disponible = linea.Articulo.Stock - linea.Articulo.StockReservado;
+        if (delta > 0 && linea.Cantidad >= disponible) {
+            NotificationService.ShowNotification("Sin stock suficiente", NotificationType.Warning);
+        }
+
+        linea.Cantidad += delta;
+        if (linea.Cantidad <= 0) Lineas.Remove(linea);
+    }
+
+    private void AbrirPasarelaPago() {
+        if (IsInvalidVenta) return;
+        ImporteEntregado = TotalFactura;
+        MetodoPago = "Efectivo";
+        MostrarModalPago = true;
+    }
+
+    private async Task FinalizarVenta(bool esTicket) {
+        if (IsProcesando) return;
+        if (MetodoPago == "Efectivo" && CambioADevolver < 0) return;
+
+        IsProcesando = true;
+        try {
+            var nuevaFactura = new DocumentoComercial {
+                ClienteId = ClienteFactura!.Id,
+                Tipo = TipoDocumento.Factura, 
+                NumeroDocumento = $"VNT-{DateTime.Now:yyyyMMdd}-{CodigoTransaccion}",
+                Fecha = DateTime.Now,
+                MetodoPago = MetodoPago,
+                UsuarioNombre = "Terminal TPV",
+                Lineas = Lineas.Select(l => new DocumentoLinea {
+                    ArticuloId = l.Articulo.Id,
+                    DescripcionArticulo = l.Articulo.Descripcion,
+                    Cantidad = l.Cantidad,
+                    PrecioUnitario = l.PrecioUnitario,
+                    PorcentajeIva = (decimal)l.Articulo.PorcentajeIva 
+                }).ToList()
+            };
+
+            nuevaFactura.BaseImponible = nuevaFactura.Lineas.Sum(l => l.Cantidad * l.PrecioUnitario);
+            nuevaFactura.TotalIva = nuevaFactura.Lineas.Sum(l => l.Cantidad * l.PrecioUnitario * (l.PorcentajeIva / 100m));
+            nuevaFactura.Total = nuevaFactura.BaseImponible + nuevaFactura.TotalIva;
+
+            var response = await Http.PostAsJsonAsync("api/facturacion/crear-factura", nuevaFactura);
+            
+            if (response.IsSuccessStatusCode) {
+                var content = await response.Content.ReadAsStringAsync();
+                using var jsonDoc = System.Text.Json.JsonDocument.Parse(content);
+                int facturaId = jsonDoc.RootElement.GetProperty("id").GetInt32();
+                UltimaFacturaIdIdGenerada = facturaId;
+
+                MostrarModalPago = false;
+                if (esTicket) {
+                    LineasTicketPrevia = nuevaFactura.Lineas.ToList();
+                    TotalFacturaTicketPrevia = TotalFactura;
+                    MostrarModalTicket = true;
+                } else {
+                    await DescargarDocumento("descargar-pdf", facturaId);
+                    FinalizarCicloVenta();
+                }
+                NotificationService.ShowNotification("Venta registrada", NotificationType.Success);
+            }
+        } catch (Exception ex) { 
+            // Usamos 'ex' en el log para que no de error CS0168
+            Console.WriteLine($"Error crítico de venta: {ex.Message}");
+            NotificationService.ShowNotification("Error de red al procesar pago", NotificationType.Error);
+        } finally {
+            IsProcesando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfirmarEImprimirTicket() {
+        if (UltimaFacturaIdIdGenerada.HasValue) {
+            await DescargarDocumento("descargar-ticket", UltimaFacturaIdIdGenerada.Value);
+            CerrarModal();
+            FinalizarCicloVenta();
+        }
+    }
+
+    private async Task DescargarDocumento(string endpoint, int id) {
+        try {
+            var response = await Http.GetAsync($"api/facturacion/{endpoint}/{id}");
+            if (response.IsSuccessStatusCode) {
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                await JS.InvokeVoidAsync("downloadFile", $"DOC_{id}.pdf", Convert.ToBase64String(bytes));
+            }
+        } catch (Exception ex) {
+            Console.WriteLine($"Error de descarga: {ex.Message}");
+        }
+    }
+
+    private void FinalizarCicloVenta() {
+        Lineas.Clear();
+        ClienteFactura = null;
+        CodigoTransaccion = Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
+        StateHasChanged();
+    }
+
+    private void CerrarModal() => MostrarModalTicket = false;
+    
+    public void Dispose() {
+        objRef?.Dispose();
+    }
+}

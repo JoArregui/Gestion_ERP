@@ -1,0 +1,148 @@
+@inherits LayoutComponentBase
+@using ERP.Web.Shared
+@using ERP.Web.Layout
+@using ERP.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NotificationService NotificationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+<div class="flex h-screen overflow-hidden bg-[#020617]">
+    
+    @* BARRA LATERAL (NAVMENU) *@
+    <aside class="w-72 flex-shrink-0 border-r border-slate-800/50 shadow-2xl z-20">
+        @* Llamada con Namespace completo para evitar el error RZ10012 *@
+        <ERP.Web.Layout.NavMenu />
+    </aside>
+
+    @* CONTENIDO PRINCIPAL *@
+    <div class="flex flex-col flex-1 min-w-0 overflow-hidden relative">
+        
+        @* HEADER SUPERIOR *@
+        <Header />
+
+        @* ÁREA DE TRABAJO DINÁMICA *@
+        <main class="flex-1 overflow-y-auto custom-scrollbar p-8">
+            <div class="max-w-[1600px] mx-auto">
+                @Body
+            </div>
+        </main>
+
+        @* CONTENEDOR DE NOTIFICACIONES (TOASTS SYSTEM) *@
+        <div class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3">
+            @foreach (var toast in ActiveNotifications)
+            {
+                <div class="flex items-center p-4 min-w-[320px] bg-slate-900/90 backdrop-blur-md rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-slate-700/50 border-l-4 transform transition-all duration-300 animate-notification @GetToastStyle(toast.Type)">
+                    <div class="mr-4 text-2xl">
+                        @GetIcon(toast.Type)
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-black text-[10px] uppercase tracking-[0.2em] opacity-50 mb-1">
+                            @toast.Type.ToString()
+                        </p>
+                        <p class="text-sm font-medium text-white">@toast.Message</p>
+                    </div>
+                    <button @onclick="() => RemoveToast(toast)" class="ml-4 p-1 text-slate-500 hover:text-white hover:bg-white/10 rounded-full transition-all">
+                        <i class="bi bi-x-lg text-xs"></i>
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Estilo para el scroll del área principal */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #020617;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #1e293b;
+        border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #334155;
+    }
+
+    /* Animación de entrada para el contenido */
+    main {
+        animation: fadeIn 0.5s ease-out forwards;
+    }
+
+    @@keyframes fadeIn {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Animación para los Toasts */
+    @@keyframes notificationIn {
+        from { opacity: 0; transform: translateX(50px) scale(0.9); }
+        to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    .animate-notification {
+        animation: notificationIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+</style>
+
+@code {
+    private List<ToastModel> ActiveNotifications = new();
+
+    protected override void OnInitialized()
+    {
+        NotificationService.OnShow += HandleNotification;
+    }
+
+    private void HandleNotification(string message, NotificationType type)
+    {
+        var newToast = new ToastModel { Message = message, Type = type };
+        ActiveNotifications.Add(newToast);
+        
+        InvokeAsync(StateHasChanged);
+
+        _ = Task.Delay(5000).ContinueWith(_ => 
+        {
+            RemoveToast(newToast);
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void RemoveToast(ToastModel toast)
+    {
+        if (ActiveNotifications.Contains(toast))
+        {
+            ActiveNotifications.Remove(toast);
+        }
+    }
+
+    private string GetToastStyle(NotificationType type) => type switch
+    {
+        NotificationType.Success => "text-emerald-400 border-emerald-500",
+        NotificationType.Error => "text-rose-400 border-rose-500",
+        NotificationType.Warning => "text-amber-400 border-amber-500",
+        _ => "text-blue-400 border-blue-500"
+    };
+
+    private string GetIcon(NotificationType type) => type switch
+    {
+        NotificationType.Success => "✔",
+        NotificationType.Error => "✘",
+        NotificationType.Warning => "⚠",
+        _ => "ℹ"
+    };
+
+    public void Dispose()
+    {
+        NotificationService.OnShow -= HandleNotification;
+    }
+
+    public class ToastModel
+    {
+        public string Message { get; set; } = string.Empty;
+        public NotificationType Type { get; set; }
+        public DateTime Created { get; set; } = DateTime.Now;
+    }
+}

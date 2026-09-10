@@ -1,0 +1,66 @@
+@using ERP.Domain.DTOs
+
+<div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 h-full">
+    <div class="flex justify-between items-start mb-10">
+        <div>
+            <h3 class="text-2xl font-black text-slate-900 tracking-tighter italic">TENDENCIA DE VENTAS</h3>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Últimos 6 meses de facturación</p>
+        </div>
+        <div class="flex gap-2">
+            <span class="flex items-center gap-1">
+                <span class="w-3 h-3 rounded-sm bg-blue-600"></span>
+                <span class="text-[9px] font-black text-slate-500 uppercase">Ingresos</span>
+            </span>
+        </div>
+    </div>
+
+    @if (Datos == null || !Datos.Any())
+    {
+        <div class="h-64 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl">
+            <span class="text-slate-300 font-bold italic text-xs uppercase tracking-widest">No hay datos suficientes</span>
+        </div>
+    }
+    else
+    {
+        <div class="relative h-64 flex items-end justify-between gap-4 px-2">
+            @* Líneas de fondo (Grilla) *@
+            <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                <div class="border-t border-slate-50 w-full h-0"></div>
+                <div class="border-t border-slate-50 w-full h-0"></div>
+                <div class="border-t border-slate-50 w-full h-0"></div>
+                <div class="border-t border-slate-100 w-full h-0"></div>
+            </div>
+
+            @foreach (var mes in Datos)
+            {
+                var alturaPorcentaje = MaximoValor > 0 ? (double)(mes.Importe / MaximoValor * 100) : 0;
+                
+                <div class="relative flex-1 flex flex-col items-center group h-full justify-end">
+                    @* Tooltip al hacer Hover *@
+                    <div class="absolute -top-10 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-slate-900 text-white text-[10px] font-bold py-2 px-3 rounded-lg pointer-events-none z-10 shadow-xl whitespace-nowrap">
+                        @mes.Importe.ToString("C2")
+                    </div>
+
+                    @* Barra con animación *@
+                    <div class="w-full bg-blue-600 rounded-t-xl group-hover:bg-indigo-500 transition-all duration-500 relative" 
+                         style="height: @(alturaPorcentaje.ToString("0", System.Globalization.CultureInfo.InvariantCulture))%;">
+                        <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-xl"></div>
+                    </div>
+
+                    @* Etiqueta del Mes *@
+                    <span class="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-tighter group-hover:text-slate-900 transition-colors">
+                        @mes.Mes
+                    </span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<GraficoVentasMes>? Datos { get; set; }
+
+    private decimal MaximoValor => (Datos != null && Datos.Any()) 
+        ? Datos.Max(x => x.Importe) * 1.2m 
+        : 1000m;
+}

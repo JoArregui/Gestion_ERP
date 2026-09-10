@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ERP SISTEMA | Industrial Insights</title>
+    <base href="/" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="css/app.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --slate-950: #020617;
+            --rose-600: #e11d48;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            letter-spacing: -0.01em;
+        }
+
+        /* Scrollbar Personalizada Estilo Minimal */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Animaciones */
+        .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .barcode-font { font-family: 'Libre Barcode 128', cursive; }
+        .font-mono-erp { font-family: 'JetBrains Mono', monospace; }
+
+        /* Glassmorphism Effects */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Notificaciones Toast */
+        #toast-container {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .toast-card {
+            min-width: 300px;
+            background: white;
+            border-radius: 1rem;
+            padding: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-left: 4px solid var(--slate-950);
+            transform: translateX(120%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .toast-card.show { transform: translateX(0); }
+        .toast-success { border-left-color: #10b981; }
+        .toast-error { border-left-color: #e11d48; }
+
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+        }
+    </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-900 selection:bg-rose-100 selection:text-rose-900">
+    
+    <div id="app">
+        <div class="flex flex-col items-center justify-center min-h-screen">
+            <div class="w-12 h-12 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin mb-4"></div>
+            <p class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Iniciando ERP System</p>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <div id="blazor-error-ui" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-lg bg-slate-900 text-white p-4 rounded-2xl shadow-2xl z-[999] flex justify-between items-center glass-panel">
+        <div class="flex items-center gap-3">
+            <i class="bi bi-exclamation-triangle-fill text-rose-500"></i>
+            <span class="text-sm font-medium">Se ha detectado una interrupción en el sistema.</span>
+        </div>
+        <a href="" class="reload px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-all">RECONECTAR</a>
+    </div>
+
+    <script src="_framework/blazor.webassembly.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // --- SISTEMA DE NOTIFICACIONES (TOASTS) ---
+        window.showToast = (message, type = 'info') => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const icon = type === 'success' ? 'bi-check-circle-fill' : (type === 'error' ? 'bi-x-circle-fill' : 'bi-info-circle-fill');
+            const colorClass = type === 'success' ? 'toast-success' : (type === 'error' ? 'toast-error' : '');
+
+            toast.className = `toast-card ${colorClass}`;
+            toast.innerHTML = `
+                <i class="bi ${icon} ${type === 'error' ? 'text-rose-500' : 'text-slate-900'} text-xl"></i>
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">${type}</span>
+                    <span class="text-sm font-semibold text-slate-700">${message}</span>
+                </div>
+            `;
+
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 100);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 500);
+            }, 4000);
+        };
+
+        // --- BRIDGE PARA CHART.JS REFINADO ---
+        window.setupSalesChart = (canvasId, labels, data) => {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            const existingChart = Chart.getChart(canvasId);
+            if (existingChart) existingChart.destroy();
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        borderColor: '#0f172a',
+                        backgroundColor: (context) => {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) return null;
+                            const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                            gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                            gradient.addColorStop(1, 'rgba(15, 23, 42, 0.08)');
+                            return gradient;
+                        },
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHitRadius: 20,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: '#0f172a',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: '#f1f5f9', drawBorder: false },
+                            ticks: { font: { size: 10, family: 'JetBrains Mono' }, color: '#94a3b8' }
+                        },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { font: { size: 10, family: 'JetBrains Mono' }, color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+        };
+
+        // --- EXPORTACIÓN ---
+        window.exportToExcel = (data, fileName) => {
+            try {
+                const worksheet = XLSX.utils.json_to_sheet(data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte");
+                XLSX.writeFile(workbook, `${fileName}.xlsx`);
+                window.showToast("Excel generado correctamente", "success");
+            } catch (e) {
+                window.showToast("Error al generar Excel", "error");
+            }
+        };
+
+        window.exportToPdf = (title, headers, data, fileName) => {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'mm', 'a4');
+                
+                doc.setFillColor(15, 23, 42);
+                doc.rect(0, 0, 297, 40, 'F');
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(22);
+                doc.text(title.toUpperCase(), 14, 25);
+                
+                doc.autoTable({
+                    head: [headers],
+                    body: data,
+                    startY: 45,
+                    styles: { fontSize: 8, cellPadding: 4 },
+                    headStyles: { fillColor: [15, 23, 42], fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [248, 250, 252] }
+                });
+                
+                doc.save(`${fileName}.pdf`);
+                window.showToast("PDF listo para descargar", "success");
+            } catch (e) {
+                window.showToast("Error al generar PDF", "error");
+            }
+        };
+
+        window.downloadFile = (fileName, base64Data) => {
+            const binary = atob(base64Data);
+            const bytes = new Uint8Array(binary.length);
+
+            for (let index = 0; index < binary.length; index++) {
+                bytes[index] = binary.charCodeAt(index);
+            }
+
+            const blob = new Blob([bytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = fileName;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+        };
+
+        window.printDashboard = (elementId) => {
+            const source = document.getElementById(elementId);
+            if (!source) return;
+
+            const printWindow = window.open('', '_blank', 'width=1200,height=900');
+            if (!printWindow) return;
+
+            printWindow.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>ERP Insights</title><style>
+                * { box-sizing: border-box; }
+                body { margin: 0; padding: 24px; background: #f8fafc; color: #0f172a; font-family: Arial, sans-serif; }
+                button, .no-print { display: none !important; }
+                .shadow-xl, .shadow-2xl, .shadow-lg { box-shadow: none !important; }
+                @media print { body { padding: 0; } }
+            </style></head><body>${source.innerHTML}</body></html>`);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.onload = () => {
+                printWindow.print();
+                printWindow.close();
+            };
+        };
+
+        window.printWindow = () => { window.print(); };
+    </script>
+</body>
+</html>

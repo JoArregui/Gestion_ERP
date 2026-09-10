@@ -1,0 +1,281 @@
+@page "/maestros/proveedores"
+@using ERP.Domain.Entities
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<div class="max-w-[1400px] mx-auto p-6 animate-in fade-in duration-700">
+
+    @* --- CABECERA --- *@
+    <div class="flex justify-between items-end mb-8 border-b border-slate-200 pb-6">
+        <div>
+            <nav class="text-[10px] font-black text-rose-600 uppercase mb-2 tracking-widest">Compras > Suministros</nav>
+            <h1 class="text-4xl font-black text-slate-900 uppercase tracking-tighter italic">Cartera de Proveedores</h1>
+        </div>
+        <button @onclick="NuevoProveedor" class="bg-slate-900 hover:bg-rose-600 text-white px-8 py-3 rounded-xl font-black text-xs transition-all shadow-xl flex items-center gap-3 uppercase tracking-widest active:scale-95">
+            <span class="text-lg">＋</span> Alta Proveedor
+        </button>
+    </div>
+
+    @* --- BARRA DE BÚSQUEDA --- *@
+    <div class="bg-slate-50 p-2 rounded-2xl mb-8 flex items-center gap-2 border border-slate-200/60 shadow-inner">
+        <input type="text" @bind="searchTerm" @bind:event="oninput" @onkeyup="Filtrar"
+               placeholder="Buscar por CIF, Razón Social o Contacto..." 
+               class="flex-1 pl-6 pr-4 py-3 bg-white border-none rounded-xl text-sm shadow-sm focus:ring-2 focus:ring-rose-500/20 outline-none transition" />
+        
+        <select @bind="filtroTipo" @bind:event="onchange"
+                class="bg-white border-none rounded-xl py-3 px-6 text-[10px] font-black text-slate-500 shadow-sm outline-none cursor-pointer">
+            <option value="TODOS">TODOS</option>
+            <option value="PROVEEDOR">SOLO PRODUCTO</option>
+            <option value="ACREEDOR">SOLO ACREEDORES</option>
+        </select>
+    </div>
+
+    @* --- GRID DE DATOS --- *@
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        @if (proveedoresFiltrados == null)
+        {
+            <div class="p-20 text-center">
+                <div class="animate-spin h-8 w-8 border-4 border-rose-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p class="text-[10px] font-black text-slate-400 uppercase">Sincronizando proveedores...</p>
+            </div>
+        }
+        else
+        {
+            <table class="w-full text-left">
+                <thead class="bg-slate-50/50 border-b border-slate-100">
+                    <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <th class="p-5">Entidad / CIF</th>
+                        <th class="p-5">Contacto Principal</th>
+                        <th class="p-5">Tipo</th>
+                        <th class="p-5 text-center">Estado</th>
+                        <th class="p-5 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                    @foreach (var prov in proveedoresFiltrados)
+                    {
+                        <tr class="hover:bg-slate-50/80 transition-colors group">
+                            <td class="p-5">
+                                <div class="text-sm font-black text-slate-800 uppercase tracking-tight">@prov.RazonSocial</div>
+                                <div class="text-[10px] font-mono text-rose-600">@prov.CIF</div>
+                            </td>
+                            <td class="p-5">
+                                <div class="text-xs font-bold text-slate-700">@(prov.NombreContacto ?? "Sin contacto")</div>
+                                <div class="text-[10px] text-slate-400">@prov.Email | @prov.Telefono</div>
+                            </td>
+                            <td class="p-5">
+                                @if (prov.EsAcreedor)
+                                {
+                                    <span class="text-[9px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100 uppercase">Acreedor / Gastos</span>
+                                }
+                                else
+                                {
+                                    <span class="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 uppercase">Proveedor / Stock</span>
+                                }
+                            </td>
+                            <td class="p-5 text-center">
+                                @if (prov.IsActivo)
+                                {
+                                    <span class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-100">✓ Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-slate-100 text-slate-400 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">✕ Inactivo</span>
+                                }
+                            </td>
+                            <td class="p-5 text-right">
+                                <div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button @onclick="() => Editar(prov.Id)" class="p-2 hover:bg-slate-900 hover:text-white rounded-lg transition-all">✏️</button>
+                                    <button @onclick="() => Eliminar(prov.Id)" class="p-2 hover:bg-red-600 hover:text-white rounded-lg transition-all">🗑️</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    @* --- DRAWER DE FORMULARIO (MODAL LATERAL) --- *@
+    @if (mostrarFormulario)
+    {
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-end">
+            <div class="w-full max-w-2xl bg-white h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
+                <div class="p-8 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 uppercase tracking-tighter">Ficha de Proveedor</h2>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Homologación y Contacto</p>
+                    </div>
+                    <button @onclick="CerrarFormulario" class="h-10 w-10 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400">✕</button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-10">
+                    <EditForm Model="proveedorActual" OnValidSubmit="GuardarProveedor">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="space-y-8">
+                            <div class="grid grid-cols-2 gap-6">
+                                <div class="col-span-2">
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Razón Social</label>
+                                    <InputText @bind-Value="proveedorActual.RazonSocial" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold uppercase focus:ring-2 focus:ring-rose-500/20 outline-none transition" />
+                                    <ValidationMessage For="@(() => proveedorActual.RazonSocial)" class="text-rose-600 text-[10px] font-bold uppercase mt-1" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">CIF / NIF</label>
+                                    <InputText @bind-Value="proveedorActual.CIF" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase focus:ring-2 focus:ring-rose-500/20 outline-none transition" />
+                                    <ValidationMessage For="@(() => proveedorActual.CIF)" class="text-rose-600 text-[10px] font-bold uppercase mt-1" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Tipo Contable</label>
+                                    <div class="flex h-[58px] bg-slate-100 p-1 rounded-xl">
+                                        <button type="button" @onclick="() => proveedorActual.EsAcreedor = false" class="flex-1 rounded-lg text-[9px] font-black uppercase transition-all @(!proveedorActual.EsAcreedor ? "bg-white text-slate-900 shadow-sm" : "text-slate-400")">Mercancía</button>
+                                        <button type="button" @onclick="() => proveedorActual.EsAcreedor = true" class="flex-1 rounded-lg text-[9px] font-black uppercase transition-all @(proveedorActual.EsAcreedor ? "bg-white text-slate-900 shadow-sm" : "text-slate-400")">Servicios</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-8 border-t border-slate-100 space-y-6">
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Persona de Contacto</label>
+                                    <InputText @bind-Value="proveedorActual.NombreContacto" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500/20 outline-none transition" />
+                                </div>
+                                <div class="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Teléfono</label>
+                                        <InputText @bind-Value="proveedorActual.Telefono" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500/20 outline-none transition" />
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Email</label>
+                                        <InputText @bind-Value="proveedorActual.Email" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500/20 outline-none transition" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-4 bg-slate-50 rounded-2xl flex items-center gap-3 border border-slate-200/50">
+                                <InputCheckbox @bind-Value="proveedorActual.IsActivo" class="h-5 w-5 rounded text-rose-600 focus:ring-rose-500" />
+                                <span class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Proveedor Homologado y Activo</span>
+                            </div>
+
+                            <div class="flex gap-4 pt-6">
+                                <button type="submit" class="flex-1 bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 transition-all shadow-xl active:scale-95">
+                                    Sincronizar Proveedor
+                                </button>
+                                <button type="button" @onclick="CerrarFormulario" class="px-8 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase hover:bg-slate-200 transition-all">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Proveedor>? proveedores;
+    private List<Proveedor> proveedoresFiltrados = new();
+    private string searchTerm = "";
+    private string filtroTipo = "TODOS";
+    private bool mostrarFormulario = false;
+    private Proveedor proveedorActual = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProveedores();
+    }
+
+    private async Task CargarProveedores()
+    {
+        try {
+            proveedores = await Http.GetFromJsonAsync<List<Proveedor>>("api/proveedores");
+            Filtrar();
+            if (proveedores == null || !proveedores.Any()) {
+                await Notificar("No hay proveedores en la base de datos.", "error");
+            }
+        } catch (HttpRequestException ex) when (ex.Message.Contains("401") || ex.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
+            await NavToLogin();
+        } catch (HttpRequestException ex) {
+            await Notificar($"Error de conexión: {ex.Message}", "error");
+        } catch {
+            await Notificar("Error inesperado al cargar proveedores", "error");
+        }
+    }
+
+    private async Task NavToLogin() {
+        await Task.Delay(800);
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+
+    private void Filtrar()
+    {
+        if (proveedores == null) return;
+        
+        var s = searchTerm.ToLower();
+        var temp = proveedores.Where(p => 
+            p.RazonSocial.ToLower().Contains(s) || 
+            p.CIF.ToLower().Contains(s) || 
+            (p.NombreContacto?.ToLower().Contains(s) ?? false)
+        ).ToList();
+
+        if (filtroTipo == "PROVEEDOR") temp = temp.Where(p => !p.EsAcreedor).ToList();
+        if (filtroTipo == "ACREEDOR") temp = temp.Where(p => p.EsAcreedor).ToList();
+        
+        proveedoresFiltrados = temp;
+        StateHasChanged();
+    }
+
+    private void NuevoProveedor() { 
+        proveedorActual = new Proveedor { IsActivo = true, EsAcreedor = false }; 
+        mostrarFormulario = true; 
+    }
+    
+    private async Task Editar(int id) { 
+        try {
+            proveedorActual = await Http.GetFromJsonAsync<Proveedor>($"api/proveedores/{id}") ?? new(); 
+            mostrarFormulario = true; 
+        } catch {
+            await Notificar("No se pudo recuperar la ficha del proveedor", "error");
+        }
+    }
+
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task GuardarProveedor()
+    {
+        try {
+            HttpResponseMessage response;
+            if (proveedorActual.Id == 0) 
+                response = await Http.PostAsJsonAsync("api/proveedores", proveedorActual);
+            else 
+                response = await Http.PutAsJsonAsync($"api/proveedores/{proveedorActual.Id}", proveedorActual);
+
+            if (response.IsSuccessStatusCode) {
+                await Notificar("Base de datos de proveedores actualizada", "success");
+                await CargarProveedores();
+                CerrarFormulario();
+            } else {
+                await Notificar("Error al guardar los datos", "error");
+            }
+        } catch {
+            await Notificar("Fallo en la comunicación con el servidor", "error");
+        }
+    }
+
+    private async Task Eliminar(int id)
+    {
+        var confirm = await JS.InvokeAsync<bool>("confirm", "¿Desea desactivar este proveedor de la cartera activa?");
+        if (confirm) {
+            var response = await Http.DeleteAsync($"api/proveedores/{id}");
+            if (response.IsSuccessStatusCode) {
+                await Notificar("Proveedor dado de baja", "success");
+                await CargarProveedores();
+            } else {
+                await Notificar("Error al procesar la baja", "error");
+            }
+        }
+    }
+
+    private async Task Notificar(string msg, string tipo) => await JS.InvokeVoidAsync("showToast", msg, tipo);
+}

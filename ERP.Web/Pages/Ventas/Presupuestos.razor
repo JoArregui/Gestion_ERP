@@ -1,0 +1,124 @@
+@page "/ventas/presupuestos"
+@using ERP.Domain.Entities
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="space-y-6 animate-in fade-in duration-500">
+    @* CABECERA *@
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-white tracking-tight uppercase italic">Presupuestos Comerciales</h1>
+            <p class="text-slate-500 font-medium">Gestión de ofertas, propuestas a clientes y seguimiento de ventas potenciales.</p>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto no-print">
+            <div class="relative group">
+                <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors"></i>
+                <input type="text" @bind-value="Busqueda" @bind-value:event="oninput"
+                       placeholder="Buscar presupuesto..." 
+                       class="bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-4 py-3 text-sm text-white w-full sm:w-64 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+            </div>
+
+            <button @onclick='() => Nav.NavigateTo("/ventas/nuevo-presupuesto")' class="bg-amber-600 hover:bg-amber-500 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95">
+                <i class="bi bi-file-earmark-plus mr-2"></i> Nuevo Presupuesto
+            </button>
+        </div>
+    </div>
+
+    @* LISTADO *@
+    <div class="bg-[#0f172a] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-slate-900/50 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">
+                    <th class="p-5">Nº Presupuesto</th>
+                    <th class="p-5">Fecha</th>
+                    <th class="p-5">Cliente</th>
+                    <th class="p-5">Estado</th>
+                    <th class="p-5">Total</th>
+                    <th class="p-5 text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/50 text-white">
+                @if (PresupuestosFiltrados != null)
+                {
+                    @foreach (var presu in PresupuestosFiltrados)
+                    {
+                        <tr class="hover:bg-white/[0.02] transition-colors">
+                            <td class="p-5 font-mono text-amber-400 font-bold">@presu.NumeroDocumento</td>
+                            <td class="p-5 text-sm text-slate-400">@presu.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td class="p-5 text-sm font-semibold">@presu.Cliente?.RazonSocial</td>
+                            <td class="p-5">
+                                <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter @GetEstadoClass(presu)">
+                                    @(EsAceptado(presu.Id) ? "Aceptado / Convertido" : "Pendiente")
+                                </span>
+                            </td>
+                            <td class="p-5 font-mono font-bold text-lg">@presu.Total.ToString("N2")€</td>
+                            <td class="p-5 text-right space-x-1">
+                                @if (!EsAceptado(presu.Id))
+                                {
+                                    <button @onclick="() => ConvertirPresupuesto(presu.Id, TipoDocumento.Albaran)" title="Convertir a Albarán" class="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition-all">
+                                        <i class="bi bi-box-seam"></i>
+                                    </button>
+                                    <button @onclick="() => EliminarPresupuesto(presu.Id)" title="Eliminar" class="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                                <button @onclick="() => VerPresupuesto(presu.Id)" title="Ver detalle" class="p-2 text-slate-400 hover:text-white transition-colors"><i class="bi bi-eye"></i></button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private string Busqueda = "";
+    private List<DocumentoComercial> ListaPresupuestos = new();
+    private List<int> IdsConvertidos = new();
+
+    protected override async Task OnInitializedAsync() => await CargarDatos();
+
+    private async Task CargarDatos()
+    {
+        var docs = await Http.GetFromJsonAsync<List<DocumentoComercial>>("api/CicloFacturacion");
+        if (docs != null)
+        {
+            ListaPresupuestos = docs.Where(d => d.Tipo == TipoDocumento.Presupuesto).ToList();
+            IdsConvertidos = docs.Where(d => d.DocumentoOrigenId.HasValue).Select(d => d.DocumentoOrigenId!.Value).ToList();
+        }
+    }
+
+    private IEnumerable<DocumentoComercial> PresupuestosFiltrados => 
+        ListaPresupuestos.Where(p => (p.NumeroDocumento ?? "").Contains(Busqueda, StringComparison.OrdinalIgnoreCase) || 
+                                     (p.Cliente?.RazonSocial ?? "").Contains(Busqueda, StringComparison.OrdinalIgnoreCase));
+
+    private bool EsAceptado(int id) => IdsConvertidos.Contains(id);
+
+    private string GetEstadoClass(DocumentoComercial p) => EsAceptado(p.Id) 
+        ? "bg-emerald-500/10 text-emerald-500" 
+        : "bg-amber-500/10 text-amber-500";
+
+    private async Task ConvertirPresupuesto(int id, TipoDocumento tipo)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "¿Confirmar aceptación de presupuesto y generar albarán?");
+        if (confirmed)
+        {
+            var res = await Http.PostAsync($"api/CicloFacturacion/{id}/convertir?nuevoTipo={tipo}", null);
+            if (res.IsSuccessStatusCode) Nav.NavigateTo("/ventas/albaranes");
+        }
+    }
+
+    private async Task EliminarPresupuesto(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Eliminar este presupuesto?"))
+        {
+            await Http.DeleteAsync($"api/CicloFacturacion/albaran/{id}"); // El delete es genérico por ID
+            await CargarDatos();
+        }
+    }
+
+    private void VerPresupuesto(int id) => Nav.NavigateTo($"/ventas/editor/{id}");
+}

@@ -1,0 +1,334 @@
+﻿@page "/ventas/editor"
+@page "/ventas/editor/{Id:int?}"
+@page "/ventas/detalle-factura/{Id:int?}"
+@using ERP.Domain.Entities
+@using ERP.Web.Services
+@using ERP.Web.Components
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject EmpresaService EmpresaService
+
+@if (!Id.HasValue)
+{
+    <div class="max-w-6xl mx-auto p-6 animate-in fade-in duration-500">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+                <h1 class="text-3xl font-black text-white tracking-tighter uppercase">Editor de Documentos</h1>
+                <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">Listado completo Â· Verifique editabilidad por normativa</p>
+                @if (EmpresaService.IsLoaded)
+                {
+                    <p class="text-[10px] text-slate-400 mt-1">Empresa emisora: <span class="text-white font-black">@EmpresaService.EmpresaActual?.NombreComercial</span></p>
+                }
+            </div>
+            <div class="flex gap-2 items-center">
+                <EmpresaSelector />
+                <button @onclick="IrANuevoPresupuesto" class="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-black uppercase">+ Presupuesto</button>
+                <button @onclick="IrANuevaFactura" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-black uppercase">+ Factura</button>
+            </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex gap-2">
+                <input @bind="filtro" @bind:event="oninput" placeholder="Buscar por número, cliente o tipo..." class="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500 outline-none" />
+                <select @bind="filtroTipo" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs">
+                    <option value="">Todos</option>
+                    <option value="Presupuesto">Presupuesto</option>
+                    <option value="Albaran">Albarán</option>
+                    <option value="Factura">Factura</option>
+                </select>
+            </div>
+            @if (cargandoLista)
+            {
+                <div class="p-10 text-center text-slate-500">Cargando documentos...</div>
+            }
+            else
+            {
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-800/50 text-slate-400 text-[10px] uppercase">
+                        <tr>
+                            <th class="p-3">Tipo</th>
+                            <th class="p-3">Número</th>
+                            <th class="p-3">Fecha</th>
+                            <th class="p-3">Empresa</th>
+                            <th class="p-3">Cliente</th>
+                            <th class="p-3 text-right">Total</th>
+                            <th class="p-3">Estado</th>
+                            <th class="p-3 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        @foreach (var d in DocumentosFiltrados)
+                        {
+                            var editable = EsEditable(d);
+                            <tr class="hover:bg-white/[0.03] text-white">
+                                <td class="p-3"><span class="px-2 py-1 rounded text-[10px] font-black uppercase @(d.Tipo == TipoDocumento.Factura ? "bg-blue-600" : d.Tipo == TipoDocumento.Presupuesto ? "bg-amber-600" : "bg-slate-700")">@d.Tipo</span></td>
+                                <td class="p-3 font-mono font-bold">@d.NumeroDocumento</td>
+                                <td class="p-3 text-slate-400">@d.Fecha.ToString("dd/MM/yyyy")</td>
+                                <td class="p-3 text-[11px]">@(d.Empresa?.NombreComercial ?? $"Emp.{d.EmpresaId}")</td>
+                                <td class="p-3">@(d.Cliente?.RazonSocial ?? "â€”")</td>
+                                <td class="p-3 text-right font-bold">@d.Total.ToString("N2")â‚¬</td>
+                                <td class="p-3"><span class="px-2 py-1 rounded-full text-[10px] font-black uppercase @(d.Estado == EstadoDocumento.Emitido ? "bg-emerald-500/20 text-emerald-400" : d.Estado == EstadoDocumento.Borrador ? "bg-amber-500/20 text-amber-400" : d.Estado==EstadoDocumento.Anulado ? "bg-rose-500/20 text-rose-400" : "bg-slate-700 text-slate-300")">@d.Estado @(d.EstaEmitidaFormalmente ? "Â·Emitida" : "")</span></td>
+                                <td class="p-3">
+                                    <div class="flex gap-1 justify-center">
+                                        <button @onclick="() => Ver(d.Id)" title="Ver" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center"><i class="bi bi-eye text-xs"></i></button>
+                                        @if (editable)
+                                        {
+                                            <button @onclick="() => Editar(d.Id)" title="Editar" class="w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center"><i class="bi bi-pencil text-xs"></i></button>
+                                        }
+                                        else
+                                        {
+                                            <span title="No editable por normativa: use desvincular/rectificativa" class="w-8 h-8 rounded-lg bg-slate-800 text-slate-500 flex items-center justify-center cursor-not-allowed"><i class="bi bi-lock text-xs"></i></span>
+                                        }
+                                        @if (d.Tipo == TipoDocumento.Factura)
+                                        {
+                                            <button @onclick="() => IrARectificar(d.Id)" title="Rectificativa" class="w-8 h-8 rounded-lg bg-orange-600 hover:bg-orange-500 text-white flex items-center justify-center"><i class="bi bi-arrow-counterclockwise text-xs"></i></button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                @if (!DocumentosFiltrados.Any())
+                {
+                    <div class="p-8 text-center text-slate-500 text-sm">Sin documentos</div>
+                }
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="max-w-3xl mx-auto p-6 animate-in fade-in duration-500">
+        <div class="flex items-center gap-3 mb-6">
+            <button @onclick="Volver" class="h-10 w-10 rounded-xl bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700"><i class="bi bi-arrow-left"></i></button>
+            <div>
+                <h1 class="text-2xl font-black text-white uppercase tracking-tighter">@(modoEdicion ? "Editar Documento" : "Detalle Documento")</h1>
+                <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">@(Documento.NumeroDocumento ?? "â€”") Â· @Documento.Tipo Â· @Documento.Fecha.ToString("dd/MM/yyyy") @(EsEditable(Documento) ? "" : "Â· No editable") @(Documento.EstaEmitidaFormalmente ? "Â· Emitida formalmente" : "Â· No emitida")</p>
+            </div>
+        </div>
+        @if (cargando)
+        {
+            <div class="p-10 text-center text-slate-500">Cargando documento...</div>
+        }
+        else if (Documento.Id == 0)
+        {
+            <div class="p-10 text-center text-rose-400">Documento no encontrado</div>
+        }
+        else
+        {
+            <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 mb-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Tipo</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@Documento.Tipo</div></div>
+                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Número</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white font-mono">@Documento.NumeroDocumento</div></div>
+                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Fecha</label>
+                        @if (modoEdicion)
+                        { <InputDate @bind-Value="Documento.Fecha" class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white" /> }
+                        else { <div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@Documento.Fecha.ToString("dd/MM/yyyy")</div> }
+                    </div>
+                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Empresa emisora</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@(Documento.Empresa?.NombreComercial ?? $"Emp. {Documento.EmpresaId}")</div></div>
+                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Cliente</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@(Documento.Cliente?.RazonSocial ?? $"ID {Documento.ClienteId}")</div></div>
+                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Estado</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white">@Documento.Estado @(Documento.EstaEmitidaFormalmente ? "(Emitida)" : "(No emitida)")</div></div>
+                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Total</label><div class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-emerald-400 font-black">@Documento.Total.ToString("N2") â‚¬</div></div>
+                    <div><label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Enviad­o / Hacienda</label>
+                        <div class="text-[11px] text-slate-300">Cliente: @(Documento.EnviadaCliente ? $"Sí­ {Documento.FechaEnvioCliente:dd/MM}" : "No") · Hacienda: @(Documento.PresentadaHacienda ? "Sí­" : "No")</div>
+                    </div>
+                </div>
+                @if (!EsEditable(Documento) && modoEdicion)
+                {
+                    <div class="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-300 text-xs text-center">No editable por normativa (ya emitida). Use Desvincular/Anular si aún no enviada, o Rectificativa si ya emitida.</div>
+                }
+            </div>
+            <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 mb-6">
+                <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest">Lí­neas (@Documento.Lineas.Count)</span>
+                @if (Documento.Lineas.Any())
+                {
+                    <table class="w-full text-sm mt-3">
+                        <thead class="bg-slate-800/50 text-slate-400 text-[10px] uppercase"><tr><th class="p-3 text-left">Artí­culo</th><th class="p-3 text-center">Cant.</th><th class="p-3 text-end">Precio</th><th class="p-3 text-end">Subtotal</th></tr></thead>
+                        <tbody class="divide-y divide-slate-800">
+                            @foreach (var l in Documento.Lineas)
+                            { <tr class="text-white"><td class="p-3">@l.DescripcionArticulo</td><td class="p-3 text-center">@l.Cantidad</td><td class="p-3 text-end">@l.PrecioUnitario.ToString("N2") â‚¬</td><td class="p-3 text-end font-bold">@l.Subtotal.ToString("N2") €</td></tr> }
+                        </tbody>
+                    </table>
+                }
+                else { <div class="p-8 text-center text-slate-500"><i class="bi bi-grid text-3xl mb-3 block"></i><p>No hay lÃ­neas.</p></div> }
+            </div>
+            <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800">
+                <div class="grid grid-cols-1 gap-3">
+                    @if (modoEdicion && EsEditable(Documento))
+                    {
+                        <button @onclick="GuardarEdicion" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition shadow-xl"><i class="bi bi-check-lg mr-2"></i> Guardar Cambios</button>
+                    }
+                    else if (!modoEdicion && Documento.Tipo == TipoDocumento.Presupuesto && Documento.Estado != EstadoDocumento.Emitido)
+                    {
+                        <button @onclick="ConvertirAAlbaran" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition shadow-xl"><i class="bi bi-box-seam mr-2"></i> Convertir a AlbarÃ¡n</button>
+                    }
+                    @if (Documento.Tipo == TipoDocumento.Factura)
+                    {
+                        @if (!Documento.EstaEmitidaFormalmente)
+                        {
+                            <button @onclick="DesvincularFactura" class="w-full bg-amber-600 text-white py-3 rounded-xl font-black text-xs uppercase">Desvincular (corregir albarán y regenerar)</button>
+                            <button @onclick="AnularInterna" class="w-full bg-slate-700 text-white py-3 rounded-xl font-black text-xs uppercase">Anular interna (no enviada)</button>
+                            <button @onclick="MarcarEnviada" class="w-full bg-emerald-700 text-white py-3 rounded-xl font-black text-xs uppercase">Marcar como enviada a cliente</button>
+                        }
+                        else
+                        {
+                            <button @onclick="CrearRectificativa" class="w-full bg-orange-600 text-white py-3 rounded-xl font-black text-xs uppercase">Crear rectificativa / abono</button>
+                            <button @onclick="CrearDevolucion" class="w-full bg-orange-800 text-white py-3 rounded-xl font-black text-xs uppercase">Albarán devolución + abono</button>
+                        }
+                        <button @onclick="DescargarPdf" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition shadow-xl"><i class="bi bi-file-earmark-pdf mr-2"></i> Descargar PDF</button>
+                    }
+                    @if (Documento.Estado == EstadoDocumento.Borrador && EsEditable(Documento))
+                    {
+                        <button @onclick="Eliminar" class="w-full bg-rose-600 text-white py-3 rounded-xl font-black text-xs uppercase">Eliminar</button>
+                    }
+                    <button @onclick="Volver" class="w-full bg-slate-800 text-white py-3 rounded-xl font-black text-xs uppercase">Volver al listado</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    public DocumentoComercial Documento = new();
+    private List<DocumentoComercial> documentos = new();
+    private bool cargando = false;
+    private bool cargandoLista = false;
+    private bool modoEdicion = false;
+    private string filtro = "";
+    private string filtroTipo = "";
+
+    private IEnumerable<DocumentoComercial> DocumentosFiltrados => documentos.Where(d =>
+        (string.IsNullOrWhiteSpace(filtro) || d.NumeroDocumento.Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+        (d.Cliente?.RazonSocial?.Contains(filtro, StringComparison.OrdinalIgnoreCase) ?? false)) &&
+        (string.IsNullOrEmpty(filtroTipo) || d.Tipo.ToString() == filtroTipo)
+    ).OrderByDescending(d => d.Fecha);
+
+    private bool EsEditable(DocumentoComercial d)
+    {
+        if (d.Tipo == TipoDocumento.Factura || d.Tipo == TipoDocumento.FacturaRectificativa)
+            return !d.EstaEmitidaFormalmente && d.Estado != EstadoDocumento.Anulado;
+        return true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await EmpresaService.LoadAsync();
+        EmpresaService.OnChange += async () => await InvokeAsync(StateHasChanged);
+        await CargarSegunRuta();
+    }
+    protected override async Task OnParametersSetAsync() => await CargarSegunRuta();
+
+    private async Task CargarSegunRuta()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        modoEdicion = uri.Query.Contains("edit=1");
+        if (Id.HasValue)
+        {
+            cargando = true;
+            try
+            {
+                var doc = await Http.GetFromJsonAsync<DocumentoComercial>($"api/CicloFacturacion/{Id.Value}");
+                if (doc != null) Documento = doc;
+                else Documento = new();
+            }
+            catch (Exception ex) { Console.WriteLine(ex.Message); Documento = new(); }
+            finally { cargando = false; }
+        }
+        else
+        {
+            cargandoLista = true;
+            try
+            {
+                var list = await Http.GetFromJsonAsync<List<DocumentoComercial>>("api/CicloFacturacion");
+                if (list != null) documentos = list;
+            }
+            catch { }
+            finally { cargandoLista = false; }
+        }
+    }
+
+    private void IrANuevoPresupuesto() => Nav.NavigateTo("/ventas/nuevo-presupuesto");
+    private void IrANuevaFactura() => Nav.NavigateTo("/ventas/nueva-factura");
+    private void Ver(int id) => Nav.NavigateTo($"/ventas/editor/{id}");
+    private void Editar(int id) => Nav.NavigateTo($"/ventas/editor/{id}?edit=1");
+    private void IrARectificar(int id) => Nav.NavigateTo($"/ventas/rectificar/{id}");
+
+    private async Task GuardarEdicion()
+    {
+        if (!EsEditable(Documento)) { await JS.InvokeVoidAsync("alert", "No editable por normativa. Use rectificativa o desvincular si aún no emitida."); return; }
+        var resp = await Http.PutAsJsonAsync($"api/CicloFacturacion/{Documento.Id}", Documento);
+        if (resp.IsSuccessStatusCode) { await JS.InvokeVoidAsync("alert", "Documento actualizado"); Nav.NavigateTo("/ventas/editor"); }
+        else { var msg = await resp.Content.ReadAsStringAsync(); await JS.InvokeVoidAsync("alert", msg); }
+    }
+    private async Task ConvertirAAlbaran()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Convertir presupuesto a albarán?")) return;
+        var res = await Http.PostAsync($"api/CicloFacturacion/{Documento.Id}/convertir?nuevoTipo={TipoDocumento.Albaran}", null);
+        if (res.IsSuccessStatusCode) Nav.NavigateTo("/ventas/albaranes"); else { var msg = await res.Content.ReadAsStringAsync(); await JS.InvokeVoidAsync("alert", msg); }
+    }
+    private async Task Eliminar()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Eliminar documento?")) return;
+        var res = await Http.DeleteAsync($"api/CicloFacturacion/albaran/{Documento.Id}");
+        if (res.IsSuccessStatusCode) Volver(); else { var msg = await res.Content.ReadAsStringAsync(); await JS.InvokeVoidAsync("alert", msg); }
+    }
+    private async Task DesvincularFactura()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Desvincular factura no emitida? Se borrará la factura y podrá corregir el albarán y regenerar.")) return;
+        var res = await Http.PostAsync($"api/CicloFacturacion/{Documento.Id}/desvincular", null);
+        var msg = await res.Content.ReadAsStringAsync();
+        await JS.InvokeVoidAsync("alert", msg);
+        if (res.IsSuccessStatusCode) Nav.NavigateTo("/ventas/editor");
+    }
+    private async Task AnularInterna()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Â¿Anular factura interna no enviada?")) return;
+        var res = await Http.PostAsync($"api/CicloFacturacion/{Documento.Id}/anular-interna", null);
+        var msg = await res.Content.ReadAsStringAsync();
+        await JS.InvokeVoidAsync("alert", msg);
+        if (res.IsSuccessStatusCode) await CargarSegunRuta();
+    }
+    private async Task CrearRectificativa()
+    {
+        var motivo = await JS.InvokeAsync<string>("prompt", "Motivo de rectificativa:");
+        if (string.IsNullOrWhiteSpace(motivo)) return;
+        var res = await Http.PostAsJsonAsync($"api/CicloFacturacion/{Documento.Id}/rectificativa", new { motivo, lineas = (object?)null });
+        var msg = await res.Content.ReadAsStringAsync();
+        await JS.InvokeVoidAsync("alert", res.IsSuccessStatusCode ? "Rectificativa creada" : msg);
+        if (res.IsSuccessStatusCode) Nav.NavigateTo("/ventas/editor");
+    }
+    private async Task CrearDevolucion()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Â¿Crear albarÃ¡n de devoluciÃ³n/abono por esta factura? Se generarÃ¡ albarÃ¡n de devoluciÃ³n en fecha actual.")) return;
+        var payload = Documento.Lineas.Select(l => new { l.ArticuloId, l.DescripcionArticulo, l.Cantidad, l.PrecioUnitario, l.PorcentajeIva, l.CategoriaNombre }).ToList();
+        var res = await Http.PostAsJsonAsync($"api/CicloFacturacion/{Documento.Id}/albaran-devolucion", payload);
+        var msg = await res.Content.ReadAsStringAsync();
+        await JS.InvokeVoidAsync("alert", res.IsSuccessStatusCode ? "AlbarÃ¡n de devoluciÃ³n creado. Genere rectificativa." : msg);
+        if (res.IsSuccessStatusCode) Nav.NavigateTo("/ventas/editor");
+    }
+    private async Task MarcarEnviada()
+    {
+        var res = await Http.PostAsync($"api/CicloFacturacion/{Documento.Id}/marcar-enviada?enviadaCliente=true", null);
+        var msg = await res.Content.ReadAsStringAsync();
+        await JS.InvokeVoidAsync("alert", msg);
+        if (res.IsSuccessStatusCode) await CargarSegunRuta();
+    }
+    private async Task DescargarPdf()
+    {
+        try
+        {
+            var resp = await Http.GetAsync($"api/facturacion/descargar-pdf/{Documento.Id}");
+            if (resp.IsSuccessStatusCode)
+            {
+                var bytes = await resp.Content.ReadAsByteArrayAsync();
+                await JS.InvokeVoidAsync("downloadFile", $"{Documento.Tipo}_{Documento.NumeroDocumento}.pdf", Convert.ToBase64String(bytes));
+            }
+            else { var msg = await resp.Content.ReadAsStringAsync(); await JS.InvokeVoidAsync("alert", msg); }
+        }
+        catch (Exception ex) { await JS.InvokeVoidAsync("alert", ex.Message); }
+    }
+    private void Volver() => Nav.NavigateTo("/ventas/editor");
+}

@@ -1,0 +1,216 @@
+@page "/ventas/documentos"
+@using ERP.Domain.Entities
+@using ERP.Web.Services
+@using Microsoft.JSInterop
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NotificationService NotificationService
+@inject NavigationManager Navigation
+
+<div class="max-w-7xl mx-auto">
+    @* CABECERA *@
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Documentos Comerciales</h1>
+            <p class="text-slate-500 mt-1">Gestión integral de facturas, presupuestos y albaranes.</p>
+        </div>
+        <div class="flex gap-3">
+            <button @onclick="ExportarExcel" class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-all shadow-sm">
+                Exportar Excel
+            </button>
+            <button @onclick="NuevoDocumento" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+                + Nuevo Documento
+            </button>
+        </div>
+    </div>
+
+    @* BARRA DE BÚSQUEDA *@
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6">
+        <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </span>
+            <input type="text" 
+                   class="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all" 
+                   placeholder="Filtrar por cliente, NIF o número..."
+                   @bind="SearchTerm" 
+                   @bind:event="oninput">
+        </div>
+        @if (!string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            <div class="mt-2 text-xs text-slate-400">
+                Resultados para: <span class="font-bold text-blue-600">@SearchTerm</span>
+                (@DocumentosFiltrados.Count coincidencias)
+            </div>
+        }
+    </div>
+
+    @* TABLA *@
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">Fecha</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">Nº Documento</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">Cliente</th>
+                    <th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-widest">Total</th>
+                    <th class="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-widest">Estado</th>
+                    <th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-widest">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @if (listaDocumentos == null)
+                {
+                    @foreach (var i in Enumerable.Range(1, 5))
+                    {
+                        <tr class="animate-pulse">
+                            <td colspan="6" class="px-6 py-6"><div class="h-4 bg-slate-100 rounded w-full"></div></td>
+                        </tr>
+                    }
+                }
+                else if (!DocumentosFiltrados.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="px-6 py-20 text-center text-slate-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <p class="font-semibold italic">No se encontraron documentos</p>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var doc in DocumentosFiltrados)
+                    {
+                        <tr class="hover:bg-slate-50 transition-colors group">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">@doc.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">@doc.NumeroDocumento</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-semibold text-slate-700">@(doc.Cliente?.RazonSocial ?? "N/D")</div>
+                                <div class="text-xs text-slate-400 font-mono">@(doc.Cliente?.CIF ?? "---")</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-black text-slate-800">
+                                @doc.Total.ToString("N2") €
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                <span class="px-3 py-1 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700 uppercase">Procesado</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                <button @onclick="() => DescargarPdf(doc)" 
+                                        class="p-2 text-slate-400 hover:text-red-600 transition-colors"
+                                        title="Descargar PDF">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<DocumentoComercial>? listaDocumentos;
+    
+    // Inicializamos con una lista vacía para evitar el Warning CS8604
+    private List<DocumentoComercial> DocumentosFiltrados = new();
+    
+    private string _searchTerm = "";
+
+    public string SearchTerm
+    {
+        get => _searchTerm;
+        set
+        {
+            _searchTerm = value;
+            FiltrarDocumentos();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try 
+        {
+            listaDocumentos = await Http.GetFromJsonAsync<List<DocumentoComercial>>("api/facturacion/listado");
+            
+            // Al cargar, sincronizamos ambas listas
+            DocumentosFiltrados = listaDocumentos ?? new();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowNotification("Error al conectar con el servidor", NotificationType.Error);
+            Console.WriteLine(ex.Message);
+            // Aseguramos que no quede nulo tras un error
+            DocumentosFiltrados = new(); 
+        }
+    }
+
+    private void FiltrarDocumentos()
+    {
+        if (listaDocumentos == null)
+        {
+            DocumentosFiltrados = new();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            DocumentosFiltrados = listaDocumentos;
+        }
+        else
+        {
+            var term = SearchTerm.ToLower().Trim();
+            DocumentosFiltrados = listaDocumentos.Where(d => 
+                (d.NumeroDocumento?.ToLower().Contains(term) ?? false) ||
+                (d.Cliente?.RazonSocial?.ToLower().Contains(term) ?? false) ||
+                (d.Cliente?.CIF?.ToLower().Contains(term) ?? false)
+            ).ToList();
+        }
+    }
+
+    private async Task DescargarPdf(DocumentoComercial doc)
+    {
+        try 
+        {
+            NotificationService.ShowNotification("Generando PDF...", NotificationType.Info);
+            var response = await Http.GetAsync($"api/facturacion/descargar-pdf/{doc.Id}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var fileBytes = await response.Content.ReadAsByteArrayAsync();
+                await JS.InvokeVoidAsync("downloadFile", $"{doc.Tipo}_{doc.NumeroDocumento}.pdf", Convert.ToBase64String(fileBytes));
+                NotificationService.ShowNotification("Descarga iniciada", NotificationType.Success);
+            }
+            else
+            {
+                NotificationService.ShowNotification("Error al obtener el archivo", NotificationType.Error);
+            }
+        }
+        catch (Exception)
+        {
+            NotificationService.ShowNotification("Error de red", NotificationType.Error);
+        }
+    }
+
+    private async Task ExportarExcel()
+    {
+        try
+        {
+            var data = DocumentosFiltrados.Select(d => new { d.NumeroDocumento, Fecha = d.Fecha.ToString("dd/MM/yyyy"), Cliente = d.Cliente?.RazonSocial ?? "—", d.Total, d.Tipo });
+            await JS.InvokeVoidAsync("exportToExcel", data, "DocumentosComerciales");
+            NotificationService.ShowNotification("Excel generado", NotificationType.Success);
+        }
+        catch
+        {
+            NotificationService.ShowNotification("No se pudo exportar", NotificationType.Error);
+        }
+    }
+
+    private void NuevoDocumento() => Navigation.NavigateTo("/ventas/editor");
+}

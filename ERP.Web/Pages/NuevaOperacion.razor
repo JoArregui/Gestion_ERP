@@ -1,0 +1,9 @@
+@page "/nueva-operacion"
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/ventas/nueva", replace: true);
+    }
+}

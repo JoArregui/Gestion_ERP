@@ -1,0 +1,198 @@
+@page "/vencimientos"
+@using ERP.Domain.Entities
+@using ERP.Web.Services
+@inject TesoreriaWebService TesoreriaService
+@inject NotificationService Notification
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<div class="space-y-6">
+    @* CABECERA DE SECCIÓN *@
+    <div class="flex justify-between items-end">
+        <div>
+            <h1 class="text-3xl font-black text-white tracking-tight">TESORERÍA</h1>
+            <p class="text-slate-500 font-medium">Gestión de vencimientos, cobros y pagos pendientes.</p>
+        </div>
+        <div class="flex gap-3">
+            <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl">
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Pendiente</p>
+                <p class="text-2xl font-black text-blue-500">@TotalPendiente.ToString("C2")</p>
+            </div>
+        </div>
+    </div>
+
+    @* SELECTOR DE VISTA (TABS) *@
+    <div class="flex gap-2 p-1 bg-slate-900/50 border border-slate-800 rounded-2xl w-fit">
+        <button @onclick="() => CambiarTab(true)" 
+                class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all @(VerCobros ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40" : "text-slate-500 hover:text-white")">
+            <i class="bi bi-arrow-down-left-circle mr-2"></i> Pendientes de Cobro
+        </button>
+        <button @onclick="() => CambiarTab(false)" 
+                class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all @(!VerCobros ? "bg-rose-600 text-white shadow-lg shadow-rose-900/40" : "text-slate-500 hover:text-white")">
+            <i class="bi bi-arrow-up-right-circle mr-2"></i> Obligaciones de Pago
+        </button>
+    </div>
+
+    @* LISTADO DE VENCIMIENTOS *@
+    <div class="bg-[#0f172a] border border-slate-800/50 rounded-3xl overflow-hidden shadow-2xl">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-900/50 border-b border-slate-800">
+                    <th class="p-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Vencimiento</th>
+                    <th class="p-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Documento</th>
+                    <th class="p-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Entidad</th>
+                    <th class="p-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Importe</th>
+                    <th class="p-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado</th>
+                    <th class="p-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/50">
+                @if (ListaFiltrada == null)
+                {
+                    <tr>
+                        <td colspan="6" class="p-20 text-center">
+                            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto"></div>
+                        </td>
+                    </tr>
+                }
+                else if (!ListaFiltrada.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="p-20 text-center text-slate-500 font-medium">
+                            <i class="bi bi-check2-circle text-4xl block mb-2 opacity-20"></i>
+                            No hay vencimientos pendientes en esta categoría.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var v in ListaFiltrada)
+                    {
+                        <tr class="hover:bg-white/[0.02] transition-colors group">
+                            <td class="p-5">
+                                <div class="flex flex-col">
+                                    <span class="text-white font-bold">@v.FechaVencimiento.ToShortDateString()</span>
+                                    <span class="text-[10px] @(v.FechaVencimiento < DateTime.Now ? "text-rose-500 font-black" : "text-slate-500") uppercase">
+                                        @(v.FechaVencimiento < DateTime.Now ? "Vencido" : "En plazo")
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="p-5">
+                                <span class="px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-mono">
+                                    @(v.Documento?.NumeroDocumento ?? (v.DocumentoId == null ? $"NÓMINA {v.FechaVencimiento:MM/yyyy}" : "—"))
+                                </span>
+                            </td>
+                            <td class="p-5">
+                                <div class="text-white font-medium text-sm">
+                                    @if (VerCobros)
+                                    {
+                                        @(v.Documento?.Cliente?.RazonSocial ?? "Cliente General")
+                                    }
+                                    else
+                                    {
+                                        @(v.Documento?.Proveedor?.RazonSocial ?? "Proveedor/Nómina")
+                                    }
+                                </div>
+                            </td>
+                            <td class="p-5 text-right">
+                                <span class="text-lg font-black @(VerCobros ? "text-emerald-400" : "text-rose-400")">
+                                    @v.Importe.ToString("C2")
+                                </span>
+                            </td>
+                            <td class="p-5">
+                                <span class="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full text-[10px] font-black uppercase">
+                                    @v.Estado
+                                </span>
+                            </td>
+                            <td class="p-5 text-center">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button @onclick="() => VerDocumento(v)" title="Visualizar documento"
+                                            class="p-2 bg-slate-800 text-slate-400 hover:bg-white hover:text-slate-900 rounded-xl transition-all">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button @onclick="() => Liquidar(v)" 
+                                            class="p-2 bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-lg hover:shadow-blue-900/20">
+                                        <i class="bi bi-cash-stack"></i> Liquidar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<Vencimiento> Cobros = new();
+    private List<Vencimiento> Pagos = new();
+    private bool VerCobros = true;
+
+    private List<Vencimiento> ListaFiltrada => VerCobros ? Cobros : Pagos;
+    private decimal TotalPendiente => ListaFiltrada?.Sum(x => x.Importe) ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        try 
+        {
+            Cobros = await TesoreriaService.GetPendientesCobro();
+            Pagos = await TesoreriaService.GetPendientesPago();
+        }
+        catch (Exception) // Solo capturamos el tipo, sin declarar variable
+        {
+            Notification.Error("Error al cargar datos de tesorería");
+        }
+    }
+
+    private void CambiarTab(bool cobros) => VerCobros = cobros;
+
+    private async Task Liquidar(Vencimiento v)
+    {
+        var ok = await TesoreriaService.LiquidarVencimiento(v.Id, "Transferencia");
+        if (ok)
+        {
+            Notification.Success("Vencimiento liquidado correctamente");
+            await CargarDatos();
+        }
+        else
+        {
+            Notification.Error("Error al procesar el pago");
+        }
+    }
+
+    private async Task VerDocumento(Vencimiento v)
+    {
+        try
+        {
+            // Unifica visualización: el backend decide si es factura o nómina y genera el PDF
+            var resp = await Http.GetAsync($"api/tesoreria/vencimiento/{v.Id}/pdf");
+            if (resp.IsSuccessStatusCode)
+            {
+                var bytes = await resp.Content.ReadAsByteArrayAsync();
+                var fileName = v.DocumentoId.HasValue ? $"DOC_{v.Documento?.NumeroDocumento ?? v.Id.ToString()}.pdf" : $"NOMINA_{v.FechaVencimiento:yyyy_MM}.pdf";
+                await JS.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(bytes));
+                // Además, si es documento comercial, ofrece navegación al editor
+                if (v.DocumentoId.HasValue) Notification.Info($"PDF generado. También puede ver el detalle en el editor.");
+            }
+            else
+            {
+                // Fallback a navegación si no hay PDF (ej. nómina sin empleado)
+                if (v.DocumentoId.HasValue) Navigation.NavigateTo($"/ventas/editor/{v.DocumentoId.Value}");
+                else Navigation.NavigateTo("/rrhh/nominas");
+                var msg = await resp.Content.ReadAsStringAsync();
+                if (!string.IsNullOrWhiteSpace(msg)) Notification.Error(msg);
+            }
+        }
+        catch (Exception ex)
+        {
+            Notification.Error($"Error al visualizar: {ex.Message}");
+        }
+    }
+}

@@ -1,0 +1,113 @@
+@page "/configuracion/seguridad/permisos"
+@using ERP.Domain.Dtos
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<div class="container-fluid p-4 animate__animated animate__fadeIn">
+    @* CABECERA ALINEADA CON SEGURIDAD *@
+    <div class="row align-items-center mb-5">
+        <div class="col-md-7">
+            <h1 class="fw-black text-white m-0 text-uppercase tracking-tighter" style="font-size:2.5rem;">
+                Roles <span class="text-primary-gradient">del Sistema</span>
+            </h1>
+            <p class="text-muted text-uppercase small fw-bold tracking-widest mt-1">
+                <i class="bi bi-diagram-3 me-2"></i>Gestión de perfiles y matriz RBAC
+            </p>
+        </div>
+        <div class="col-md-5 text-end">
+            <button class="btn btn-premium rounded-3 px-4 py-2 fw-bold text-uppercase small" @onclick="@(() => Navigation.NavigateTo("/configuracion/seguridad"))">
+                <i class="bi bi-arrow-left me-2"></i> Volver a Seguridad
+            </button>
+        </div>
+    </div>
+
+    @* BUSCADOR ALINEADO *@
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="glass-container d-flex justify-content-between align-items-center p-3">
+                <div class="search-wrapper flex-grow-1 me-3" style="max-width:360px;">
+                    <i class="bi bi-search me-2"></i>
+                    <input @bind="filtro" @bind:event="oninput" placeholder="Buscar rol por nombre..." class="search-input flex-grow-1" />
+                </div>
+                <span class="text-muted small fw-bold text-uppercase d-none d-md-block">@(rolesFiltrados.Count()) rol(es)</span>
+            </div>
+        </div>
+    </div>
+
+    @if (roles == null)
+    {
+        <div class="glass-container p-5 text-center">
+            <div class="loading-data"><div class="scanner-line"></div><span class="text-muted small tracking-widest text-uppercase">Sincronizando Roles...</span></div>
+        </div>
+    }
+    else if (!rolesFiltrados.Any())
+    {
+        <div class="glass-container p-5 text-center">
+            <i class="bi bi-inbox text-muted" style="font-size:2.5rem; opacity:.3"></i>
+            <p class="text-muted small mt-3">Sin roles que coincidan con "@filtro"</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var r in rolesFiltrados)
+            {
+                <div class="col-md-6 col-xl-4">
+                    <div class="card card-industrial-glass border-0 h-100">
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <div class="icon-box-tech"><i class="bi bi-shield-check fs-5"></i></div>
+                                <div>
+                                    <h6 class="fw-black text-white mb-0 text-uppercase">@r.Name</h6>
+                                    <small class="text-muted">@DescripcionRol(r.Name)</small>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <span class="badge bg-primary-gradient-alt px-3 py-2 rounded-pill x-small fw-black"><i class="bi bi-people me-1"></i> @r.UserCount usuario(s)</span>
+                                <span class="text-muted x-small">@(r.Name == "Admin" ? "Protegido" : "Editable")</span>
+                            </div>
+                            <div class="mt-auto">
+                                <button class="btn btn-premium w-100 fw-bold text-uppercase small py-3" @onclick="@(() => Navigation.NavigateTo($"/configuracion/seguridad/permisos/{r.Id}"))">
+                                    <i class="bi bi-sliders me-2"></i> Configurar Permisos
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+    :root { --primary-accent:#2563eb; --glass-bg:rgba(17,24,39,0.7); --glass-border:rgba(255,255,255,0.08); }
+    .fw-black{font-weight:900;} .text-primary-gradient{background:linear-gradient(to right,#60a5fa,#2563eb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;}
+    .card-industrial-glass{background:var(--glass-bg); backdrop-filter:blur(12px); border:1px solid var(--glass-border)!important; border-radius:1.25rem;}
+    .glass-container{background:rgba(17,24,39,0.4); border:1px solid var(--glass-border); border-radius:1.5rem; overflow:hidden;}
+    .btn-premium{background:linear-gradient(135deg,var(--primary-accent),#1d4ed8); color:white; border:none; box-shadow:0 10px 20px -5px rgba(37,99,235,.4);}
+    .search-wrapper{background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); padding:.5rem 1.25rem; border-radius:100px; display:flex; align-items:center; color:#64748b;}
+    .search-input{background:transparent; border:none; color:white; font-size:.85rem; outline:none; width:100%;}
+    .icon-box-tech{width:48px; height:48px; background:rgba(37,99,235,.15); border:1px solid rgba(37,99,235,.2); border-radius:12px; display:flex; align-items:center; justify-content:center; color:#60a5fa;}
+    .x-small{font-size:.7rem;} .bg-primary-gradient-alt{background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%); border:1px solid rgba(255,255,255,0.1); color:#60a5fa;}
+    .loading-data{position:relative; padding:4rem; overflow:hidden;} .scanner-line{position:absolute; top:0; left:0; right:0; height:2px; background:var(--primary-accent); box-shadow:0 0 15px var(--primary-accent); animation:scan 3s infinite linear;}
+    @@keyframes scan{0%{top:0%;opacity:0}50%{opacity:1}100%{top:100%;opacity:0}}
+</style>
+
+@code {
+    private List<RoleDto>? roles;
+    private string filtro = "";
+    private IEnumerable<RoleDto> rolesFiltrados => string.IsNullOrWhiteSpace(filtro) ? roles ?? new List<RoleDto>() : roles?.Where(r => r.Name.Contains(filtro, StringComparison.OrdinalIgnoreCase)) ?? new List<RoleDto>();
+    private string DescripcionRol(string name) => name switch {
+        "Admin" => "Acceso total, gestión de usuarios y RBAC.",
+        "Almacen" => "Stock, ajustes y valoración.",
+        "Contabilidad" => "Tesorería y cierres.",
+        "Usuario" => "Acceso básico de consulta.",
+        _ => "Perfil personalizado."
+    };
+    protected override async Task OnInitializedAsync()
+    {
+        try { roles = await Http.GetFromJsonAsync<List<RoleDto>>("api/users/roles"); }
+        catch { roles = new(); }
+    }
+}

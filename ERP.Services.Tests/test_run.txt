@@ -1,0 +1,16 @@
+  Determinando los proyectos que se van a restaurar...
+C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Api\ERP.Api.csproj : warning NU1902: Package 'MailKit' 4.15.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-9j88-vvj5-vhgr [C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Services.Tests\ERP.Services.Tests.csproj]
+  Todos los proyectos están actualizados para la restauración.
+C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Api\ERP.Api.csproj : warning NU1902: Package 'MailKit' 4.15.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-9j88-vvj5-vhgr
+  ERP.Domain -> C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Domain\bin\Debug\net9.0\ERP.Domain.dll
+  ERP.Data -> C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Data\bin\Debug\net9.0\ERP.Data.dll
+  ERP.Services -> C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Services\bin\Debug\net9.0\ERP.Services.dll
+  ERP.Api -> C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Api\bin\Debug\net9.0\ERP.Api.dll
+  ERP.Services.Tests -> C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Services.Tests\bin\Debug\net9.0\ERP.Services.Tests.dll
+Serie de pruebas para C:\Users\josearregui\Desktop\Proyectos\ERP .NET\ERP.Services.Tests\bin\Debug\net9.0\ERP.Services.Tests.dll (.NETCoreApp,Version=v9.0)
+Versión 17.14.1 (x64) de VSTest
+
+Iniciando la ejecución de pruebas, espere...
+1 archivos de prueba en total coincidieron con el patrón especificado.
+
+Correctas! - Con error:     0, Superado:    11, Omitido:     0, Total:    11, Duración: 1 s - ERP.Services.Tests.dll (net9.0)

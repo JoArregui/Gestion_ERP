@@ -1,0 +1,65 @@
+@page "/onboarding"
+@inject NavigationManager NavManager
+
+@if (isLoading)
+{
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p>Cargando estado de autenticación...</p>
+}
+else
+{
+    <div class="p-4">
+        <h3>Bienvenido al ERP 2026</h3>
+        <hr />
+        <p>Para continuar, necesita configurar su empresa.</p>
+        
+        <div class="alert alert-info">
+            <strong>Pasos para completar el onboarding:</strong>
+            <ol>
+                <li>Introduzca el nombre de su empresa</li>
+                <li>El sistema creará la base de datos y la configuración inicial</li>
+                <li>Se reiniciará la aplicación y entrará con su nuevo usuario</li>
+            </ol>
+        </div>
+
+        <EditForm Model="@empresaNombre" OnSubmit="@HandleOnboardingSubmit" class="mb-3">
+            <div class="form-group">
+                <label>Nombre de la Empresa <span class="text-danger">*</span></label>
+                <InputText @bind-Value="empresaNombre" class="form-control" placeholder="Ej: Gestion-Distribuidora X" />
+                <ValidationMessage For="@(() => empresaNombre)" />
+            </div>
+            
+            <div class="d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary">Crear Empresa y Continuar</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="NavManager.NavigateTo('/')">Cancelar (Login normal)</button>
+            </div>
+        </EditForm>
+    </div>
+}
+
+@code {
+    private string empresaNombre = "";
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // En producción real, aquí se verificaría el claim OnboardingRequired
+        // mediante: var claim = (await AuthProvider.GetAuthenticationStateAsync()).User.FindFirst("OnboardingRequired")
+        // Por simplicidad en esta demo, esperaremos 1 segundo y luego ocultamos el spinner
+        await Task.Delay(1000);
+        isLoading = false;
+    }
+
+    private void HandleOnboardingSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(empresaNombre))
+        {
+            return;
+        }
+
+        // Navegar a login con parámetro de empresa recién creada
+        NavManager.NavigateTo($"/login?onboardingCompleted=true&company={empresaNombre.Replace(" ", "")}", replace: true);
+    }
+}

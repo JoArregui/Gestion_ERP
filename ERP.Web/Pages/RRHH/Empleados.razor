@@ -1,0 +1,401 @@
+@page "/rrhh/empleados"
+@using ERP.Domain.Entities
+@using ERP.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject EmpleadoService EmpleadoService
+@inject IJSRuntime JS
+
+@* --- SISTEMA DE TOASTS --- *@
+<div class="fixed top-6 right-6 z-[100] flex flex-col gap-3 no-print">
+    @foreach (var toast in MensajesToast)
+    {
+        <div class="bg-slate-900/90 backdrop-blur-xl border-l-4 border-blue-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-right duration-300">
+            <div class="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400">
+                <i class="bi bi-check2-circle text-xl"></i>
+            </div>
+            <div>
+                <p class="text-xs font-black uppercase tracking-widest text-blue-400">Éxito</p>
+                <p class="text-sm font-medium text-slate-300">@toast.Mensaje</p>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="space-y-6 animate-in fade-in duration-500">
+    @* CABECERA *@
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-white tracking-tight uppercase italic">Maestro de Empleados</h1>
+            <p class="text-slate-500 font-medium">Gestión integral de la ficha del trabajador, vacaciones y expedientes.</p>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto no-print">
+            @* BOTONES DE EXPORTACIÓN *@
+            <div class="flex gap-2">
+                <button @onclick="ExportarExcel" class="flex items-center gap-2 px-4 py-3 bg-emerald-600/20 border border-emerald-500/30 text-emerald-500 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-lg group" title="Exportar Excel">
+                    <i class="bi bi-file-earmark-excel-fill text-lg"></i>
+                    <span class="text-[10px] font-black uppercase tracking-widest">Excel</span>
+                </button>
+                <button @onclick="ExportarPdf" class="flex items-center gap-2 px-4 py-3 bg-rose-600/20 border border-rose-500/30 text-rose-500 rounded-2xl hover:bg-rose-600 hover:text-white transition-all shadow-lg group" title="Exportar PDF">
+                    <i class="bi bi-file-earmark-pdf-fill text-lg"></i>
+                    <span class="text-[10px] font-black uppercase tracking-widest">PDF</span>
+                </button>
+            </div>
+
+            @* BARRA DE BÚSQUEDA *@
+            <div class="relative group">
+                <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors"></i>
+                <input type="text" 
+                       @bind-value="Busqueda" 
+                       @bind-value:event="oninput"
+                       placeholder="Buscar por nombre, DNI..." 
+                       class="bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-4 py-3 text-sm text-white w-full sm:w-80 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none" />
+            </div>
+
+            <button @onclick="AbrirModalNuevo" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-blue-900/20 active:scale-95 whitespace-nowrap">
+                <i class="bi bi-person-plus-fill mr-2"></i> Alta Empleado
+            </button>
+        </div>
+    </div>
+
+    @* TABLA DE EMPLEADOS *@
+    <div class="bg-[#0f172a] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-slate-900/50 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">
+                    <th class="p-5">Empleado</th>
+                    <th class="p-5">Identificación / SS</th>
+                    <th class="p-5">Estado Vacaciones</th>
+                    <th class="p-5">Cargo y Acceso</th>
+                    <th class="p-5">Salario Mensual</th>
+                    <th class="p-5 text-right no-print">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/50">
+                @foreach (var emp in EmpleadosFiltrados)
+                {
+                    <tr class="hover:bg-white/[0.02] transition-colors group">
+                        <td class="p-5">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-white font-bold border border-slate-600 shadow-inner">
+                                    @(string.IsNullOrEmpty(emp.Nombre) ? "?" : emp.Nombre[0])@(string.IsNullOrEmpty(emp.Apellidos) ? "" : emp.Apellidos[0])
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">@emp.Nombre @emp.Apellidos</span>
+                                    <span class="text-[10px] text-slate-500 font-mono">ID: #@emp.Id</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-5 font-mono text-xs">
+                            <div class="text-slate-300">@emp.DNI</div>
+                            <div class="text-[10px] text-slate-500 uppercase font-bold">SS: @emp.NumeroSeguridadSocial</div>
+                        </td>
+                        <td class="p-5">
+                            <div class="flex items-center gap-3">
+                                <div class="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden min-w-[80px]">
+                                    @{
+                                        var p = emp.VacacionesTotales > 0 ? (double)emp.VacacionesDisfrutadas / emp.VacacionesTotales * 100 : 0;
+                                        var color = p > 80 ? "bg-rose-500" : (p > 50 ? "bg-amber-500" : "bg-emerald-500");
+                                    }
+                                    <div class="@color h-full transition-all duration-500" style="width: @p%"></div>
+                                </div>
+                                <span class="text-[10px] font-black text-white">@emp.VacacionesPendientes</span>
+                            </div>
+                            <p class="text-[9px] text-slate-500 uppercase mt-1 font-bold tracking-tighter">Días disponibles</p>
+                        </td>
+                        <td class="p-5">
+                            <div class="text-xs text-blue-400 font-bold uppercase tracking-tighter">@emp.Cargo</div>
+                            <div class="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[10px] text-blue-300 font-mono">
+                                <i class="bi bi-key-fill"></i> PIN: @emp.PinAcceso
+                            </div>
+                        </td>
+                        <td class="p-5 font-mono">
+                            <div class="text-sm font-bold text-white">@emp.SalarioBaseMensual.ToString("N2")€</div>
+                            <div class="text-[9px] text-slate-500 italic">@emp.IBAN</div>
+                        </td>
+                        <td class="p-5 text-right no-print">
+                            <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button @onclick="() => EditarEmpleado(emp)" class="p-2 bg-slate-800 hover:bg-blue-600 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button @onclick="() => EliminarEmpleado(emp.Id)" class="p-2 bg-slate-800 hover:bg-rose-600 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (!EmpleadosFiltrados.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="p-20 text-center">
+                            <i class="bi bi-search text-4xl text-slate-800 block mb-4"></i>
+                            <p class="text-slate-500 font-bold uppercase text-xs tracking-widest">No se encontraron empleados</p>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* MODAL DE FICHA COMPLETA *@
+    @if (MostrarModal)
+    {
+        <div class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+            <div class="bg-[#0f172a] border border-slate-800 w-full max-w-5xl rounded-[40px] shadow-3xl overflow-hidden shadow-blue-500/5">
+                <div class="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                            <i class="bi bi-person-badge text-2xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-black text-white uppercase tracking-tighter">Ficha de Empleado</h2>
+                            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest italic">Edición de perfil corporativo y RRHH</p>
+                        </div>
+                    </div>
+                    <button @onclick="CerrarModal" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 text-slate-500 hover:text-white transition-all">
+                        <i class="bi bi-x-lg text-xl"></i>
+                    </button>
+                </div>
+
+                <EditForm Model="EmpleadoActual" OnValidSubmit="GuardarEmpleado" class="p-8">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+                        
+                        @* SECCIÓN 1: DATOS PERSONALES *@
+                        <div class="md:col-span-4 space-y-6">
+                            <label class="flex items-center gap-2 text-[10px] font-black text-blue-500 uppercase tracking-widest"><i class="bi bi-person-fill"></i> Personales</label>
+                            <div class="space-y-4">
+                                <InputText @bind-Value="EmpleadoActual.Nombre" placeholder="Nombre *" class="form-input-premium" />
+                                <ValidationMessage For="@(() => EmpleadoActual.Nombre)" class="text-rose-400 text-[10px] font-bold" />
+                                <InputText @bind-Value="EmpleadoActual.Apellidos" placeholder="Apellidos *" class="form-input-premium" />
+                                <ValidationMessage For="@(() => EmpleadoActual.Apellidos)" class="text-rose-400 text-[10px] font-bold" />
+                                <InputText @bind-Value="EmpleadoActual.DNI" placeholder="DNI / NIE *" class="form-input-premium font-mono" />
+                                <ValidationMessage For="@(() => EmpleadoActual.DNI)" class="text-rose-400 text-[10px] font-bold" />
+                                <InputText @bind-Value="EmpleadoActual.Email" placeholder="Email" class="form-input-premium" />
+                                <ValidationMessage For="@(() => EmpleadoActual.Email)" class="text-rose-400 text-[10px] font-bold" />
+                                <InputText @bind-Value="EmpleadoActual.Telefono" placeholder="Teléfono" class="form-input-premium" />
+                                <InputText @bind-Value="EmpleadoActual.NumeroSeguridadSocial" placeholder="Nº Seg. Social *" class="form-input-premium font-mono" />
+                                <ValidationMessage For="@(() => EmpleadoActual.NumeroSeguridadSocial)" class="text-rose-400 text-[10px] font-bold" />
+                            </div>
+                        </div>
+
+                        @* SECCIÓN 2: LABORALES Y VACACIONES *@
+                        <div class="md:col-span-4 space-y-6">
+                            <label class="flex items-center gap-2 text-[10px] font-black text-emerald-500 uppercase tracking-widest"><i class="bi bi-calendar-check-fill"></i> Laboral y Vacaciones</label>
+                            <div class="space-y-4">
+                                <InputText @bind-Value="EmpleadoActual.Cargo" placeholder="Cargo" class="form-input-premium" />
+                                <InputText @bind-Value="EmpleadoActual.Departamento" placeholder="Departamento" class="form-input-premium" />
+                                
+                                <div class="bg-emerald-500/5 p-5 rounded-3xl border border-emerald-500/10 space-y-4">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-[10px] font-black text-emerald-500 uppercase">Control de Vacaciones</span>
+                                        <span class="bg-emerald-500 text-slate-950 text-[10px] px-2 py-0.5 rounded-full font-black">@EmpleadoActual.VacacionesPendientes Días</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <span class="text-[9px] text-slate-500 font-bold uppercase ml-1">Totales</span>
+                                            <InputNumber @bind-Value="EmpleadoActual.VacacionesTotales" class="form-input-premium text-center" />
+                                        </div>
+                                        <div>
+                                            <span class="text-[9px] text-slate-500 font-bold uppercase ml-1">Usadas</span>
+                                            <InputNumber @bind-Value="EmpleadoActual.VacacionesDisfrutadas" class="form-input-premium text-center" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-blue-500/5 p-5 rounded-3xl border border-blue-500/10">
+                                    <label class="text-[9px] font-black text-blue-400 uppercase block mb-2">PIN Acceso Fichaje *</label>
+                                    <InputText @bind-Value="EmpleadoActual.PinAcceso" type="password" maxlength="10" placeholder="****" class="form-input-premium text-center text-xl font-black tracking-[0.5em] text-blue-400" />
+                                    <ValidationMessage For="@(() => EmpleadoActual.PinAcceso)" class="text-rose-400 text-[10px] font-bold" />
+                                </div>
+                            </div>
+                        </div>
+
+                        @* SECCIÓN 3: ECONÓMICOS Y DOCUMENTACIÓN *@
+                        <div class="md:col-span-4 space-y-6">
+                            <label class="flex items-center gap-2 text-[10px] font-black text-rose-500 uppercase tracking-widest"><i class="bi bi-file-earmark-pdf-fill"></i> Económicos y PDF</label>
+                            <div class="space-y-4">
+                                <div>
+                                    <span class="text-[9px] text-slate-500 font-bold uppercase ml-1">Salario Base Mensual</span>
+                                    <InputNumber @bind-Value="EmpleadoActual.SalarioBaseMensual" class="form-input-premium" />
+                                </div>
+                                <InputText @bind-Value="EmpleadoActual.IBAN" placeholder="ES00 0000..." class="form-input-premium font-mono text-xs" @oninput="OnIBANInput" />
+                                <InputDate @bind-Value="EmpleadoActual.FechaAlta" class="form-input-premium" />
+
+                                @* CARGA DE DOCUMENTO *@
+                                <div class="mt-6">
+                                    <span class="text-[9px] text-slate-500 font-bold uppercase ml-1 block mb-2">Contrato / Documentación (PDF)</span>
+                                    <div class="bg-slate-900 border-2 border-dashed border-slate-800 rounded-3xl p-6 text-center hover:border-rose-500/50 transition-all group relative">
+                                        @if (!string.IsNullOrEmpty(EmpleadoActual.NombreArchivoPdf))
+                                        {
+                                            <div class="flex flex-col items-center gap-2">
+                                                <i class="bi bi-filetype-pdf text-3xl text-rose-500"></i>
+                                                <span class="text-[10px] text-white font-medium truncate w-full">@EmpleadoActual.NombreArchivoPdf</span>
+                                                <button type="button" @onclick="VerDocumento" class="text-[10px] font-black text-blue-400 uppercase hover:text-white">Ver Actual</button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-cloud-arrow-up text-3xl text-slate-700 group-hover:text-rose-500 transition-colors"></i>
+                                            <p class="text-[10px] text-slate-500 mt-2 uppercase font-black">Seleccionar PDF</p>
+                                        }
+                                        <InputFile OnChange="OnInputFileChange" class="absolute inset-0 opacity-0 cursor-pointer" accept=".pdf" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-slate-800 flex justify-end gap-4">
+                        <button type="button" @onclick="CerrarModal" class="px-6 py-3 text-slate-400 font-bold text-xs uppercase hover:text-white">Cancelar</button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase shadow-xl transition-all active:scale-95">
+                            <i class="bi bi-cloud-check-fill mr-2"></i> Guardar Ficha
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .form-input-premium {
+        width: 100%; background-color: #020617; border: 1px solid #1e293b;
+        border-radius: 1rem; padding: 0.75rem 1rem; color: white; font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+    .form-input-premium:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+</style>
+
+@code {
+    private List<Empleado> ListaEmpleados = new();
+    private Empleado EmpleadoActual = new();
+    private bool MostrarModal = false;
+    private string Busqueda = "";
+    private List<ToastModel> MensajesToast = new();
+
+    private IEnumerable<Empleado> EmpleadosFiltrados => 
+        string.IsNullOrWhiteSpace(Busqueda) 
+            ? ListaEmpleados 
+            : ListaEmpleados.Where(e => 
+                ((e.Nombre ?? "") + " " + (e.Apellidos ?? "")).Contains(Busqueda, StringComparison.OrdinalIgnoreCase) || 
+                (e.DNI?.Contains(Busqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (e.Cargo?.Contains(Busqueda, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync() => await CargarEmpleados();
+
+    private async Task CargarEmpleados() {
+        try {
+            var result = await EmpleadoService.GetEmpleadosAsync();
+            ListaEmpleados = result.OrderBy(e => e.Apellidos).ToList();
+        } catch (Exception) { }
+    }
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e) {
+        var file = e.File;
+        if (file != null) {
+            EmpleadoActual.NombreArchivoPdf = file.Name;
+            // Aquí se debería llamar a un servicio para subir el stream a la API o servidor
+            await MostrarToast($"Documento '{file.Name}' preparado para subir");
+        }
+    }
+
+    private void VerDocumento() {
+        if (!string.IsNullOrEmpty(EmpleadoActual.RutaDocumentoPdf)) {
+            JS.InvokeVoidAsync("open", EmpleadoActual.RutaDocumentoPdf, "_blank");
+        }
+    }
+
+    private async Task ExportarExcel() {
+        var exportData = EmpleadosFiltrados.Select(e => new {
+            Id = e.Id,
+            Nombre = e.Nombre,
+            Apellidos = e.Apellidos,
+            DNI = e.DNI,
+            Cargo = e.Cargo,
+            VacacionesRestantes = e.VacacionesPendientes,
+            Salario = e.SalarioBaseMensual
+        }).ToList();
+        await JS.InvokeVoidAsync("exportToExcel", exportData, $"Empleados_{DateTime.Now:yyyyMMdd}");
+    }
+
+    private async Task ExportarPdf() {
+        var headers = new string[] { "ID", "Nombre", "DNI", "Cargo", "Vacas. Pend" };
+        var rows = EmpleadosFiltrados.Select(e => new string[] {
+            e.Id.ToString(),
+            $"{e.Nombre} {e.Apellidos}",
+            e.DNI ?? "",
+            e.Cargo ?? "",
+            e.VacacionesPendientes.ToString()
+        }).ToList();
+        await JS.InvokeVoidAsync("exportToPdf", "Reporte de Empleados", headers, rows, $"Reporte_RRHH_{DateTime.Now:yyyyMMdd}");
+    }
+
+    private async Task GuardarEmpleado() {
+        // Guardar ficha: muestra error si el API rechaza (antes no había feedback y parecía "no guarda")
+        bool isNuevo = EmpleadoActual.Id == 0;
+        bool exito = isNuevo 
+            ? await EmpleadoService.CrearEmpleadoAsync(EmpleadoActual) 
+            : await EmpleadoService.ActualizarEmpleadoAsync(EmpleadoActual);
+
+        if (exito) {
+            await MostrarToast($"Empleado {(isNuevo ? "creado" : "actualizado")} con éxito");
+            CerrarModal();
+            await CargarEmpleados();
+        } else {
+            await MostrarToast($"Error al guardar: verifique DNI, NSS y PIN son obligatorios. Revise el formato de email.");
+            // No cerramos modal para que corrija
+        }
+    }
+
+    private async Task EliminarEmpleado(int id) {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Dar de baja definitiva a este empleado?")) {
+            if (await EmpleadoService.EliminarEmpleadoAsync(id)) {
+                await MostrarToast("Empleado dado de baja correctamente");
+                await CargarEmpleados();
+            }
+        }
+    }
+
+    private void OnIBANInput(ChangeEventArgs e) {
+        string input = e.Value?.ToString()?.ToUpper() ?? "";
+        string clean = new string(input.Where(char.IsLetterOrDigit).ToArray());
+        string formatted = "";
+        for (int i = 0; i < clean.Length && i < 24; i++) {
+            if (i > 0 && i % 4 == 0) formatted += " ";
+            formatted += clean[i];
+        }
+        EmpleadoActual.IBAN = formatted;
+    }
+
+    private void AbrirModalNuevo() {
+        EmpleadoActual = new Empleado { 
+            FechaAlta = DateTime.Now, 
+            EmpresaId = 1, 
+            VacacionesTotales = 22, 
+            VacacionesDisfrutadas = 0 
+        };
+        MostrarModal = true;
+    }
+
+    private void EditarEmpleado(Empleado emp) { 
+        EmpleadoActual = emp; 
+        if (EmpleadoActual.VacacionesTotales == 0) EmpleadoActual.VacacionesTotales = 22;
+        MostrarModal = true; 
+    }
+
+    private void CerrarModal() => MostrarModal = false;
+
+    private async Task MostrarToast(string mensaje) {
+        var toast = new ToastModel { Mensaje = mensaje };
+        MensajesToast.Add(toast);
+        StateHasChanged();
+        await Task.Delay(4000);
+        MensajesToast.Remove(toast);
+        StateHasChanged();
+    }
+
+    public class ToastModel { public string Mensaje { get; set; } = ""; }
+}

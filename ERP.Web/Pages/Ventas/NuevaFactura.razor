@@ -1,0 +1,276 @@
+﻿@page "/ventas/nueva-factura"
+@page "/ventas/nuevo-albaran"
+@page "/ventas/nuevo-presupuesto"
+@page "/ventas/rectificar/{FacturaOriginalId:int}"
+@using ERP.Domain.Entities
+@using ERP.Web.Services
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject EmpresaService EmpresaService
+
+<div class="max-w-[1400px] mx-auto p-6 animate-in fade-in duration-500">
+    @* CABECERA DINÃMICA *@
+    <div class="flex justify-between items-center mb-8">
+        <div class="flex items-center gap-4">
+            <button type="button" @onclick="Volver" 
+                    class="h-12 w-12 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all">
+                <i class="bi bi-arrow-left text-slate-600"></i>
+            </button>
+            <div>
+                <h2 class="text-3xl font-black text-slate-800 tracking-tighter uppercase italic">
+                    @TituloPagina
+                </h2>
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                    @SubtituloPagina
+                </p>
+            </div>
+        </div>
+        
+        <div class="flex gap-3">
+            <div class="@BgColorClass text-white px-8 py-4 rounded-2xl shadow-xl transition-colors duration-500">
+                <span class="text-[10px] font-black opacity-50 uppercase block">Total Documento</span>
+                <span class="text-2xl font-black italic">@documento.Total.ToString("N2") €</span>
+            </div>
+        </div>
+    </div>
+
+    <EditForm Model="documento" OnValidSubmit="GuardarDocumento">
+        <DataAnnotationsValidator />
+        
+        <div class="grid grid-cols-12 gap-6">
+            @* COLUMNA IZQUIERDA: DATOS *@
+            <div class="col-span-12 lg:col-span-4 space-y-6">
+                <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Cliente</label>
+                        <select @onchange="OnClienteChanged" 
+                                class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500/20"
+                                disabled="@EsRectificativa">
+                            <option value="">-- Seleccionar Cliente --</option>
+                            @if (clientes != null)
+                            {
+                                @foreach (var c in clientes)
+                                {
+                                    <option value="@c.Id" selected="@(documento.ClienteId == c.Id)">@c.RazonSocial (@c.CIF)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Fecha</label>
+                            <InputDate @bind-Value="documento.Fecha" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Referencia</label>
+                            <input value="@documento.NumeroDocumento" class="w-full p-4 bg-slate-100 border border-slate-200 rounded-xl font-mono font-bold text-slate-500 outline-none" readonly />
+                        </div>
+                    </div>
+
+                    @if (EsRectificativa)
+                    {
+                        <div class="p-5 bg-orange-50 border border-orange-200 rounded-2xl">
+                            <span class="text-[10px] font-black text-orange-600 uppercase block mb-1">Motivo Abono</span>
+                            <InputTextArea @bind-Value="documento.NotasInternas" class="w-full bg-transparent text-sm font-medium outline-none border-none p-0" placeholder="Motivo de la rectificaciÃ³n..." />
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* COLUMNA DERECHA: LÃNEAS *@
+            <div class="col-span-12 lg:col-span-8 space-y-6">
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                        <span class="text-xs font-black text-slate-800 uppercase italic">Conceptos</span>
+                        @if (!EsRectificativa)
+                        {
+                            <button type="button" @onclick="AgregarLinea" class="text-blue-600 font-black text-[10px] uppercase hover:bg-blue-50 px-4 py-2 rounded-xl transition-all">
+                                AÑADIR LINEA
+                            </button>
+                        }
+                    </div>
+
+                    <table class="w-full">
+                        <thead class="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b">
+                            <tr>
+                                <th class="p-4 text-left">Descripción</th>
+                                <th class="p-4 w-24 text-center">Cant.</th>
+                                <th class="p-4 w-32 text-right">Precio</th>
+                                <th class="p-4 w-32 text-right">Subtotal</th>
+                                @if (!EsRectificativa) { <th class="p-4 w-16"></th> }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var linea in documento.Lineas)
+                            {
+                                <tr class="border-b border-slate-50">
+                                    <td class="p-4">
+                                        @if (EsRectificativa)
+                                        {
+                                            <span class="text-xs font-bold uppercase text-slate-700">@linea.DescripcionArticulo</span>
+                                        }
+                                        else
+                                        {
+                                            <select @onchange="(e) => OnArticuloSeleccionado(linea, e)" class="w-full p-2 bg-slate-50 border-none rounded-lg text-xs font-bold uppercase outline-none">
+                                                <option value="">-- Seleccionar --</option>
+                                                @foreach (var art in articulosList)
+                                                {
+                                                    <option value="@art.Id" selected="@(linea.ArticuloId == art.Id)">@art.Descripcion</option>
+                                                }
+                                            </select>
+                                        }
+                                    </td>
+                                    <td class="p-4 text-center">
+                                        <input type="number" step="0.01" value="@linea.Cantidad" @onchange="@((e) => UpdateCantidad(linea, e))" class="w-full p-2 bg-slate-50 border-none rounded-lg text-center font-bold text-xs" readonly="@EsRectificativa" />
+                                    </td>
+                                    <td class="p-4 text-right">
+                                        <input type="number" step="0.01" value="@linea.PrecioUnitario" @onchange="@((e) => UpdatePrecio(linea, e))" class="w-full p-2 bg-slate-50 border-none rounded-lg text-right font-bold text-xs" />
+                                    </td>
+                                    <td class="p-4 text-right font-black text-xs">@linea.Subtotal.ToString("N2")â‚¬</td>
+                                    @if (!EsRectificativa)
+                                    {
+                                        <td class="p-4 text-center">
+                                            <button type="button" @onclick="() => EliminarLinea(linea)" class="text-red-200 hover:text-red-500"><i class="bi bi-trash"></i></button>
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <button type="submit" class="w-full @BtnColorClass text-white py-6 rounded-3xl font-black uppercase tracking-[0.2em] shadow-2xl transition-all">
+                    @TextoBotonGuardar
+                </button>
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter] public int? FacturaOriginalId { get; set; }
+    private DocumentoComercial documento = new() { EsCompra = false, Fecha = DateTime.Now, Lineas = new List<DocumentoLinea>() };
+    private List<Cliente>? clientes;
+    private List<Articulo> articulosList = new();
+
+    private bool EsRectificativa => FacturaOriginalId.HasValue || documento.Tipo == TipoDocumento.FacturaRectificativa;
+
+    private string TituloPagina => documento.Tipo switch {
+        TipoDocumento.FacturaRectificativa => "RectificaciÃ³n de Factura",
+        TipoDocumento.Presupuesto => "Nuevo Presupuesto",
+        TipoDocumento.Albaran => "Nuevo AlbarÃ¡n",
+        _ => "Nueva Factura de Venta"
+    };
+
+    private string SubtituloPagina => EsRectificativa ? "Abono legal de factura previa" : "Registro oficial de venta";
+    private string TextoBotonGuardar => EsRectificativa ? "Emitir Factura Rectificativa" : "Finalizar Documento";
+    private string BgColorClass => EsRectificativa ? "bg-orange-600" : "bg-slate-900";
+    private string BtnColorClass => EsRectificativa ? "bg-orange-600 hover:bg-orange-700" : "bg-blue-600 hover:bg-blue-700";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try {
+            clientes = await Http.GetFromJsonAsync<List<Cliente>>("api/clientes");
+            articulosList = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos") ?? new List<Articulo>();
+
+            if (FacturaOriginalId.HasValue)
+            {
+                var original = await Http.GetFromJsonAsync<DocumentoComercial>($"api/CicloFacturacion/{FacturaOriginalId}");
+                if (original != null)
+                {
+                    documento.Tipo = TipoDocumento.FacturaRectificativa;
+                    documento.ClienteId = original.ClienteId;
+                    documento.DocumentoOrigenId = original.Id;
+                    documento.Lineas = original.Lineas.Select(l => new DocumentoLinea {
+                        ArticuloId = l.ArticuloId,
+                        DescripcionArticulo = l.DescripcionArticulo,
+                        Cantidad = l.Cantidad * -1,
+                        PrecioUnitario = l.PrecioUnitario,
+                        PorcentajeIva = l.PorcentajeIva
+                    }).ToList();
+                    CalcularTotales();
+                }
+            }
+            else
+            {
+                if (Nav.Uri.Contains("nuevo-presupuesto")) documento.Tipo = TipoDocumento.Presupuesto;
+                else if (Nav.Uri.Contains("nuevo-albaran")) documento.Tipo = TipoDocumento.Albaran;
+                else documento.Tipo = TipoDocumento.Factura;
+
+                // NumeroDocumento es [Required] pero lo genera el servidor -> placeholder para que OnValidSubmit no bloquee
+                if (string.IsNullOrWhiteSpace(documento.NumeroDocumento)) documento.NumeroDocumento = "AUTO";
+                if (!documento.Lineas.Any()) AgregarLinea();
+            }
+        } catch (Exception ex) {
+            Console.WriteLine("Error al inicializar: " + ex.Message);
+        }
+    }
+
+    private void OnClienteChanged(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out int id)) documento.ClienteId = id; }
+    private async Task OnEmpresaChanged(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out int id)) { documento.EmpresaId = id; await EmpresaService.SelectEmpresaAsync(id); } }
+    
+    private void AgregarLinea() { documento.Lineas.Add(new DocumentoLinea { Cantidad = 1, PorcentajeIva = 21 }); CalcularTotales(); }
+    
+    private void EliminarLinea(DocumentoLinea linea) { documento.Lineas.Remove(linea); CalcularTotales(); }
+
+    private void OnArticuloSeleccionado(DocumentoLinea linea, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int id))
+        {
+            var art = articulosList.FirstOrDefault(a => a.Id == id);
+            if (art != null) {
+                linea.ArticuloId = art.Id;
+                linea.DescripcionArticulo = art.Descripcion;
+                linea.PrecioUnitario = art.PrecioVenta;
+                linea.PorcentajeIva = art.PorcentajeIva;
+                CalcularTotales();
+            }
+        }
+    }
+
+    private void UpdateCantidad(DocumentoLinea linea, ChangeEventArgs e) { if (decimal.TryParse(e.Value?.ToString(), out decimal val)) linea.Cantidad = val; CalcularTotales(); }
+    
+    private void UpdatePrecio(DocumentoLinea linea, ChangeEventArgs e) { if (decimal.TryParse(e.Value?.ToString(), out decimal val)) linea.PrecioUnitario = val; CalcularTotales(); }
+
+    private void CalcularTotales()
+    {
+        documento.BaseImponible = documento.Lineas.Sum(l => l.Subtotal);
+        documento.TotalIva = documento.Lineas.Sum(l => l.Subtotal * (l.PorcentajeIva / 100m));
+        documento.Total = documento.BaseImponible + documento.TotalIva;
+    }
+
+    private async Task GuardarDocumento()
+    {
+        // Asegura que el validador no bloquee por NumeroDocumento y que haya al menos una lÃ­nea vÃ¡lida
+        if (string.IsNullOrWhiteSpace(documento.NumeroDocumento)) documento.NumeroDocumento = "AUTO";
+        documento.Lineas.RemoveAll(l => string.IsNullOrWhiteSpace(l.DescripcionArticulo) && l.ArticuloId == null);
+        if (!documento.Lineas.Any())
+        {
+            await JS.InvokeVoidAsync("alert", "AÃ±ada al menos una lÃ­nea con artÃ­culo.");
+            return;
+        }
+        if (documento.ClienteId == null || documento.ClienteId == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "Seleccione un cliente.");
+            return;
+        }
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/CicloFacturacion/guardar", documento);
+            if (response.IsSuccessStatusCode) Volver();
+            else
+            {
+                var msg = await response.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", string.IsNullOrWhiteSpace(msg) ? "Error al guardar el documento" : msg);
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error de conexiÃ³n: {ex.Message}");
+        }
+    }
+
+    private void Volver() => Nav.NavigateTo(documento.Tipo == TipoDocumento.Factura ? "/ventas/facturas" : "/ventas/presupuestos");
+}

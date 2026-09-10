@@ -1,0 +1,209 @@
+@page "/rrhh/control-horario"
+@using ERP.Web.Services
+@using ERP.Services
+@using System.Net.Http.Json
+@using ERP.Domain.Entities
+@inject HttpClient Http
+@inject NotificationService Notification
+@implements IDisposable
+
+<div class="space-y-6">
+    @* CABECERA *@
+    <div>
+        <h1 class="text-3xl font-black text-white tracking-tight">CONTROL HORARIO</h1>
+        <p class="text-slate-500 font-medium">Registro de jornada laboral y seguimiento de horas.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        @* PANEL DE ACCIÓN *@
+        <div class="lg:col-span-1 bg-[#0f172a] border border-slate-800 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-2xl">
+            <div class="mb-6">
+                <div class="text-5xl font-black text-white tracking-widest mb-2">
+                    @CurrentTime.ToString("HH:mm:ss")
+                </div>
+                <div class="text-slate-500 uppercase text-xs font-bold tracking-widest">
+                    @CurrentTime.ToString("dddd, dd MMMM yyyy")
+                </div>
+            </div>
+
+            @* Selector de empleado para fichaje (admin) *@
+            <div class="w-full space-y-3 mb-4 text-left">
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Empleado</label>
+                <select value="@empleadoSeleccionado" @onchange="OnEmpleadoChanged" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm">
+                    <option value="0">-- Seleccione --</option>
+                    @foreach (var e in empleados)
+                    {
+                        <option value="@e.Id">@e.Nombre @e.Apellidos (@e.PinAcceso)</option>
+                    }
+                </select>
+                <input @bind="pinInput" type="password" maxlength="4" placeholder="PIN" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white text-center tracking-[0.5em] font-black" />
+            </div>
+
+            @if (!estaFichado)
+            {
+                <button @onclick="RegistrarEntrada" disabled="@(empleadoSeleccionado==0 || string.IsNullOrWhiteSpace(pinInput))"
+                        class="w-full py-6 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:opacity-50 text-white rounded-2xl font-black text-lg transition-all shadow-lg">
+                    <i class="bi bi-play-fill mr-2"></i> INICIAR JORNADA
+                </button>
+            }
+            else
+            {
+                <button @onclick="RegistrarSalida" disabled="@(empleadoSeleccionado==0 || string.IsNullOrWhiteSpace(pinInput))"
+                        class="w-full py-6 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-800 disabled:opacity-50 text-white rounded-2xl font-black text-lg transition-all shadow-lg">
+                    <i class="bi bi-stop-fill mr-2"></i> FINALIZAR JORNADA
+                </button>
+                <div class="mt-6 flex items-center gap-2 text-emerald-400 bg-emerald-400/10 px-4 py-2 rounded-full">
+                    <span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>
+                    <span class="text-xs font-black uppercase tracking-widest">Sesión Activa</span>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(mensaje)) { <p class="text-xs font-bold mt-3 @(mensaje.Contains("OK") ? "text-emerald-400" : "text-rose-400")">@mensaje</p> }
+        </div>
+
+        @* RESUMEN Y ESTADÍSTICAS *@
+        <div class="lg:col-span-2 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl">
+                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Horas Hoy</p>
+                    <p class="text-2xl font-black text-white">@horasHoy.ToString(@"hh\:mm") <span class="text-sm text-slate-500">h</span></p>
+                </div>
+                <div class="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl">
+                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Semanal</p>
+                    <p class="text-2xl font-black text-blue-500">@horasSemana.ToString(@"hh\:mm") <span class="text-sm text-slate-500">h</span></p>
+                </div>
+            </div>
+
+            @* HISTORIAL REAL DESDE BBDD *@
+            <div class="bg-[#0f172a] border border-slate-800 rounded-3xl overflow-hidden">
+                <div class="p-6 border-b border-slate-800 flex justify-between items-center">
+                    <h3 class="text-sm font-black text-white uppercase tracking-widest">Historial Reciente</h3>
+                    <button @onclick="CargarHistorial" class="text-xs text-blue-500 font-bold hover:underline">Actualizar</button>
+                </div>
+                <div class="overflow-x-auto">
+                    @if (cargandoHistorial)
+                    {
+                        <div class="p-10 text-center text-slate-500 text-sm">Cargando historial...</div>
+                    }
+                    else if (!historial.Any())
+                    {
+                        <div class="p-10 text-center text-slate-500 text-sm">Sin registros. Inicie una jornada para generar historial.</div>
+                    }
+                    else
+                    {
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-slate-900/30 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                    <th class="p-4">Empleado</th>
+                                    <th class="p-4">Fecha</th>
+                                    <th class="p-4">Entrada</th>
+                                    <th class="p-4">Salida</th>
+                                    <th class="p-4 text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y divide-slate-800/50">
+                                @foreach (var r in historial)
+                                {
+                                    <tr class="text-slate-300 hover:bg-white/[0.02]">
+                                        <td class="p-4 font-bold text-white text-xs">@r.EmpleadoNombre</td>
+                                        <td class="p-4">@r.Entrada.ToString("dd/MM")</td>
+                                        <td class="p-4">@r.Entrada.ToString("HH:mm")</td>
+                                        <td class="p-4">@(r.Salida?.ToString("HH:mm") ?? "—")</td>
+                                        <td class="p-4 text-right font-bold text-white">@(r.Salida.HasValue ? (r.Salida.Value - r.Entrada).ToString(@"hh\:mm") : "En curso")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private DateTime CurrentTime = DateTime.Now;
+    private System.Threading.Timer? timer;
+    private List<Empleado> empleados = new();
+    private int empleadoSeleccionado = 0;
+    private string pinInput = "";
+    private bool estaFichado = false;
+    private string mensaje = "";
+    private bool cargandoHistorial = true;
+    private List<FichajeDto> historial = new();
+    private TimeSpan horasHoy = TimeSpan.Zero;
+    private TimeSpan horasSemana = TimeSpan.Zero;
+
+    protected override async Task OnInitializedAsync()
+    {
+        timer = new System.Threading.Timer(_ => InvokeAsync(() => { CurrentTime = DateTime.Now; StateHasChanged(); }), null, 0, 1000);
+        await CargarEmpleados();
+        await CargarHistorial();
+    }
+
+    private async Task CargarEmpleados()
+    {
+        try { var res = await Http.GetFromJsonAsync<List<Empleado>>("api/empleados"); if (res!=null) empleados = res; } catch {}
+    }
+
+    private async Task CargarHistorial()
+    {
+        try
+        {
+            cargandoHistorial = true;
+            var res = await Http.GetFromJsonAsync<List<FichajeDto>>("api/fichaje/historial");
+            if (res != null) { historial = res; CalcularTotales(); await ActualizarEstadoFichaje(); }
+        }
+        catch { historial = new(); }
+        finally { cargandoHistorial = false; }
+    }
+
+    private void CalcularTotales()
+    {
+        var hoy = DateTime.Today;
+        var inicioSemana = hoy.AddDays(-7);
+        horasHoy = TimeSpan.FromHours(historial.Where(h => h.Entrada.Date == hoy && h.Salida.HasValue).Sum(h => (h.Salida!.Value - h.Entrada).TotalHours));
+        horasSemana = TimeSpan.FromHours(historial.Where(h => h.Entrada.Date >= inicioSemana && h.Salida.HasValue).Sum(h => (h.Salida!.Value - h.Entrada).TotalHours));
+    }
+
+    private async Task ActualizarEstadoFichaje()
+    {
+        if (empleadoSeleccionado==0) { estaFichado=false; return; }
+        try { var r = await Http.GetFromJsonAsync<EstadoDto>($"api/fichaje/estado/{empleadoSeleccionado}"); estaFichado = r?.fichado ?? false; } catch { }
+    }
+
+    private async Task OnEmpleadoChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id)) empleadoSeleccionado = id; else empleadoSeleccionado = 0;
+        await ActualizarEstadoFichaje();
+    }
+
+    private async Task RegistrarEntrada()
+    {
+        mensaje = "";
+        try
+        {
+            var resp = await Http.PostAsJsonAsync("api/fichaje/entrada", new { EmpleadoId = empleadoSeleccionado, Pin = pinInput });
+            if (resp.IsSuccessStatusCode) { Notification.Success("Entrada registrada"); estaFichado = true; await CargarHistorial(); }
+            else { var t = await resp.Content.ReadAsStringAsync(); mensaje = t; Notification.Error(t); }
+        }
+        catch (Exception ex) { mensaje = ex.Message; }
+    }
+
+    private async Task RegistrarSalida()
+    {
+        mensaje = "";
+        try
+        {
+            var resp = await Http.PostAsJsonAsync("api/fichaje/salida", new { EmpleadoId = empleadoSeleccionado, Pin = pinInput });
+            if (resp.IsSuccessStatusCode) { Notification.Info("Salida registrada"); estaFichado = false; await CargarHistorial(); }
+            else { var t = await resp.Content.ReadAsStringAsync(); mensaje = t; }
+        }
+        catch (Exception ex) { mensaje = ex.Message; }
+    }
+
+    public void Dispose() => timer?.Dispose();
+
+    public class FichajeDto { public int Id {get;set;} public int EmpleadoId {get;set;} public string EmpleadoNombre {get;set;} = ""; public DateTime Entrada {get;set;} public DateTime? Salida {get;set;} }
+    public class EstadoDto { public bool fichado {get;set;} }
+}

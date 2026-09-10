@@ -1,0 +1,156 @@
+@page "/ventas/albaranes"
+@using ERP.Domain.Entities
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="space-y-6 animate-in fade-in duration-500">
+    @* CABECERA *@
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-white tracking-tight uppercase italic">Gestión de Albaranes</h1>
+            <p class="text-slate-500 font-medium">Salidas de almacén, reservas de stock y entregas pendientes de facturar.</p>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto no-print">
+            <div class="relative group">
+                <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors"></i>
+                <input type="text" @bind-value="Busqueda" @bind-value:event="oninput"
+                       placeholder="Buscar albarán o cliente..." 
+                       class="bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-4 py-3 text-sm text-white w-full sm:w-64 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+            </div>
+
+            <button @onclick='() => Nav.NavigateTo("/ventas/nuevo-albaran")' class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95">
+                <i class="bi bi-box-seam mr-2"></i> Crear Albarán
+            </button>
+        </div>
+    </div>
+
+    @* LISTADO DE ALBARANES *@
+    <div class="bg-[#0f172a] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-slate-900/50 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">
+                    <th class="p-5">Nº Albarán</th>
+                    <th class="p-5">Fecha</th>
+                    <th class="p-5">Cliente</th>
+                    <th class="p-5">Estado</th>
+                    <th class="p-5">Total</th>
+                    <th class="p-5 text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/50 text-white">
+                @if (AlbaranesFiltrados != null)
+                {
+                    @foreach (var alb in AlbaranesFiltrados)
+                    {
+                        <tr class="hover:bg-white/[0.02] transition-colors">
+                            <td class="p-5 font-mono text-indigo-400 font-bold">@alb.NumeroDocumento</td>
+                            <td class="p-5 text-sm text-slate-400">@alb.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td class="p-5 text-sm font-semibold">@alb.Cliente?.RazonSocial</td>
+                            <td class="p-5">
+                                <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter @GetEstadoClass(alb)">
+                                    @(EsFacturado(alb.Id) ? "Facturado" : "Pendiente")
+                                </span>
+                            </td>
+                            <td class="p-5 font-mono font-bold text-lg">@alb.Total.ToString("N2")€</td>
+                            <td class="p-5 text-right space-x-1">
+                                @if (!EsFacturado(alb.Id))
+                                {
+                                    <button @onclick="() => FacturarAlbaran(alb.Id)" title="Convertir a Factura" class="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all">
+                                        <i class="bi bi-receipt"></i>
+                                    </button>
+                                    <button @onclick="() => EliminarAlbaran(alb.Id)" title="Eliminar y liberar stock" class="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                                <button @onclick="() => VerAlbaran(alb.Id)" title="Ver detalle" class="p-2 text-slate-400 hover:text-white transition-colors"><i class="bi bi-eye"></i></button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private string Busqueda = "";
+    private List<DocumentoComercial> ListaAlbaranes = new();
+    private List<int> IdsFacturados = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        try 
+        {
+            var docs = await Http.GetFromJsonAsync<List<DocumentoComercial>>("api/CicloFacturacion");
+            if (docs != null)
+            {
+                ListaAlbaranes = docs.Where(d => d.Tipo == TipoDocumento.Albaran).ToList();
+                
+                // CORRECCIÓN CS8629: Usamos el operador ! para asegurar al compilador que no es nulo tras el filtro
+                IdsFacturados = docs
+                    .Where(d => d.Tipo == TipoDocumento.Factura && d.DocumentoOrigenId.HasValue)
+                    .Select(d => d.DocumentoOrigenId!.Value) 
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar albaranes: {ex.Message}");
+        }
+    }
+
+    private IEnumerable<DocumentoComercial> AlbaranesFiltrados => 
+        ListaAlbaranes.Where(a => 
+            (a.NumeroDocumento ?? "").Contains(Busqueda, StringComparison.OrdinalIgnoreCase) || 
+            (a.Cliente?.RazonSocial ?? "").Contains(Busqueda, StringComparison.OrdinalIgnoreCase));
+
+    private bool EsFacturado(int id) => IdsFacturados.Contains(id);
+
+    private string GetEstadoClass(DocumentoComercial alb) => EsFacturado(alb.Id) 
+        ? "bg-emerald-500/10 text-emerald-500" 
+        : "bg-indigo-500/10 text-indigo-500";
+
+    private async Task FacturarAlbaran(int id)
+    {
+        var confirmado = await JS.InvokeAsync<bool>("confirm", "¿Desea generar la factura definitiva de este albarán?");
+        if (confirmado)
+        {
+            var response = await Http.PostAsync($"api/CicloFacturacion/{id}/convertir?nuevoTipo=Factura", null);
+            if (response.IsSuccessStatusCode)
+            {
+                Nav.NavigateTo("/ventas/facturas");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "No se pudo convertir el albarán.");
+            }
+        }
+    }
+
+    private async Task EliminarAlbaran(int id)
+    {
+        var confirmado = await JS.InvokeAsync<bool>("confirm", "ATENCIÓN: ¿Seguro que desea eliminar el albarán? El stock reservado se liberará.");
+        if (confirmado)
+        {
+            var response = await Http.DeleteAsync($"api/CicloFacturacion/albaran/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                await CargarDatos();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", $"Error: {error}");
+            }
+        }
+    }
+
+    private void VerAlbaran(int id) => Nav.NavigateTo($"/ventas/editor/{id}");
+}

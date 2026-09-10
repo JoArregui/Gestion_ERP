@@ -1,0 +1,96 @@
+@page "/stock/kardex/{ArticuloId:int}"
+@using ERP.Domain.Entities
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Historial de Movimientos</PageTitle>
+
+<div class="container-fluid">
+    <div class="my-4 d-flex justify-content-between align-items-end">
+        <div>
+            <h1 class="text-4xl font-black text-slate-900 tracking-tighter italic uppercase mb-0">KARDEX DE ARTÍCULO</h1>
+            @if (articulo != null)
+            {
+                <p class="text-blue-600 font-bold mb-0">@articulo.Codigo - @articulo.Descripcion</p>
+            }
+        </div>
+        <div class="text-end">
+            <label class="text-[10px] font-black uppercase text-slate-400 d-block">Stock Actual</label>
+            <span class="text-3xl font-black text-slate-900">@articulo?.Stock.ToString("N2")</span>
+        </div>
+    </div>
+
+    @if (movimientos == null)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    }
+    else
+    {
+        <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-slate-900 text-white text-[10px] uppercase font-bold tracking-widest">
+                        <tr>
+                            <th class="px-6 py-4">Fecha y Hora</th>
+                            <th class="px-6 py-4">Concepto / Ref.</th>
+                            <th class="px-6 py-4 text-center">Tipo</th>
+                            <th class="px-6 py-4 text-end">Cantidad</th>
+                            <th class="px-6 py-4 text-end">Saldo Final</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach (var mov in movimientos)
+                        {
+                            <tr>
+                                <td class="px-6 py-4 text-sm font-medium text-slate-500">
+                                    @mov.Fecha.ToString("dd/MM/yyyy HH:mm")
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="font-bold text-slate-800">@mov.ReferenciaDocumento</div>
+                                    <div class="text-[10px] text-slate-400 uppercase">@mov.Observaciones</div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    @if (mov.TipoMovimiento == "ENTRADA")
+                                    {
+                                        <span class="badge bg-green-100 text-green-700 px-3 py-2 rounded-pill font-black text-[10px]">
+                                            <i class="bi bi-arrow-down-left-circle me-1"></i> ENTRADA
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-red-100 text-red-700 px-3 py-2 rounded-pill font-black text-[10px]">
+                                            <i class="bi bi-arrow-up-right-circle me-1"></i> SALIDA
+                                        </span>
+                                    }
+                                </td>
+                                <td class="px-6 py-4 text-end font-bold @(mov.TipoMovimiento == "ENTRADA" ? "text-green-600" : "text-red-600")">
+                                    @(mov.TipoMovimiento == "ENTRADA" ? "+" : "-") @mov.Cantidad.ToString("N2")
+                                </td>
+                                <td class="px-6 py-4 text-end">
+                                    <span class="px-3 py-1 bg-slate-100 rounded-lg font-black text-slate-900">
+                                        @mov.StockResultante.ToString("N2")
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int ArticuloId { get; set; }
+    private List<MovimientoStock>? movimientos;
+    private Articulo? articulo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // En una implementación real, aquí llamarías a tu servicio
+        articulo = await Http.GetFromJsonAsync<Articulo>($"api/articulos/{ArticuloId}");
+        movimientos = await Http.GetFromJsonAsync<List<MovimientoStock>>($"api/stock/movimientos/{ArticuloId}");
+    }
+}

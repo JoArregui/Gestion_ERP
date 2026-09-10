@@ -1,0 +1,102 @@
+@using ERP.Domain.Entities
+@using ERP.Web.Services
+@inject HttpClient Http
+@inject NotificationService NotificationService
+
+<div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-4 mb-6">
+    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cliente / Entidad Fiscal</label>
+    
+    @if (ClienteSeleccionado == null)
+    {
+        <div class="relative">
+            <input type="text" 
+                   class="block w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm transition-all"
+                   placeholder="Buscar por Nombre, CIF o Email..."
+                   @bind="SearchTerm" 
+                   @bind:event="oninput">
+            
+            @if (!string.IsNullOrWhiteSpace(SearchTerm) && ClientesFiltrados.Any())
+            {
+                <div class="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                    @foreach (var cliente in ClientesFiltrados)
+                    {
+                        <button @onclick="() => Seleccionar(cliente)" 
+                                class="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-slate-50 last:border-0 transition-colors">
+                            <div class="font-bold text-slate-800 text-sm">@cliente.RazonSocial</div>
+                            <div class="text-[10px] text-slate-500 font-mono">NIF: @cliente.CIF | @cliente.Email</div>
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-xl p-3 animate-fade-in">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                    @ClienteSeleccionado.RazonSocial.Substring(0, 1)
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-slate-900">@ClienteSeleccionado.RazonSocial</h4>
+                    <p class="text-[10px] text-blue-600 font-mono">@ClienteSeleccionado.CIF • @ClienteSeleccionado.Direccion</p>
+                </div>
+            </div>
+            <button @onclick="Deseleccionar" class="p-2 hover:bg-blue-100 rounded-full text-blue-400 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<Cliente> OnClienteSeleccionado { get; set; }
+    
+    private Cliente? ClienteSeleccionado;
+    private List<Cliente> TodosLosClientes = new();
+    private List<Cliente> ClientesFiltrados = new();
+    private string _searchTerm = "";
+
+    public string SearchTerm
+    {
+        get => _searchTerm;
+        set { _searchTerm = value; Filtrar(); }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try {
+            TodosLosClientes = await Http.GetFromJsonAsync<List<Cliente>>("api/clientes") ?? new();
+        } catch {
+            NotificationService.ShowNotification("Error al cargar clientes", NotificationType.Error);
+        }
+    }
+
+    private void Filtrar()
+    {
+        if (string.IsNullOrWhiteSpace(SearchTerm)) {
+            ClientesFiltrados = new();
+        } else {
+            ClientesFiltrados = TodosLosClientes
+                .Where(c => c.RazonSocial.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) || 
+                            c.CIF.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase))
+                .Take(5).ToList();
+        }
+    }
+
+    private async Task Seleccionar(Cliente c)
+    {
+        ClienteSeleccionado = c;
+        SearchTerm = "";
+        await OnClienteSeleccionado.InvokeAsync(c);
+        NotificationService.ShowNotification("Cliente vinculado", NotificationType.Info);
+    }
+
+    private async Task Deseleccionar()
+    {
+        ClienteSeleccionado = null;
+        await OnClienteSeleccionado.InvokeAsync(null);
+    }
+}

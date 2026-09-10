@@ -1,0 +1,84 @@
+@page "/informes/rentabilidad"
+@using ERP.Domain.DTOs
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<div class="p-8 bg-slate-50 min-h-screen">
+    <div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 class="text-4xl font-black text-slate-900 italic tracking-tighter">ANÁLISIS DE RENTABILIDAD</h1>
+            <p class="text-slate-500 font-medium">Comparativa de Coste Medio vs. PVP</p>
+        </div>
+        <div class="flex gap-2">
+            <button @onclick="ExportarExcel" disabled="@(!Datos.Any())" class="px-4 py-3 bg-emerald-600/20 border border-emerald-500/30 text-emerald-700 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all text-xs font-black uppercase disabled:opacity-30">
+                <i class="bi bi-file-earmark-excel mr-2"></i> Excel
+            </button>
+            <button @onclick="ExportarPdf" disabled="@(!Datos.Any())" class="px-4 py-3 bg-rose-600/20 border border-rose-500/30 text-rose-700 rounded-2xl hover:bg-rose-600 hover:text-white transition-all text-xs font-black uppercase disabled:opacity-30">
+                <i class="bi bi-file-earmark-pdf mr-2"></i> PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden">
+        <table class="w-full text-left">
+            <thead class="bg-slate-900 text-white text-[10px] uppercase tracking-widest">
+                <tr>
+                    <th class="px-6 py-5">Producto</th>
+                    <th class="px-6 py-5">Coste (PMC)</th>
+                    <th class="px-6 py-5">PVP</th>
+                    <th class="px-6 py-5">Margen %</th>
+                    <th class="px-6 py-5 text-right">Valor Stock</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var item in Datos)
+                {
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4">
+                            <span class="block font-bold text-slate-800">@item.Descripcion</span>
+                            <span class="text-[10px] text-slate-400 font-mono">@item.Codigo | @item.Familia</span>
+                        </td>
+                        <td class="px-6 py-4 text-slate-600 font-medium">@item.PrecioCompra.ToString("C2")</td>
+                        <td class="px-6 py-4 text-slate-900 font-bold">@item.PrecioVenta.ToString("C2")</td>
+                        <td class="px-6 py-4">
+                            @{
+                                var colorClase = item.MargenPorcentaje < 15 ? "bg-rose-100 text-rose-700" : 
+                                                 item.MargenPorcentaje < 30 ? "bg-amber-100 text-amber-700" : 
+                                                 "bg-emerald-100 text-emerald-700";
+                            }
+                            <span class="px-3 py-1 rounded-full text-xs font-black @colorClase">
+                                @item.MargenPorcentaje.ToString("N2")%
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-right font-mono font-bold text-blue-600">
+                            @item.ValorInventario.ToString("C2")
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<AnalisisRentabilidadDTO> Datos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Http.GetFromJsonAsync<List<AnalisisRentabilidadDTO>>("api/articulos/analisis-rentabilidad");
+        if (result != null) Datos = result;
+    }
+
+    private async Task ExportarExcel()
+    {
+        var rows = Datos.Select(d => new { d.Codigo, d.Descripcion, Familia = d.Familia, Coste = d.PrecioCompra, PVP = d.PrecioVenta, Margen = d.MargenPorcentaje, Valor = d.ValorInventario });
+        await JS.InvokeVoidAsync("exportToExcel", rows, $"Rentabilidad_{DateTime.Now:yyyyMMdd}");
+    }
+
+    private async Task ExportarPdf()
+    {
+        var headers = new[] { "Producto", "Coste", "PVP", "Margen %", "Valor Stock" };
+        var rows = Datos.Select(d => new[] { $"{d.Codigo} {d.Descripcion}", d.PrecioCompra.ToString("N2"), d.PrecioVenta.ToString("N2"), d.MargenPorcentaje.ToString("N2")+"%", d.ValorInventario.ToString("N2") }).ToList();
+        await JS.InvokeVoidAsync("exportToPdf", "Análisis de Rentabilidad", headers, rows, $"Rentabilidad_{DateTime.Now:yyyyMMdd}");
+    }
+}

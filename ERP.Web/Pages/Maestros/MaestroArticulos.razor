@@ -1,0 +1,368 @@
+@page "/maestros/articulos"
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+@using ERP.Domain.Entities
+@using ERP.Web.Services
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NotificationService Notify
+@inject NavigationManager Nav
+@implements IDisposable
+
+<div class="max-w-[1400px] mx-auto p-6 animate-in fade-in duration-700">
+    
+    @* --- SISTEMA DE NOTIFICACIONES LOCAL (Sincronizado con el Servicio Global) --- *@
+    <div class="fixed top-5 right-5 z-[100] flex flex-col gap-3">
+        @foreach (var note in activeNotifications)
+        {
+            <div class="p-4 rounded-lg shadow-2xl border-l-4 @GetNoteStyle(note.Type) bg-white min-w-[320px] flex justify-between items-center border border-slate-100 animate-in slide-in-from-right">
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-black uppercase opacity-50 italic">Logística / Inventario</span>
+                    <span class="text-xs font-bold uppercase">@note.Message</span>
+                </div>
+                <button @onclick="() => activeNotifications.Remove(note)" class="ml-4 opacity-30 hover:opacity-100 font-black">✕</button>
+            </div>
+        }
+    </div>
+
+    @* --- CABECERA Y BUSCADOR --- *@
+    <div class="flex flex-col md:flex-row justify-between items-end mb-8 border-b border-slate-200 pb-6 gap-4">
+        <div>
+            <nav class="text-[10px] font-black text-indigo-600 uppercase mb-2 tracking-widest">Almacén > Catálogo</nav>
+            <h1 class="text-4xl font-black text-slate-900 uppercase tracking-tighter italic">Maestro de Artículos</h1>
+        </div>
+        
+        <div class="flex flex-wrap gap-3 items-center">
+            @* Buscador en tiempo real *@
+            <div class="relative min-w-[300px]">
+                <span class="absolute inset-y-0 left-4 flex items-center text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </span>
+                <input @bind-value="SearchTerm" @bind-value:event="oninput" placeholder="BUSCAR POR REFERENCIA O NOMBRE..." 
+                       class="w-full pl-11 pr-4 py-3 bg-slate-100 border-none rounded-xl text-[10px] font-bold uppercase tracking-wider focus:ring-2 focus:ring-indigo-500 transition-all outline-none" />
+            </div>
+
+            <div class="relative">
+                <InputFile OnChange="ImportarExcel" id="excel-upload" class="hidden" accept=".xlsx" />
+                <label for="excel-upload" class="cursor-pointer bg-emerald-50 border border-emerald-200 text-emerald-700 px-6 py-3 rounded-xl font-black text-[10px] uppercase hover:bg-emerald-100 transition shadow-sm inline-block">
+                    Importar Excel
+                </label>
+            </div>
+            
+            <button @onclick="CargarDatos" class="p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition shadow-sm text-slate-500">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+
+            <button @onclick="RefrescarArticulos" class="p-3 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition shadow-sm text-emerald-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5m3 3l2-2m-3 3l2-2m7.56-5.02a8.981 8.981 0 001.888 1.827m0 0A9 9 0 11-8.98 8.98m0 0A9 9 0 018.981 1.828m0-8l-8 8m4-3.533a7.028 7.028 0 00-1.888 1.828m0 0A5.996 5.996 0 013.05 1.382m0 0a5.956 5.956 0 100 10.606M7.5 7.5a2.121 2.121 0 012.121-2.121 2.121 2.121 0 10-2.121-2.121 2.121 2.121 0 00-2.121 2.121m0 0l-1.636-1.636a1.75 1.75 0 01-2.236 0L3.5 7.5a1.75 1.75 0 100 3.5l1.636 1.636a1.75 1.75 0 010 3.5 7.028 7.028 0 01-1.888 1.828 7.028 7.028 0 00-1.888-1.828 7.028 7.028 0 001.888-1.827z"></path></svg>
+            </button>
+
+            <button @onclick="NuevoArticulo" class="bg-slate-900 hover:bg-indigo-600 text-white px-8 py-3 rounded-xl font-black text-xs transition-all shadow-xl uppercase tracking-widest active:scale-95">
+                Nuevo Registro
+            </button>
+        </div>
+    </div>
+
+    @* --- TABLA DE DATOS --- *@
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="w-full text-left">
+            <thead class="bg-slate-50 border-b border-slate-100">
+                <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <th class="p-5 w-24">Imagen</th>
+                    <th class="p-5">Referencia / Descripción</th>
+                    <th class="p-5 text-right">Precio Venta</th>
+                    <th class="p-5 text-center">Stock Actual</th>
+                    <th class="p-5 text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+                @if (FiltrarArticulos != null)
+                {
+                    @foreach (var art in FiltrarArticulos)
+                    {
+                        <tr class="hover:bg-slate-50/80 transition-colors group">
+                            <td class="p-5">
+                                <div class="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner">
+                                    @if (!string.IsNullOrEmpty(art.ImagenUrl))
+                                    {
+                                        <img src="@art.ImagenUrl" class="w-full h-full object-cover" />
+                                    }
+                                    else
+                                    {
+                                        <span class="text-[8px] text-slate-300 font-bold uppercase">N/A</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="p-5">
+                                <div class="text-sm font-black text-slate-800 uppercase leading-none mb-1">@art.Descripcion</div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[9px] font-mono text-indigo-600 font-bold tracking-widest bg-indigo-50 px-2 py-0.5 rounded">@art.Codigo</span>
+                                    @if(art.IsDescatalogado) {
+                                        <span class="text-[8px] bg-red-100 text-red-600 px-2 py-0.5 rounded font-black uppercase">Descatalogado</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="p-5 text-right font-black text-slate-700">@art.PrecioVenta.ToString("N2")€</td>
+                            <td class="p-5 text-center">
+                                <span class="px-3 py-1 rounded-full font-black text-xs @(art.Stock <= art.StockMinimo ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-800")">
+                                    @art.Stock.ToString("N2")
+                                </span>
+                            </td>
+                            <td class="p-5 text-right">
+                                <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button @onclick="() => Editar(art.Id)" class="p-2 text-slate-400 hover:text-indigo-600 transition shadow-sm bg-white border border-slate-200 rounded-lg">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    </button>
+                                    <button @onclick="() => Eliminar(art.Id)" class="p-2 text-slate-400 hover:text-red-600 transition shadow-sm bg-white border border-slate-200 rounded-lg">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* --- DRAWER FORMULARIO --- *@
+    @if (mostrarFormulario)
+    {
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex justify-end">
+            <div class="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
+                <div class="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <div>
+                        <h2 class="text-2xl font-black uppercase italic tracking-tighter">Ficha Técnica</h2>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Edición de maestros de inventario</p>
+                    </div>
+                    <button @onclick="CerrarFormulario" class="h-10 w-10 flex items-center justify-center border border-slate-200 rounded-full font-black text-slate-400 hover:bg-white hover:text-red-500 transition shadow-sm">✕</button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-10">
+                    <EditForm Model="@articuloActual" OnValidSubmit="GuardarArticulo">
+                        <DataAnnotationsValidator />
+                        <div class="space-y-8">
+                            
+                            @* Selector de Imagen *@
+                            <div class="p-8 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center group hover:border-indigo-300 transition-colors">
+                                <div class="w-40 h-40 bg-white rounded-2xl shadow-xl mb-4 overflow-hidden border-4 border-white relative">
+                                    @if (!string.IsNullOrEmpty(articuloActual.ImagenUrl))
+                                    {
+                                        <img src="@articuloActual.ImagenUrl" class="w-full h-full object-cover" />
+                                        <button type="button" @onclick="() => articuloActual.ImagenUrl = null" class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                                    }
+                                    else
+                                    {
+                                        <div class="w-full h-full flex items-center justify-center text-slate-300 font-black text-[10px] uppercase text-center p-4 italic">Arrastra o sube una imagen</div>
+                                    }
+                                </div>
+                                <InputFile OnChange="HandleFileSelected" id="form-img" class="hidden" accept="image/*" />
+                                <label for="form-img" class="cursor-pointer bg-slate-900 text-white px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-indigo-600 transition active:scale-95">
+                                    Seleccionar Archivo
+                                </label>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-6">
+                                <div class="col-span-1">
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">Referencia Interna (SKU)</label>
+                                    <InputText @bind-Value="articuloActual.Codigo" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-mono" />
+                                </div>
+                                <div class="col-span-1">
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">ID Familia</label>
+                                    <InputNumber @bind-Value="articuloActual.FamiliaId" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none" />
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">Descripción del Artículo</label>
+                                    <InputText @bind-Value="articuloActual.Descripcion" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none uppercase font-bold tracking-tight" />
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">Costo Adq.</label>
+                                    <InputNumber @bind-Value="articuloActual.PrecioCompra" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">PVP (S/I)</label>
+                                    <InputNumber @bind-Value="articuloActual.PrecioVenta" class="w-full p-4 bg-indigo-50 border-2 border-indigo-100 rounded-xl outline-none font-black text-indigo-600" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">IVA %</label>
+                                    <InputNumber @bind-Value="articuloActual.PorcentajeIva" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block text-center">Existencias Reales</label>
+                                    <InputNumber @bind-Value="articuloActual.Stock" class="w-full bg-transparent border-none text-2xl font-black outline-none text-center" />
+                                </div>
+                                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block text-center text-red-400">Punto de Pedido</label>
+                                    <InputNumber @bind-Value="articuloActual.StockMinimo" class="w-full bg-transparent border-none text-2xl font-black outline-none text-center text-red-500" />
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2 p-4 bg-slate-50 rounded-xl">
+                                <InputCheckbox @bind-Value="articuloActual.IsDescatalogado" id="desc" class="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                                <label for="desc" class="text-[10px] font-black uppercase text-slate-600">Marcar como descatalogado (No disponible para venta)</label>
+                            </div>
+
+                            <div class="flex gap-4 pt-4">
+                                <button type="submit" class="flex-1 bg-indigo-600 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-900 transition-all shadow-xl active:scale-95">
+                                    Guardar Cambios
+                                </button>
+                                <button type="button" @onclick="CerrarFormulario" class="px-8 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase hover:bg-slate-200 transition-all">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Articulo>? articulos;
+    private Articulo articuloActual = new();
+    private bool mostrarFormulario = false;
+    private string SearchTerm = "";
+    private List<NotificationItem> activeNotifications = new();
+
+    private IEnumerable<Articulo> FiltrarArticulos => string.IsNullOrWhiteSpace(SearchTerm) 
+        ? articulos ?? new List<Articulo>()
+        : articulos?.Where(x => x.Codigo.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) || 
+                               x.Descripcion.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase)) ?? new List<Articulo>();
+
+    protected override async Task OnInitializedAsync() 
+    {
+        Notify.OnShow += HandleGlobalNotification;
+        await CargarDatos();
+        await RefrescarArticulos(); // Cargar siempre al iniciar tras login
+    }
+
+    private void HandleGlobalNotification(string message, NotificationType type)
+    {
+        var note = new NotificationItem { Message = message, Type = type };
+        activeNotifications.Add(note);
+        StateHasChanged();
+        Task.Delay(4000).ContinueWith(_ => { 
+            activeNotifications.Remove(note); 
+            InvokeAsync(StateHasChanged); 
+        });
+    }
+
+    private async Task CargarDatos()
+    {
+        try {
+            articulos = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos");
+            if (articulos == null) {
+                Notify.Warning("No se encontraron artículos. La sesión puede haber expirado.");
+                await NavToLogin();
+            }
+        } catch (HttpRequestException ex) when (ex.Message.Contains("401") || ex.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
+            await NavToLogin();
+        } catch (HttpRequestException ex) {
+            Notify.Error($"Error de conexión ({ex.Message}). API apagado o unreachable.");
+        } catch {
+            Notify.Error("Error inesperado al cargar los datos del inventario.");
+        }
+    }
+
+    private async Task NavToLogin() {
+        await Task.Delay(800);
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+
+    private async Task RefrescarArticulos()
+    {
+        try {
+            articulos = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos");
+            if (articulos == null) {
+                Notify.Warning("No hay artículos en la base de datos.");
+            } else {
+                Notify.Success($"Artículos recargados: {articulos.Count} registros");
+            }
+        } catch (HttpRequestException ex) {
+            Notify.Error($"No se pudo contactar al API: {ex.Message}");
+        } catch {
+            Notify.Error("Error inesperado al refrescar.");
+        }
+    }
+
+    private void NuevoArticulo() {
+        articuloActual = new Articulo { EmpresaId = 1, PorcentajeIva = 21, FamiliaId = 1, Stock = 0, StockMinimo = 0 };
+        mostrarFormulario = true;
+    }
+
+    private async Task Editar(int id) {
+        articuloActual = await Http.GetFromJsonAsync<Articulo>($"api/articulos/{id}") ?? new();
+        mostrarFormulario = true;
+    }
+
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task GuardarArticulo() {
+        var response = articuloActual.Id == 0 ? 
+            await Http.PostAsJsonAsync("api/articulos", articuloActual) : 
+            await Http.PutAsJsonAsync($"api/articulos/{articuloActual.Id}", articuloActual);
+
+        if (response.IsSuccessStatusCode) {
+            Notify.Success("Maestro de artículos actualizado correctamente");
+            await CargarDatos();
+            CerrarFormulario();
+        } else {
+            Notify.Error("Error crítico al persistir el registro");
+        }
+    }
+
+    private async Task Eliminar(int id) {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Está seguro de eliminar esta referencia permanentemente?")) {
+            var res = await Http.DeleteAsync($"api/articulos/{id}");
+            if(res.IsSuccessStatusCode) {
+                Notify.Warning("Artículo eliminado del sistema central");
+                await CargarDatos();
+            }
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e) {
+        try {
+            var format = "image/jpeg";
+            var resized = await e.File.RequestImageFileAsync(format, 500, 500);
+            var buffer = new byte[resized.Size];
+            await resized.OpenReadStream().ReadAsync(buffer);
+            articuloActual.ImagenUrl = $"data:{format};base64,{Convert.ToBase64String(buffer)}";
+        } catch {
+            Notify.Error("Error al procesar el archivo de imagen");
+        }
+    }
+
+    private async Task ImportarExcel(InputFileChangeEventArgs e) {
+        Notify.Info("Analizando estructura de datos masivos...");
+        var content = new MultipartFormDataContent();
+        var fileContent = new StreamContent(e.File.OpenReadStream(1024 * 1024 * 10)); 
+        content.Add(fileContent, "file", e.File.Name);
+        
+        var response = await Http.PostAsync("api/articulos/importar", content);
+        if (response.IsSuccessStatusCode) {
+            Notify.Success("Importación masiva finalizada con éxito");
+            await CargarDatos();
+        } else {
+            Notify.Error("El archivo Excel no cumple con el esquema requerido");
+        }
+    }
+
+    private string GetNoteStyle(NotificationType t) => t switch {
+        NotificationType.Success => "border-emerald-500 text-emerald-800",
+        NotificationType.Error => "border-red-500 text-red-800",
+        NotificationType.Warning => "border-amber-500 text-amber-800",
+        _ => "border-blue-500 text-blue-800"
+    };
+
+    public void Dispose() => Notify.OnShow -= HandleGlobalNotification;
+
+    private class NotificationItem { public string Message { get; set; } = ""; public NotificationType Type { get; set; } }
+}

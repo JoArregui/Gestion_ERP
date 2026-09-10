@@ -1,0 +1,203 @@
+@page "/stock/etiquetas"
+@using ERP.Domain.Entities
+@using ERP.Domain.DTOs
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<div class="container-fluid no-print animate-fade-in">
+    @* --- CABECERA --- *@
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <div>
+            <h1 class="text-4xl font-black text-slate-900 tracking-tighter italic uppercase mb-0">Terminal de Etiquetado</h1>
+            <p class="text-slate-500 text-[10px] font-mono uppercase tracking-widest">Configuración de impresión térmica y códigos de barras</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-danger rounded-2xl font-bold px-4" @onclick="() => colaImpresion.Clear()">
+                <i class="bi bi-trash3 me-2"></i> Limpiar Cola
+            </button>
+            <button class="btn btn-slate-900 text-white rounded-2xl font-black px-4 shadow-lg" @onclick="Imprimir">
+                <i class="bi bi-printer me-2"></i> LANZAR IMPRESIÓN
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        @* --- BUSCADOR DE ARTÍCULOS --- *@
+        <div class="col-md-4">
+            <div class="card border-0 shadow-xl rounded-3xl p-4 bg-slate-50">
+                <h6 class="font-black uppercase text-[10px] text-blue-600 mb-3">Añadir a la cola</h6>
+                <div class="relative">
+                    <input type="text" class="form-control border-0 rounded-2xl p-3 mb-3 shadow-sm ps-5" 
+                           placeholder="   Buscar por código o nombre..." @oninput="BuscarArticulos" />
+                    <i class="bi bi-search absolute left-4 top-4 text-slate-400"></i>
+                </div>
+                
+                <div class="list-group list-group-flush rounded-2xl overflow-hidden shadow-sm" style="max-height: 400px; overflow-y: auto;">
+                    @if (articulosBusqueda != null)
+                    {
+                        foreach (var art in articulosBusqueda)
+                        {
+                            <button class="list-group-item list-group-item-action border-0 d-flex justify-content-between align-items-center p-3"
+                                    @onclick="() => AgregarACola(art)">
+                                <div>
+                                    <div class="font-black text-sm uppercase">@art.Codigo</div>
+                                    <div class="text-[10px] text-slate-500">@art.Descripcion</div>
+                                </div>
+                                <i class="bi bi-plus-circle-fill text-blue-600 fs-5"></i>
+                            </button>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* --- COLA DE IMPRESIÓN --- *@
+        <div class="col-md-8">
+            <div class="card border-0 shadow-2xl rounded-3xl overflow-hidden">
+                <table class="table align-middle mb-0">
+                    <thead class="bg-slate-900 text-white text-[10px] uppercase">
+                        <tr>
+                            <th class="ps-4 py-3">Artículo</th>
+                            <th class="py-3 text-center">Precio Etiqueta</th>
+                            <th class="py-3 text-center" style="width: 150px;">Copias</th>
+                            <th class="pe-4 py-3 text-end">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!colaImpresion.Any())
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-slate-400 italic">No hay etiquetas en la cola de impresión</td>
+                            </tr>
+                        }
+                        @foreach (var item in colaImpresion)
+                        {
+                            <tr class="border-bottom">
+                                <td class="ps-4 py-3">
+                                    <div class="font-black uppercase">@item.Codigo</div>
+                                    <div class="text-xs text-slate-500">@item.Descripcion</div>
+                                </td>
+                                <td class="text-center font-bold">@item.Precio.ToString("N2") €</td>
+                                <td class="text-center">
+                                    <input type="number" class="form-control form-control-sm text-center rounded-pill font-black" 
+                                           @bind="item.CantidadAImprimir" />
+                                </td>
+                                <td class="pe-4 py-3 text-end">
+                                    <button class="btn btn-link text-danger p-0" @onclick="() => colaImpresion.Remove(item)">
+                                        <i class="bi bi-x-circle-fill fs-5"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* --- ÁREA DE IMPRESIÓN (SOLO VISIBLE AL IMPRIMIR) --- *@
+<div class="print-area">
+    @foreach (var etiqueta in colaImpresion)
+    {
+        @for (int i = 0; i < etiqueta.CantidadAImprimir; i++)
+        {
+            <div class="label-container">
+                <div class="label-brand">SISTEMA ERP PROFESIONAL</div>
+                <div class="label-desc">@etiqueta.Descripcion</div>
+                <div class="label-price">@etiqueta.Precio.ToString("N2") €</div>
+                <div class="barcode-box">
+                    @* Esta clase usa la fuente Libre Barcode 128 definida en index.html *@
+                    <span class="barcode-font text-4xl">@etiqueta.Codigo</span>
+                    <div class="barcode-text">@etiqueta.Codigo</div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<style>
+    @@media screen {
+        .print-area { display: none; }
+    }
+
+    @@media print {
+        .no-print { display: none !important; }
+        .print-area { 
+            display: block !important; 
+            padding: 0; 
+            margin: 0; 
+        }
+
+        @@page {
+            margin: 0;
+            size: 60mm 40mm;
+        }
+
+        .label-container {
+            width: 60mm;
+            height: 40mm;
+            padding: 3mm;
+            text-align: center;
+            border: 0.1mm solid #f0f0f0;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .label-brand { font-size: 6pt; font-weight: bold; color: #333; text-transform: uppercase; letter-spacing: 1px; }
+        .label-desc { font-size: 8pt; font-weight: 700; margin-top: 1mm; height: 2.5em; overflow: hidden; line-height: 1.2; }
+        .label-price { font-size: 16pt; font-weight: 900; color: #000; }
+        .barcode-box { margin-top: 1mm; }
+        .barcode-font { font-family: 'Libre Barcode 128', cursive; line-height: 1; }
+        .barcode-text { font-size: 7pt; font-family: 'Courier New', Courier, monospace; font-weight: bold; }
+    }
+</style>
+
+@code {
+    private List<Articulo>? todosArticulos;
+    private List<Articulo>? articulosBusqueda;
+    private List<EtiquetaArticuloDTO> colaImpresion = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Cargamos los artículos del API
+        todosArticulos = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos");
+    }
+
+    private void BuscarArticulos(ChangeEventArgs e)
+    {
+        var busqueda = e.Value?.ToString()?.ToLower() ?? "";
+        if (string.IsNullOrWhiteSpace(busqueda)) { articulosBusqueda = null; return; }
+        
+        articulosBusqueda = todosArticulos?
+            .Where(a => a.Codigo.ToLower().Contains(busqueda) || a.Descripcion.ToLower().Contains(busqueda))
+            .Take(10)
+            .ToList();
+    }
+
+    private void AgregarACola(Articulo art)
+    {
+        if (!colaImpresion.Any(x => x.Codigo == art.Codigo))
+        {
+            colaImpresion.Add(new EtiquetaArticuloDTO
+            {
+                Codigo = art.Codigo,
+                Descripcion = art.Descripcion,
+                Precio = art.PrecioVenta,
+                CodigoBarras = art.Codigo,
+                CantidadAImprimir = 1
+            });
+        }
+    }
+
+    private async Task Imprimir()
+    {
+        if (!colaImpresion.Any()) return;
+        // Llamamos a la función JS que definimos en index.html
+        await JS.InvokeVoidAsync("window.print");
+    }
+}

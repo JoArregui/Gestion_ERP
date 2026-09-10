@@ -1,0 +1,189 @@
+@page "/stock/auditoria"
+@using System.Net.Http.Json
+@using System.Text.Json
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<div class="max-w-[1400px] mx-auto space-y-6 animate-in fade-in duration-500">
+    @* HEADER *@
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 class="text-4xl font-black text-white tracking-tighter uppercase italic">Auditoría de Stock</h1>
+            <p class="text-slate-500 font-mono text-xs uppercase tracking-widest">Reconstrucción de inventario por fecha de corte · PMP</p>
+        </div>
+        <div class="flex gap-2">
+            <button @onclick="ExportarExcel" disabled="@(datosAuditoria==null || !datosFiltrados.Any())" class="px-4 py-3 bg-emerald-600/20 border border-emerald-500/30 text-emerald-500 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all text-xs font-black uppercase disabled:opacity-30">
+                <i class="bi bi-file-earmark-excel mr-2"></i> Excel
+            </button>
+            <button @onclick="ExportarPdf" disabled="@(datosAuditoria==null || !datosFiltrados.Any())" class="px-4 py-3 bg-rose-600/20 border border-rose-500/30 text-rose-500 rounded-2xl hover:bg-rose-600 hover:text-white transition-all text-xs font-black uppercase disabled:opacity-30">
+                <i class="bi bi-file-earmark-pdf mr-2"></i> PDF
+            </button>
+        </div>
+    </div>
+
+    @* CONTROLES *@
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col md:flex-row gap-4 items-end">
+        <div class="flex-1">
+            <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2 block">Fecha de Corte para Auditoría</label>
+            <input type="date" @bind="fechaCorte" class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
+        </div>
+        <div class="flex-1">
+            <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2 block">Buscar (código / descripción)</label>
+            <div class="relative">
+                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                <input @bind="filtroBusqueda" @bind:event="oninput" placeholder="Filtrar..." class="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+        </div>
+        <button @onclick="CargarInforme" disabled="@cargando" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg transition-all flex items-center gap-2">
+            @if (cargando) { <span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> }
+            <i class="bi bi-calculator"></i> Calcular
+        </button>
+    </div>
+
+    @* RESUMEN *@
+    @if (datosAuditoria != null)
+    {
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Valoración a Fecha</p>
+                <p class="text-3xl font-black text-white mt-1">@totalValoracion.ToString("N2")€</p>
+            </div>
+            <div class="bg-white border border-slate-200 p-6 rounded-2xl">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Referencias</p>
+                <p class="text-3xl font-black text-slate-900">@datosFiltrados.Count()</p>
+            </div>
+            <div class="bg-blue-600 p-6 rounded-2xl text-white">
+                <p class="text-[10px] font-black uppercase tracking-widest opacity-80">Fecha de Corte</p>
+                <p class="text-xl font-black mt-1">@fechaCorte.ToString("dd/MM/yyyy")</p>
+            </div>
+        </div>
+    }
+
+    @* TABLA *@
+    @if (cargando)
+    {
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-20 text-center">
+            <div class="w-10 h-10 border-4 border-slate-700 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-xs font-black text-slate-500 uppercase tracking-widest">Calculando existencias...</p>
+        </div>
+    }
+    else if (errorMsg != null)
+    {
+        <div class="bg-rose-500/10 border border-rose-500/20 rounded-3xl p-8 text-center text-rose-400 text-sm">@errorMsg</div>
+    }
+    else if (datosAuditoria != null)
+    {
+        <div class="bg-[#0f172a] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-900/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">
+                        <tr>
+                            <th class="px-5 py-4">Código</th>
+                            <th class="px-5 py-4">Descripción</th>
+                            <th class="px-5 py-4 text-right">Stock Actual</th>
+                            <th class="px-5 py-4 text-right bg-blue-600/20 text-blue-400">Stock a Fecha</th>
+                            <th class="px-5 py-4 text-right">PMP</th>
+                            <th class="px-5 py-4 text-right">Valoración</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/50 text-sm">
+                        @foreach (var item in datosFiltrados)
+                        {
+                            var cod = GetString(item, "codigo");
+                            var desc = GetString(item, "descripcion");
+                            var stockActual = GetDecimal(item, "stockActual");
+                            var stockAFecha = GetDecimal(item, "stockAFecha");
+                            var pmp = GetDecimal(item, "pmp", "precioCosto");
+                            var val = GetDecimal(item, "valoracionAFecha");
+                            <tr class="hover:bg-white/[0.02] text-white">
+                                <td class="px-5 py-3 font-mono font-bold text-blue-400">@cod</td>
+                                <td class="px-5 py-3 font-medium">@desc</td>
+                                <td class="px-5 py-3 text-right text-slate-400">@stockActual.ToString("N2")</td>
+                                <td class="px-5 py-3 text-right font-black text-blue-400 bg-blue-500/5">@stockAFecha.ToString("N2")</td>
+                                <td class="px-5 py-3 text-right italic text-slate-400">@pmp.ToString("N2")€</td>
+                                <td class="px-5 py-3 text-right font-black">@val.ToString("N2")€</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="bg-slate-900 border-t border-slate-800">
+                        <tr>
+                            <td colspan="5" class="px-5 py-4 text-right text-xs font-black text-slate-400 uppercase">Total Valoración Inventario:</td>
+                            <td class="px-5 py-4 text-right text-xl font-black text-white">@totalValoracion.ToString("N2")€</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="bg-slate-900/50 border border-dashed border-slate-700 rounded-3xl p-12 text-center">
+            <i class="bi bi-clipboard-data text-4xl text-slate-600 mb-3 block"></i>
+            <p class="text-slate-500 text-sm font-medium">Seleccione una fecha de corte y pulse Calcular para generar la auditoría.</p>
+        </div>
+    }
+</div>
+
+@code {
+    private DateTime fechaCorte = DateTime.Now;
+    private List<JsonElement> datosAuditoriaList = new();
+    private IEnumerable<JsonElement>? datosAuditoria => datosAuditoriaList;
+    private IEnumerable<JsonElement> datosFiltrados => (datosAuditoria ?? Enumerable.Empty<JsonElement>()).Where(x => string.IsNullOrWhiteSpace(filtroBusqueda) || GetString(x,"codigo").Contains(filtroBusqueda,StringComparison.OrdinalIgnoreCase) || GetString(x,"descripcion").Contains(filtroBusqueda,StringComparison.OrdinalIgnoreCase));
+    private decimal totalValoracion = 0;
+    private bool cargando = false;
+    private string? errorMsg;
+    private string filtroBusqueda = "";
+
+    private async Task CargarInforme()
+    {
+        cargando = true; errorMsg = null;
+        try
+        {
+            var url = $"api/stock/existencias-a-fecha?fechaCorte={fechaCorte:yyyy-MM-dd}";
+            var data = await Http.GetFromJsonAsync<List<JsonElement>>(url);
+            datosAuditoriaList = data ?? new();
+            totalValoracion = datosAuditoriaList.Sum(x => GetDecimal(x, "valoracionAFecha"));
+        }
+        catch (Exception ex) { errorMsg = $"Error al cargar auditoría: {ex.Message}"; }
+        finally { cargando = false; }
+    }
+
+    private string GetString(JsonElement e, string prop)
+    {
+        if (e.TryGetProperty(prop, out var v)) return v.GetString() ?? "";
+        // camelCase fallback
+        var alt = char.ToLowerInvariant(prop[0]) + prop.Substring(1);
+        if (e.TryGetProperty(alt, out var v2)) return v2.GetString() ?? "";
+        return "";
+    }
+    private decimal GetDecimal(JsonElement e, params string[] props)
+    {
+        foreach (var p in props)
+        {
+            if (e.TryGetProperty(p, out var v) && v.ValueKind != JsonValueKind.Null)
+            {
+                try { return v.GetDecimal(); } catch {}
+                if (decimal.TryParse(v.ToString(), out var d)) return d;
+            }
+            var alt = char.ToLowerInvariant(p[0]) + p.Substring(1);
+            if (e.TryGetProperty(alt, out var v2) && v2.ValueKind != JsonValueKind.Null)
+            {
+                try { return v2.GetDecimal(); } catch {}
+                if (decimal.TryParse(v2.ToString(), out var d)) return d;
+            }
+        }
+        return 0;
+    }
+
+    private async Task ExportarExcel()
+    {
+        var rows = datosFiltrados.Select(x => new { Codigo = GetString(x,"codigo"), Descripcion = GetString(x,"descripcion"), StockActual = GetDecimal(x,"stockActual"), StockAFecha = GetDecimal(x,"stockAFecha"), PMP = GetDecimal(x,"pmp","precioCosto"), Valoracion = GetDecimal(x,"valoracionAFecha") });
+        await JS.InvokeVoidAsync("exportToExcel", rows, $"Auditoria_{fechaCorte:yyyyMMdd}");
+    }
+    private async Task ExportarPdf()
+    {
+        var headers = new[] { "Código", "Descripción", "Stock Actual", "Stock a Fecha", "PMP", "Valoración" };
+        var rows = datosFiltrados.Select(x => new[] { GetString(x,"codigo"), GetString(x,"descripcion"), GetDecimal(x,"stockActual").ToString("N2"), GetDecimal(x,"stockAFecha").ToString("N2"), GetDecimal(x,"pmp","precioCosto").ToString("N2"), GetDecimal(x,"valoracionAFecha").ToString("N2") }).ToList();
+        await JS.InvokeVoidAsync("exportToPdf", $"Auditoría Stock {fechaCorte:dd/MM/yyyy}", headers, rows, $"Auditoria_{fechaCorte:yyyyMMdd}");
+    }
+}

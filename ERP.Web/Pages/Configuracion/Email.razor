@@ -1,0 +1,185 @@
+@page "/configuracion/email"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<div class="p-6 min-h-screen bg-slate-50">
+    @* CABECERA *@
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">CONFIGURACIÓN DE EMAIL</h1>
+            <p class="text-slate-500 text-sm">Servidor de salida SMTP y plantillas corporativas</p>
+        </div>
+        <div class="flex gap-3">
+            <button @onclick="TestConexion" class="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-slate-50 transition-all flex items-center gap-2">
+                <i class="bi bi-send-check"></i> ENVIAR PRUEBA
+            </button>
+            <button @onclick="GuardarConfiguracion" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all flex items-center gap-2">
+                <i class="bi bi-cloud-arrow-up"></i> GUARDAR CAMBIOS
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        @* COLUMNA IZQUIERDA: SERVIDOR SMTP *@
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                        <i class="bi bi-server"></i>
+                    </div>
+                    <h3 class="font-black text-slate-800 uppercase tracking-widest text-sm">Servidor de Salida (SMTP)</h3>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Servidor SMTP</label>
+                        <input @bind="config.SmtpServer" type="text" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-500 transition-all" placeholder="smtp.gmail.com" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Puerto</label>
+                        <input @bind="config.Port" type="number" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-500 transition-all" placeholder="587" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Usuario / Email</label>
+                        <input @bind="config.Username" type="email" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-500 transition-all" placeholder="notificaciones@empresa.com" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Contraseña</label>
+                        <input @bind="config.Password" type="password" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-500 transition-all" placeholder="••••••••••••" />
+                    </div>
+                </div>
+
+                <div class="mt-6 flex items-center gap-6 p-4 bg-slate-50 rounded-2xl">
+                    <div class="flex items-center gap-2">
+                        <input @bind="config.EnableSsl" type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                        <span class="text-xs font-bold text-slate-600">Requerir SSL / TLS</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input @bind="config.UseDefaultCredentials" type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                        <span class="text-xs font-bold text-slate-600">Usar credenciales por defecto</span>
+                    </div>
+                </div>
+            </div>
+
+            @* VISTA PREVIA PLANTILLA *@
+            <div class="bg-slate-900 rounded-3xl p-8 shadow-xl text-white">
+                <h3 class="font-black uppercase tracking-widest text-sm mb-6 opacity-50">Vista Previa de Notificación</h3>
+                <div class="bg-white rounded-2xl p-6 text-slate-800">
+                    <div class="border-b pb-4 mb-4 flex justify-between items-center">
+                        <span class="text-blue-600 font-black">@config.SenderName</span>
+                        <span class="text-[10px] text-slate-400">@DateTime.Now.ToShortDateString()</span>
+                    </div>
+                    <h4 class="font-bold text-lg mb-2">Asunto: Notificación del Sistema ERP</h4>
+                    <p class="text-sm text-slate-600 leading-relaxed">
+                        Este es un mensaje de prueba para verificar la integración de su servidor SMTP con el ERP Corporativo. 
+                        Si recibe este correo, la configuración es correcta.
+                    </p>
+                    <div class="mt-8 pt-4 border-t text-[10px] text-slate-400 text-center">
+                        Enviado automáticamente por @config.SenderName
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* COLUMNA DERECHA: IDENTIDAD *@
+        <div class="space-y-6">
+            <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center">
+                        <i class="bi bi-person-badge"></i>
+                    </div>
+                    <h3 class="font-black text-slate-800 uppercase tracking-widest text-sm">Remitente</h3>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nombre a Mostrar</label>
+                        <input @bind="config.SenderName" type="text" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold" placeholder="ERP - Notificaciones" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Email de Respuesta</label>
+                        <input @bind="config.SenderEmail" type="email" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm" placeholder="no-reply@empresa.com" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-600 rounded-3xl p-8 text-white shadow-lg shadow-blue-200">
+                <i class="bi bi-info-circle text-2xl mb-4 block"></i>
+                <h4 class="font-black mb-2">Importante</h4>
+                <p class="text-blue-100 text-xs leading-relaxed">
+                    Si utiliza Gmail o Outlook, asegúrese de haber creado una <strong>"Contraseña de Aplicación"</strong> 
+                    específica. El uso de la contraseña personal suele ser bloqueado por seguridad.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private EmailConfigDto config = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarConfiguracion();
+    }
+
+    private async Task CargarConfiguracion()
+    {
+        try
+        {
+            var result = await Http.GetFromJsonAsync<EmailConfigDto>("api/Settings/email");
+            if (result != null) config = result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar: {ex.Message}");
+        }
+    }
+
+    private async Task GuardarConfiguracion()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/Settings/email", config);
+            if (response.IsSuccessStatusCode)
+            {
+                await JS.InvokeVoidAsync("alert", "Configuración de email sincronizada con éxito.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+    }
+
+    private async Task TestConexion()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/Settings/email-test", config);
+            if (response.IsSuccessStatusCode)
+                await JS.InvokeVoidAsync("alert", "¡Correo de prueba enviado! Revise su bandeja de entrada.");
+            else
+                await JS.InvokeVoidAsync("alert", "Error en la prueba de conexión. Verifique los datos SMTP.");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+    }
+
+    // Clase DTO local para manejar los datos
+    public class EmailConfigDto
+    {
+        public string SmtpServer { get; set; } = "";
+        public int Port { get; set; } = 587;
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+        public bool EnableSsl { get; set; } = true;
+        public bool UseDefaultCredentials { get; set; } = false;
+        public string SenderName { get; set; } = "ERP Sistema";
+        public string SenderEmail { get; set; } = "";
+    }
+}

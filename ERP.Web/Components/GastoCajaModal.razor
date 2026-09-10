@@ -1,0 +1,180 @@
+@using ERP.Domain.Entities
+@using Microsoft.AspNetCore.Components.Authorization
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+@* Asume que tienes un servicio de Toast inyectado *@
+@* @inject IToastService ToastService *@ 
+
+@if (Mostrar)
+{
+    <div class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-200">
+            
+            @* CABECERA *@
+            <div class="bg-rose-50 p-8 flex items-center justify-between border-b border-rose-100">
+                <div class="flex items-center gap-4">
+                    <div class="p-3 bg-rose-600 text-white rounded-2xl shadow-lg shadow-rose-200">
+                        <i class="bi bi-safe2-fill text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-black uppercase tracking-tighter text-slate-900 leading-none">Salida de Caja</h3>
+                        <p class="text-[10px] font-bold text-rose-500 uppercase tracking-widest mt-1">@UsuarioNombre.ToUpper() • @DateTime.Now.ToString("dd/MM/yyyy")</p>
+                    </div>
+                </div>
+                <button @onclick="Cerrar" class="text-slate-400 hover:text-rose-600 transition-colors">
+                    <i class="bi bi-x-lg text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="p-8 space-y-5">
+                
+                @* 1. PUNTO DE RETIRO *@
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest block mb-2">1. Punto de Retiro</label>
+                    <select @bind="CajaId" 
+                            class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 transition-all appearance-none cursor-pointer">
+                        <option value="0">-- Seleccione Caja --</option>
+                        @foreach (var caja in CajasDisponibles)
+                        {
+                            <option value="@caja.Id">@caja.Nombre</option>
+                        }
+                    </select>
+                </div>
+
+                @* 2. IMPORTE *@
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest block mb-2">2. Importe (€)</label>
+                    <div class="relative">
+                        <span class="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-rose-300">€</span>
+                        <input @bind="Importe" @bind:event="oninput" type="number" step="0.01"
+                               class="w-full bg-slate-50 border-none rounded-3xl pl-12 pr-6 py-5 text-4xl font-black text-rose-600 focus:ring-4 focus:ring-rose-500/10 transition-all" 
+                               placeholder="0,00" />
+                    </div>
+                </div>
+
+                @* 3. JUSTIFICACIÓN *@
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest block mb-2">3. ¿Para qué se retira el dinero?</label>
+                    <textarea @bind="Concepto" @bind:event="oninput" rows="3"
+                              class="w-full bg-slate-50 border-none rounded-[1.5rem] px-6 py-4 text-sm font-bold text-slate-700 placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 transition-all resize-none shadow-inner" 
+                              placeholder="Escribe el motivo aquí..."></textarea>
+                </div>
+
+                @* BOTÓN DE ACCIÓN *@
+                <div class="pt-2">
+                    <button @onclick="ConfirmarEImprimir" 
+                            disabled="@(Importe <= 0 || string.IsNullOrWhiteSpace(Concepto) || CajaId == 0 || IsCargando)"
+                            class="w-full py-5 bg-slate-900 hover:bg-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs transition-all shadow-xl active:scale-95 flex flex-col items-center justify-center gap-1">
+                        @if (IsCargando) {
+                            <div class="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        } else {
+                            <span class="text-sm">Registrar y Generar Vale</span>
+                            <span class="text-[8px] opacity-40 font-medium">VALE FÍSICO OBLIGATORIO</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* DISEÑO DEL TICKET *@
+    <div id="ticket-impresion" class="hidden-print">
+        <div style="width: 75mm; padding: 5px; font-family: 'Courier New', monospace; color: black; background: white;">
+            <div style="text-align: center; border-bottom: 1px dashed #000; margin-bottom: 10px; padding-bottom: 10px;">
+                <h3 style="margin: 0;">VALE DE CAJA</h3>
+                <small>CONTROL INTERNO</small>
+            </div>
+            
+            <p><strong>FECHA:</strong> @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</p>
+            <p><strong>CAJA:</strong> @(CajasDisponibles.FirstOrDefault(c => c.Id == CajaId)?.Nombre ?? "N/A")</p>
+            <p><strong>RESPONSABLE:</strong> @UsuarioNombre.ToUpper()</p>
+            
+            <div style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 10px;">
+                <strong>CONCEPTO:</strong><br />
+                <span style="font-size: 11pt;">@Concepto</span>
+            </div>
+
+            <h1 style="text-align: center; margin: 20px 0;">@Importe.ToString("N2") €</h1>
+
+            <div style="margin-top: 40px; text-align: center; border-top: 1px solid #000; padding-top: 10px;">
+                <small>FIRMA DEL EMPLEADO</small>
+                <br /><br /><br />
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .hidden-print { display: none; }
+    @@media print {
+        body * { visibility: hidden; }
+        #ticket-impresion, #ticket-impresion * { visibility: visible; }
+        #ticket-impresion { display: block !important; position: absolute; left: 0; top: 0; }
+    }
+</style>
+
+@code {
+    [Parameter] public bool Mostrar { get; set; }
+    [Parameter] public EventCallback OnCerrar { get; set; }
+    
+    private decimal Importe { get; set; }
+    private string Concepto { get; set; } = "";
+    private int CajaId { get; set; }
+    private string UsuarioNombre { get; set; } = "";
+    private bool IsCargando = false;
+
+    public class CajaItem 
+    { 
+        public int Id { get; set; } 
+        public string Nombre { get; set; } = string.Empty; 
+    }
+
+    private List<CajaItem> CajasDisponibles = new() {
+        new CajaItem { Id = 1, Nombre = "Caja Principal" },
+        new CajaItem { Id = 2, Nombre = "Caja de Reserva" }
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Mostrar && string.IsNullOrEmpty(UsuarioNombre))
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            UsuarioNombre = authState.User.Identity?.Name ?? "Operador";
+            
+            if (CajasDisponibles.Count == 1) CajaId = CajasDisponibles.First().Id;
+        }
+    }
+
+    private async Task ConfirmarEImprimir()
+    {
+        IsCargando = true;
+
+        try {
+            // 1. Aquí harías el POST a tu API
+            // await Http.PostAsJsonAsync("api/tesoreria/gastos", new { ... });
+
+            // 2. Ejecutar impresión
+            await JS.InvokeVoidAsync("window.print");
+
+            // 3. Lanzar Toast (Asegúrate de tener inyectado el servicio arriba)
+            // ToastService.ShowSuccess($"Gasto de {Importe:N2}€ registrado correctamente");
+
+            Cerrar();
+        }
+        catch (Exception) {
+            // ToastService.ShowError("Error al registrar el gasto");
+        }
+        finally {
+            IsCargando = false;
+        }
+    }
+
+    private void Cerrar()
+    {
+        Importe = 0;
+        Concepto = "";
+        CajaId = 0;
+        OnCerrar.InvokeAsync();
+    }
+}

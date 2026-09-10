@@ -1,0 +1,201 @@
+@page "/ventas/facturas"
+@using ERP.Domain.Entities
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="space-y-6 animate-in fade-in duration-500">
+    @* CABECERA *@
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-white tracking-tight uppercase italic">Registro de Facturación</h1>
+            <p class="text-slate-500 font-medium">Control de ingresos, facturas rectificativas y exportación fiscal.</p>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto no-print">
+            <div class="flex gap-2">
+                <button type="button" @onclick="ExportarExcel" class="p-3 bg-emerald-600/20 border border-emerald-500/30 text-emerald-500 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-lg">
+                    <i class="bi bi-file-earmark-excel"></i>
+                </button>
+                <button type="button" @onclick="ExportarPdf" class="p-3 bg-rose-600/20 border border-rose-500/30 text-rose-500 rounded-2xl hover:bg-rose-600 hover:text-white transition-all shadow-lg">
+                    <i class="bi bi-file-earmark-pdf"></i>
+                </button>
+            </div>
+
+            <div class="relative group">
+                <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors"></i>
+                <input type="text" @bind-value="Busqueda" @bind-value:event="oninput"
+                       placeholder="Buscar factura o cliente..." 
+                       class="bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-4 py-3 text-sm text-white w-full sm:w-64 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+            </div>
+
+            <button type="button" @onclick="IrANuevaFactura" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95">
+                <i class="bi bi-plus-lg mr-2"></i> Crear Factura
+            </button>
+        </div>
+    </div>
+
+    @* LISTADO DE FACTURAS *@
+    <div class="bg-[#0f172a] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-900/50 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">
+                    <th class="p-5">Nº Factura</th>
+                    <th class="p-5">Fecha</th>
+                    <th class="p-5">Cliente</th>
+                    <th class="p-5">Estado</th>
+                    <th class="p-5">Total</th>
+                    <th class="p-5 text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/50 text-white">
+                @if (ListaFacturas == null)
+                {
+                    <tr>
+                        <td colspan="6" class="p-20 text-center">
+                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                            <p class="mt-4 text-slate-500 font-bold uppercase text-xs tracking-widest">Cargando facturas...</p>
+                        </td>
+                    </tr>
+                }
+                else if (!FacturasFiltradas.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="p-20 text-center">
+                            <i class="bi bi-file-earmark-x text-4xl text-slate-700 block mb-4"></i>
+                            <p class="text-slate-500 font-bold uppercase text-xs tracking-widest">No se encontraron facturas</p>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var fac in FacturasFiltradas)
+                    {
+                        <tr class="hover:bg-white/[0.02] transition-colors @(fac.Tipo == TipoDocumento.FacturaRectificativa ? "bg-orange-500/5" : "")">
+                            <td class="p-5 font-mono font-bold @(fac.Tipo == TipoDocumento.FacturaRectificativa ? "text-orange-400" : "text-blue-400")">
+                                @fac.NumeroDocumento
+                            </td>
+                            <td class="p-5 text-sm text-slate-400">@fac.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td class="p-5 text-sm font-semibold">@fac.Cliente?.RazonSocial</td>
+                            <td class="p-5">
+                                <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter @GetEstadoClass(fac)">
+                                    @(fac.Tipo == TipoDocumento.FacturaRectificativa ? "RECTIFICATIVA" : "EMITIDA")
+                                </span>
+                            </td>
+                            <td class="p-5 font-mono font-bold text-lg @(fac.Total < 0 ? "text-rose-400" : "")">
+                                @fac.Total.ToString("N2")€
+                            </td>
+                            <td class="p-5 text-right space-x-1">
+                                <button type="button" @onclick="() => VerDetalle(fac.Id)" class="p-2 hover:text-blue-400 transition-colors" title="Ver Detalle">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                
+                                @if (fac.Tipo == TipoDocumento.Factura)
+                                {
+                                    <button type="button" @onclick="() => IrARectificar(fac.Id)" 
+                                            title="Generar Factura Rectificativa"
+                                            class="p-2 text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                }
+                                
+                                <button type="button" @onclick="() => DescargarPdf(fac.Id)" class="p-2 hover:text-rose-500 transition-colors" title="Descargar PDF">
+                                    <i class="bi bi-file-earmark-pdf"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private string Busqueda = "";
+    private List<DocumentoComercial>? ListaFacturas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        try 
+        {
+            var docs = await Http.GetFromJsonAsync<List<DocumentoComercial>>("api/CicloFacturacion");
+            if (docs != null)
+            {
+                ListaFacturas = docs.Where(d => d.Tipo == TipoDocumento.Factura || d.Tipo == TipoDocumento.FacturaRectificativa)
+                                    .OrderByDescending(d => d.Fecha)
+                                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            ListaFacturas = new List<DocumentoComercial>();
+        }
+    }
+
+    private IEnumerable<DocumentoComercial> FacturasFiltradas => 
+        (ListaFacturas ?? new List<DocumentoComercial>())
+        .Where(f => (f.NumeroDocumento ?? "").Contains(Busqueda, StringComparison.OrdinalIgnoreCase) || 
+                     (f.Cliente?.RazonSocial ?? "").Contains(Busqueda, StringComparison.OrdinalIgnoreCase));
+
+    private string GetEstadoClass(DocumentoComercial f) => f.Tipo switch
+    {
+        TipoDocumento.FacturaRectificativa => "bg-orange-500/10 text-orange-500",
+        _ => "bg-blue-500/10 text-blue-500"
+    };
+
+    // Métodos de navegación limpios para evitar errores de sintaxis en el HTML
+    private void IrANuevaFactura() => Nav.NavigateTo("/ventas/nueva-factura");
+    
+    private void IrARectificar(int id) => Nav.NavigateTo($"/ventas/rectificar/{id}");
+
+    private void VerDetalle(int id) => Nav.NavigateTo($"/ventas/editor/{id}");
+
+    private async Task DescargarPdf(int id)
+    {
+        try
+        {
+            var response = await Http.GetAsync($"api/facturacion/descargar-pdf/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                var fileName = $"FACTURA_{id}.pdf";
+                await JS.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(bytes));
+            }
+            else
+            {
+                var msg = await response.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", string.IsNullOrWhiteSpace(msg) ? "No se pudo generar el PDF" : msg);
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error de descarga: {ex.Message}");
+        }
+    }
+
+    private async Task ExportarExcel()
+    {
+        var data = FacturasFiltradas.Select(f => new { f.NumeroDocumento, f.Fecha, Cliente = f.Cliente?.RazonSocial, f.Total });
+        await JS.InvokeVoidAsync("exportToExcel", data, "Facturacion_2026");
+    }
+
+    private async Task ExportarPdf()
+    {
+        var headers = new string[] { "Nº Factura", "Fecha", "Cliente", "Total" };
+        var rows = FacturasFiltradas.Select(f => new string[] { 
+            f.NumeroDocumento ?? "", 
+            f.Fecha.ToShortDateString(), 
+            f.Cliente?.RazonSocial ?? "", 
+            f.Total.ToString("N2") + "€" 
+        }).ToList();
+
+        await JS.InvokeVoidAsync("exportToPdf", "Listado de Facturación", headers, rows, "Reporte_Facturas");
+    }
+}

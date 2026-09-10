@@ -1,0 +1,54 @@
+@using ERP.Domain.DTOs
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    @* --- TOTAL FACTURADO --- *@
+    <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group transition-all duration-300 hover:shadow-2xl hover:shadow-blue-100/50">
+        <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 scale-50 group-hover:scale-100"></div>
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Ventas Brutas</span>
+        <div class="text-3xl font-black text-slate-900 tracking-tighter italic">@TotalVentas.ToString("C2")</div>
+        <div class="mt-2 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-[9px] text-slate-400 font-bold uppercase">Actualizado en tiempo real</span>
+        </div>
+    </div>
+
+    @* --- MARGEN COMERCIAL --- *@
+    <div class="bg-slate-900 p-6 rounded-[2.5rem] shadow-2xl shadow-indigo-200/40 relative overflow-hidden group border border-slate-800 transition-all duration-300 hover:-translate-y-1">
+        <div class="absolute right-6 top-6">
+            <i class="bi bi-lightning-charge-fill text-indigo-500/20 text-4xl"></i>
+        </div>
+        <span class="text-[10px] font-black text-indigo-300 uppercase tracking-widest block mb-1">Beneficio Neto</span>
+        <div class="text-3xl font-black text-white tracking-tighter italic">@BeneficioEstimado.ToString("C2")</div>
+        <div class="mt-2 text-indigo-400 text-[9px] font-bold uppercase tracking-widest opacity-80">
+            Rentabilidad: @RatioMargen.ToString("P1")
+        </div>
+    </div>
+
+    @* --- ACTIVIDAD --- *@
+    <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 transition-all duration-300 hover:shadow-2xl">
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Actividad Comercial</span>
+        <div class="text-3xl font-black text-blue-600 tracking-tighter italic">
+            @CantidadDocumentos <span class="text-sm font-bold text-slate-300">Docs</span>
+        </div>
+        <div class="mt-2 text-slate-400 text-[9px] font-bold uppercase">Periodo fiscal actual</div>
+    </div>
+
+    @* --- DEUDA PENDIENTE --- *@
+    <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 transition-all duration-300 hover:shadow-2xl hover:shadow-rose-100/50">
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Pendiente de Cobro</span>
+        <div class="text-3xl font-black text-rose-500 tracking-tighter italic">@TotalPendiente.ToString("C2")</div>
+        <div class="mt-2 flex items-center gap-1">
+            <i class="bi bi-info-circle text-rose-400 text-[10px]"></i>
+            <span class="text-rose-400 text-[9px] font-bold uppercase italic">Requiere seguimiento</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public decimal TotalVentas { get; set; }
+    [Parameter] public decimal TotalPendiente { get; set; }
+    [Parameter] public decimal BeneficioEstimado { get; set; }
+    [Parameter] public int CantidadDocumentos { get; set; }
+
+    private double RatioMargen => (double)TotalVentas > 0 ? (double)(BeneficioEstimado / TotalVentas) : 0;
+}

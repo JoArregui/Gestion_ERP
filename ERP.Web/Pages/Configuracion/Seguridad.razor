@@ -1,0 +1,356 @@
+@page "/configuracion/seguridad"
+@using ERP.Domain.Dtos
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<div class="container-fluid p-4 animate__animated animate__fadeIn">
+    @* --- CABECERA DE ALTO IMPACTO --- *@
+    <div class="row align-items-center mb-5">
+        <div class="col-md-7">
+            <h1 class="fw-black text-white m-0 text-uppercase tracking-tighter" style="font-size: 2.5rem;">
+                Control de <span class="text-primary-gradient">Identidades</span>
+            </h1>
+            <p class="text-muted text-uppercase small fw-bold tracking-widest mt-1">
+                <i class="bi bi-shield-check me-2"></i>Gestión de privilegios y seguridad de capa 7
+            </p>
+        </div>
+        <div class="col-md-5 text-end">
+            <button class="btn btn-premium rounded-3 px-4 py-2 fw-bold text-uppercase" @onclick="MostrarModalNuevoUsuario">
+                <i class="bi bi-person-plus-fill me-2"></i> Nuevo Operador
+            </button>
+        </div>
+    </div>
+
+
+
+    @* --- TABLA EVOLUCIONADA --- *@
+    <div class="row">
+        <div class="col-12">
+            <div class="glass-container">
+                <div class="d-flex justify-content-between align-items-center p-4 border-bottom border-white border-opacity-10">
+                    <h5 class="m-0 text-white fw-bold text-uppercase tracking-wider small">
+                        <span class="status-dot-active me-2"></span> Registro de Operadores Activos
+                    </h5>
+                    <div class="search-wrapper">
+                        <i class="bi bi-funnel me-2"></i>
+                        <input type="text" @bind="searchTerm" @bind:event="oninput" placeholder="Filtrar por ID, Nombre..." class="search-input">
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-industrial mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Identificación</th>
+                                <th>Privilegios</th>
+                                <th>Estado de Acceso</th>
+                                <th>Conexión</th>
+                                <th class="text-end pe-4">Comandos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (listaUsuarios == null)
+                            {
+                                <tr>
+                                    <td colspan="5" class="py-6 text-center">
+                                        <div class="loading-data">
+                                            <div class="scanner-line"></div>
+                                            <span class="text-muted small tracking-widest text-uppercase">Escaneando Base de Datos...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                            else if (!UsuariosFiltrados.Any())
+                            {
+                                <tr>
+                                    <td colspan="5" class="py-6">
+                                        <div class="empty-state-tech text-center">
+                                            <div class="empty-icon mb-3">
+                                                <i class="bi bi-database-exclamation"></i>
+                                            </div>
+                                            <h4 class="text-white fw-bold">SIN REGISTROS ACTIVOS</h4>
+                                            <p class="text-muted small mx-auto" style="max-width: 300px;">
+                                                No se han detectado perfiles de seguridad con el criterio "@searchTerm".
+                                            </p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var user in UsuariosFiltrados)
+                                {
+                                    <tr>
+                                        <td class="ps-4">
+                                            <div class="fw-bold text-white text-uppercase">@user.UserName</div>
+                                            <div class="text-muted x-small">@user.FullName · @user.Email</div>
+                                            <div class="text-muted x-small font-mono">ID: @user.Id.Substring(0,8)...</div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary-gradient-alt px-3 py-2 rounded-pill x-small fw-black text-uppercase">
+                                                @user.Role
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <span class="@(user.IsActive ? "status-dot-active" : "status-dot-inactive") me-2"></span>
+                                                <span class="@(user.IsActive ? "text-white" : "text-muted") x-small fw-bold">@(user.IsActive ? "ACTIVO" : "INACTIVO")</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted x-small font-mono">@(user.LastLogin?.ToString("dd/MM/yyyy HH:mm") ?? "Nunca")</span>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <div class="btn-group border border-white border-opacity-10 rounded-2 overflow-hidden">
+                                                <button @onclick="() => EditarUsuario(user)" class="btn btn-dark btn-sm border-0" title="Editar"><i class="bi bi-pencil-square"></i></button>
+                                                <button @onclick="() => ToggleEstado(user)" class="btn btn-dark btn-sm border-0 @(user.IsActive ? "text-warning" : "text-success")" title="@(user.IsActive ? "Desactivar" : "Activar")"><i class="bi @(user.IsActive ? "bi-pause-circle" : "bi-play-circle")"></i></button>
+                                                <button @onclick="() => VerPermisos(user)" class="btn btn-dark btn-sm border-0 text-primary" title="Permisos"><i class="bi bi-shield-lock"></i></button>
+                                                <button @onclick="() => EliminarUsuario(user)" class="btn btn-dark btn-sm border-0 text-danger" title="Eliminar"><i class="bi bi-trash"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* --- MODAL PREMIUM (FIX: sombreaba y no abría por z-index/bootstrap fade) --- *@
+@if (mostrarModal)
+{
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4" @onclick="CerrarModal">
+        <div class="bg-[#0f172a] border border-slate-700 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" @onclick:stopPropagation>
+            <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <h5 class="text-white fw-black m-0 text-uppercase tracking-widest">@(modoEdicion ? "Editar Operador" : "Crear Credencial")</h5>
+                <button @onclick="CerrarModal" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">✕</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="label-tech">Email *</label>
+                    <input @bind="nuevoUsuario.Email" type="email" class="input-tech" placeholder="usuario@erp.com" />
+                </div>
+                <div>
+                    <label class="label-tech">Nombre Completo</label>
+                    <input @bind="nuevoUsuario.FullName" type="text" class="input-tech" placeholder="Nombre y apellidos" />
+                </div>
+                <div>
+                    <label class="label-tech">@(modoEdicion ? "Nueva Clave (dejar vacío para no cambiar)" : "Clave Temporal *")</label>
+                    <input @bind="nuevoUsuario.Password" type="password" class="input-tech" placeholder="********" />
+                </div>
+                <div>
+                    <label class="label-tech">Rol</label>
+                    <select @bind="nuevoUsuario.Role" class="input-tech">
+                        <option value="">Sin Rol</option>
+                        @foreach (var r in roles ?? new List<RoleDto>()) { <option value="@r.Name">@r.Name (@r.UserCount)</option> }
+                    </select>
+                </div>
+                @if (!string.IsNullOrEmpty(modalError)) { <div class="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-3 rounded-xl text-xs font-bold">@modalError</div> }
+                <button @onclick="GuardarUsuario" disabled="@guardando" class="w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all @(guardando ? "bg-slate-700 text-slate-400" : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg")">
+                    @(guardando ? "Guardando..." : (modoEdicion ? "Actualizar Operador" : "Emitir Acceso"))
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<UserDto>? listaUsuarios;
+    private List<RoleDto>? roles;
+    private string searchTerm = "";
+    private bool mostrarModal = false;
+    private bool guardando = false;
+    private bool modoEdicion = false;
+    private string editandoId = "";
+    private string modalError = "";
+    private CreateUserDto nuevoUsuario = new();
+
+    private IEnumerable<UserDto> UsuariosFiltrados =>
+        string.IsNullOrWhiteSpace(searchTerm)
+        ? listaUsuarios ?? new List<UserDto>()
+        : (listaUsuarios?.Where(u => (u.UserName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) || (u.Email?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) || (u.FullName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)) ?? new List<UserDto>());
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.WhenAll(CargarUsuarios(), CargarRoles());
+    }
+
+    private async Task CargarUsuarios()
+    {
+        try { listaUsuarios = await Http.GetFromJsonAsync<List<UserDto>>("api/users"); }
+        catch (Exception ex) { Console.WriteLine($"Error usuarios: {ex.Message}"); listaUsuarios = new(); }
+    }
+    private async Task CargarRoles()
+    {
+        try { roles = await Http.GetFromJsonAsync<List<RoleDto>>("api/users/roles"); }
+        catch { roles = new(); }
+    }
+
+    private void MostrarModalNuevoUsuario()
+    {
+        modoEdicion = false; editandoId = ""; nuevoUsuario = new CreateUserDto { EmpresaId = 1 }; modalError = ""; mostrarModal = true;
+    }
+    private void EditarUsuario(UserDto u)
+    {
+        modoEdicion = true; editandoId = u.Id; nuevoUsuario = new CreateUserDto { Email = u.Email, FullName = u.FullName, Role = u.Role, EmpresaId = 1, Password = "" }; modalError = ""; mostrarModal = true;
+    }
+    private void CerrarModal() => mostrarModal = false;
+
+    private async Task GuardarUsuario()
+    {
+        if (string.IsNullOrWhiteSpace(nuevoUsuario.Email)) { modalError = "Email es obligatorio"; return; }
+        if (!modoEdicion && string.IsNullOrWhiteSpace(nuevoUsuario.Password)) { modalError = "Clave es obligatoria para nuevo usuario (mín. 8 caracteres)"; return; }
+        if (!string.IsNullOrWhiteSpace(nuevoUsuario.Password) && nuevoUsuario.Password.Length < 8) { modalError = "La política exige mínimo 8 caracteres para la clave."; return; }
+        guardando = true; modalError = "";
+        try
+        {
+            HttpResponseMessage resp;
+            if (modoEdicion) resp = await Http.PutAsJsonAsync($"api/users/{editandoId}", nuevoUsuario);
+            else resp = await Http.PostAsJsonAsync("api/users", nuevoUsuario);
+            if (resp.IsSuccessStatusCode) { mostrarModal = false; await CargarUsuarios(); await CargarRoles(); }
+            else
+            {
+                var t = await resp.Content.ReadAsStringAsync();
+                // Intenta extraer Message del JSON {"Message":"..."} o del ProblemDetails {"errors":{...}}
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(t);
+                    if (doc.RootElement.TryGetProperty("Message", out var m)) modalError = m.GetString() ?? t;
+                    else if (doc.RootElement.TryGetProperty("message", out var m2)) modalError = m2.GetString() ?? t;
+                    else if (doc.RootElement.TryGetProperty("errors", out var errs) && errs.ValueKind == System.Text.Json.JsonValueKind.Object)
+                    {
+                        var first = errs.EnumerateObject().FirstOrDefault().Value;
+                        if (first.ValueKind == System.Text.Json.JsonValueKind.Array && first.GetArrayLength()>0) modalError = first[0].GetString() ?? t;
+                        else modalError = errs.ToString();
+                    }
+                    else modalError = t;
+                }
+                catch { modalError = string.IsNullOrWhiteSpace(t) ? "Error al guardar" : t; }
+                if (modalError.Length > 300) modalError = modalError.Substring(0, 300);
+            }
+        }
+        catch (Exception ex) { modalError = ex.Message; }
+        finally { guardando = false; }
+    }
+
+    private async Task ToggleEstado(UserDto u)
+    {
+        try { var r = await Http.PutAsync($"api/users/{u.Id}/status", null); if (r.IsSuccessStatusCode) await CargarUsuarios(); } catch {}
+    }
+    private async Task EliminarUsuario(UserDto u)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"¿Eliminar a {u.UserName}?")) return;
+        var r = await Http.DeleteAsync($"api/users/{u.Id}"); if (r.IsSuccessStatusCode) await CargarUsuarios();
+        else { var t = await r.Content.ReadAsStringAsync(); await JS.InvokeVoidAsync("alert", t); }
+    }
+    private async Task VerPermisos(UserDto u)
+    {
+        // Busca el RoleId por nombre
+        var rol = roles?.FirstOrDefault(r => r.Name == u.Role);
+        if (rol != null) Navigation.NavigateTo($"/configuracion/seguridad/permisos/{rol.Id}");
+        else await JS.InvokeVoidAsync("alert", $"Usuario sin rol asignado o rol no encontrado: {u.Role}");
+    }
+}
+
+<style>
+    /* Estilos conservados íntegramente de tu diseño original */
+    @@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
+    :root {
+        --primary-accent: #2563eb;
+        --secondary-accent: #0ea5e9;
+        --dark-bg: #030712;
+        --glass-bg: rgba(17, 24, 39, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.08);
+    }
+
+    .fw-black { font-weight: 900; }
+    .tracking-tighter { letter-spacing: -2px; }
+    .text-primary-gradient {
+        background: linear-gradient(to right, #60a5fa, #2563eb);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .bg-primary-gradient-alt {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #60a5fa;
+    }
+
+    .card-industrial-glass {
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border) !important;
+        border-radius: 1.25rem;
+    }
+
+    .glass-container {
+        background: rgba(17, 24, 39, 0.4);
+        border: 1px solid var(--glass-border);
+        border-radius: 1.5rem;
+        overflow: hidden;
+    }
+
+    .btn-premium {
+        background: linear-gradient(135deg, var(--primary-accent), #1d4ed8);
+        color: white; border: none;
+        box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
+        transition: all 0.2s ease;
+    }
+
+    .table-industrial { color: #f8fafc; }
+    .table-industrial thead th {
+        background: rgba(255,255,255,0.02);
+        text-transform: uppercase;
+        font-size: 0.65rem; font-weight: 800;
+        letter-spacing: 1.5px; color: #64748b;
+        padding: 1.5rem 1rem; border: none;
+    }
+    .table-industrial td { padding: 1.5rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+
+    .search-wrapper {
+        background: rgba(0,0,0,0.2);
+        border: 1px solid var(--glass-border);
+        padding: 0.5rem 1.25rem; border-radius: 100px;
+        display: flex; align-items: center; color: #64748b;
+    }
+    .search-input { background: transparent; border: none; color: white; font-size: 0.85rem; outline: none; width: 250px; }
+
+    .input-tech { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 10px; padding: 0.8rem 1rem; color: white; }
+    .label-tech { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: #94a3b8; display: block; margin-bottom: 0.5rem; }
+
+    .loading-data { position: relative; padding: 4rem; overflow: hidden; }
+    .scanner-line {
+        position: absolute; top: 0; left: 0; right: 0; height: 2px;
+        background: var(--primary-accent);
+        box-shadow: 0 0 15px var(--primary-accent);
+        animation: scan 3s infinite linear;
+    }
+
+    @@keyframes scan { 
+        0% { top: 0%; opacity: 0; } 
+        50% { opacity: 1; }
+        100% { top: 100%; opacity: 0; } 
+    }
+
+    .modal-backdrop-blur {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); z-index: 1040;
+    }
+    
+    .status-dot-active {
+        display: inline-block; width: 8px; height: 8px;
+        background: #10b981; border-radius: 50%;
+        box-shadow: 0 0 8px #10b981;
+    }
+    .status-dot-inactive {
+        display: inline-block; width: 8px; height: 8px;
+        background: #64748b; border-radius: 50%;
+        box-shadow: 0 0 8px #475569;
+    }
+</style>

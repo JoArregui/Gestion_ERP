@@ -1,0 +1,161 @@
+@page "/cierre-caja"
+@using ERP.Domain.Entities
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="max-w-4xl mx-auto p-8 animate-in fade-in duration-500">
+    <div class="bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-slate-100">
+        
+        @* CABECERA VISUAL *@
+        <div class="p-10 bg-slate-900 text-white flex justify-between items-center">
+            <div>
+                <h2 class="text-4xl font-black italic tracking-tighter leading-none uppercase">CIERRE Z</h2>
+                <p class="text-blue-400 font-bold text-[10px] uppercase mt-2 tracking-widest">
+                    <span class="opacity-50">Terminal:</span> TPV-01 | @DateTime.Now.ToString("dd MMMM yyyy")
+                </p>
+            </div>
+            <div class="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-2xl">
+                <span class="text-emerald-400 text-[10px] font-black uppercase tracking-widest">Turno Activo</span>
+            </div>
+        </div>
+
+        @if (Cierre == null)
+        {
+            <div class="p-20 text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 mx-auto"></div>
+                <p class="mt-4 text-slate-500 font-bold text-xs uppercase tracking-widest">Sincronizando con el servidor...</p>
+            </div>
+        }
+        else
+        {
+            <div class="p-12 grid grid-cols-12 gap-12">
+                
+                @* ENTRADA DE DATOS: EFECTIVO REAL *@
+                <div class="col-span-12 lg:col-span-6 space-y-8">
+                    <div class="group">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-4 ml-2">Efectivo Real en Cajón</label>
+                        <div class="relative">
+                            <span class="absolute left-8 top-1/2 -translate-y-1/2 text-4xl font-black text-slate-200 group-focus-within:text-blue-500 transition-colors">€</span>
+                            <input @bind="Cierre.ImporteRealEnCaja" @bind:event="oninput" type="number" step="0.01"
+                                   class="w-full pl-16 pr-8 py-10 bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] text-6xl font-black text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none transition-all shadow-inner" />
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+                        <label class="text-[10px] font-black text-slate-400 uppercase block mb-3 italic">Notas de Cierre</label>
+                        <textarea @bind="Cierre.Observaciones" 
+                                  class="w-full bg-transparent border-none focus:outline-none text-slate-600 font-medium text-sm" 
+                                  rows="3" placeholder="Indique descuadres, gastos pagados con caja, etc."></textarea>
+                    </div>
+                </div>
+
+                @* RESUMEN CALCULADO *@
+                <div class="col-span-12 lg:col-span-6 bg-slate-50 rounded-[2.5rem] p-10 flex flex-col justify-between border border-slate-100 shadow-inner">
+                    <div class="space-y-6">
+                        <div class="flex justify-between items-center border-b border-slate-200 pb-4">
+                            <span class="text-slate-500 font-bold text-xs uppercase tracking-widest">Ventas Tarjeta</span>
+                            <span class="font-black text-slate-900 text-2xl tracking-tighter">@Cierre.TotalVentasTarjeta.ToString("N2")€</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-slate-200 pb-4">
+                            <span class="text-slate-500 font-bold text-xs uppercase tracking-widest">Efectivo (Sistema)</span>
+                            <span class="font-black text-slate-900 text-2xl tracking-tighter">@Cierre.TotalVentasEfectivo.ToString("N2")€</span>
+                        </div>
+                    </div>
+
+                    @* DIFERENCIA VISUAL *@
+                    <div class="mt-8 p-8 @(Math.Abs(Cierre.Descuadre) < 0.01m ? "bg-emerald-500" : "bg-rose-500") rounded-[2rem] text-white transition-all duration-700 shadow-2xl">
+                        <div class="text-[10px] font-black uppercase opacity-60 tracking-widest">Diferencia de Arqueo</div>
+                        <div class="text-5xl font-black tracking-tighter">@Cierre.Descuadre.ToString("N2")€</div>
+                        <p class="text-[10px] mt-2 font-bold uppercase italic opacity-90">
+                            @(Cierre.Descuadre == 0 ? "CAJA CUADRADA CORRECTAMENTE" : "EXISTE UN DESCUADRE EN EL ARQUEO")
+                        </p>
+                    </div>
+                </div>
+
+                @* BOTÓN DE ACCIÓN *@
+                <div class="col-span-12 pt-4">
+                    <button @onclick="ConfirmarCierre" disabled="@isProcessing"
+                            class="w-full py-10 bg-slate-900 hover:bg-blue-600 disabled:bg-slate-300 text-white rounded-[2.5rem] font-black text-xl uppercase tracking-[0.4em] transition-all shadow-2xl active:scale-95 flex justify-center items-center gap-4 group">
+                        @if(isProcessing) {
+                            <div class="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
+                        } else {
+                            <i class="bi bi-shield-lock-fill opacity-50 group-hover:rotate-12 transition-transform"></i>
+                            <span>EJECUTAR CIERRE Z</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private CierreCaja? Cierre;
+    private bool isProcessing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try 
+        {
+            // Usamos empresaId 1 por defecto para la fase actual
+            Cierre = await Http.GetFromJsonAsync<CierreCaja>("api/cierrecaja/totales-pendientes/1");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error de comunicación: {ex.Message}");
+            Cierre = new CierreCaja { EmpresaId = 1 };
+        }
+    }
+
+    private async Task ConfirmarCierre()
+    {
+        if (isProcessing || Cierre == null) return;
+
+        bool check = await JS.InvokeAsync<bool>("confirm", $"¿Está seguro de finalizar la jornada? El descuadre es de {Cierre.Descuadre:N2}€");
+        if (!check) return;
+
+        isProcessing = true;
+
+        try 
+        {
+            var response = await Http.PostAsJsonAsync("api/cierrecaja/ejecutar", Cierre);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var resultado = await response.Content.ReadFromJsonAsync<CierreResult>();
+                
+                if (resultado != null)
+                {
+                    var pdfResponse = await Http.GetAsync($"api/cierrecaja/{resultado.Id}/pdf");
+                    if (pdfResponse.IsSuccessStatusCode)
+                    {
+                        var pdfBytes = await pdfResponse.Content.ReadAsByteArrayAsync();
+                        await JS.InvokeVoidAsync("downloadFile", $"Cierre_{resultado.Id}.pdf", Convert.ToBase64String(pdfBytes));
+                    }
+                    else
+                    {
+                        await JS.InvokeVoidAsync("alert", "El cierre se guardó, pero no se pudo generar el PDF.");
+                    }
+                }
+
+                Nav.NavigateTo("/ventas/cierres");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", $"No se pudo ejecutar el cierre Z: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error al procesar: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private class CierreResult { public int Id { get; set; } }
+}
