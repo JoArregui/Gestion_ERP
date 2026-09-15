@@ -14,7 +14,7 @@ namespace ERP.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -39,17 +39,30 @@ namespace ERP.Api.Controllers
         private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
 
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
         {
             var empresaId = GetEmpresaId();
             var users = empresaId == 0
-                ? await _userManager.Users.Where(u => false).ToListAsync() // pasillo → vacío
-                : await _userManager.Users.Where(u => u.EmpresaId == empresaId).ToListAsync();
+                ? new List<ApplicationUser>() // pasillo → vacío
+                : await _userManager.Users.AsNoTracking().Where(u => u.EmpresaId == empresaId).ToListAsync();
             var userList = new List<UserDto>();
+            if (users.Count == 0) return Ok(userList);
+
+            // Roles en lote (1 query) en vez de N+1 GetRolesAsync
+            var userIds = users.Select(u => u.Id).ToList();
+            var rolesByUser = await (from ur in _context.UserRoles.AsNoTracking()
+                                     join r in _context.Roles.AsNoTracking() on ur.RoleId equals r.Id
+                                     where userIds.Contains(ur.UserId)
+                                     select new { ur.UserId, r.Name })
+                                    .ToListAsync();
+            var rolesMap = rolesByUser
+                .GroupBy(x => x.UserId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.Name).ToList());
 
             foreach (var user in users)
             {
-                var roles = await _userManager.GetRolesAsync(user);
+                var role = rolesMap.TryGetValue(user.Id, out var rl) ? rl.FirstOrDefault() ?? "Sin Rol" : "Sin Rol";
                 userList.Add(new UserDto
                 {
                     Id = user.Id,
@@ -57,7 +70,7 @@ namespace ERP.Api.Controllers
                     Email = user.Email ?? string.Empty,
                     FullName = user.FullName,
                     IsActive = user.IsActivo,
-                    Role = roles.FirstOrDefault() ?? "Sin Rol",
+                    Role = role,
                     LastLogin = user.UltimoAcceso
                 });
             }
@@ -66,6 +79,7 @@ namespace ERP.Api.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserDto>> GetUserById(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
@@ -85,7 +99,13 @@ namespace ERP.Api.Controllers
             });
         }
 
+        /// <summary>
+        /// Crea un usuario. Los administradores pueden crear usuarios siempre;
+        /// el usuario inicial (admin@erp.local, sin rol) SOLO puede crear el PRIMER
+        /// usuario de una empresa (Paso 2 del primer onboarding).
+        /// </summary>
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserDto model)
         {
             // Validación manual para devolver mensaje limpio en lugar de ProblemDetails con "errors.Password"
@@ -96,6 +116,22 @@ namespace ERP.Api.Controllers
             }
             if (string.IsNullOrWhiteSpace(model.Password) || model.Password.Length < 8)
                 return BadRequest(new { Message = "La política de administración exige un mínimo de 8 caracteres." });
+
+            var isAdminCaller = User.IsInRole("Admin");
+            var isBootstrapCaller = ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User);
+            if (!isAdminCaller && !isBootstrapCaller)
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "No tienes permiso para crear usuarios." });
+            if (isBootstrapCaller && !isAdminCaller)
+            {
+                // El usuario inicial exige empresa explícita y que aún no tenga usuarios
+                if (model.EmpresaId <= 0)
+                    return StatusCode(StatusCodes.Status403Forbidden, new { Message = "El usuario inicial solo puede crear el primer usuario de una empresa (onboarding)." });
+                var emp = await _context.Empresas.FindAsync(model.EmpresaId);
+                if (emp == null)
+                    return BadRequest(new { Message = "Empresa no encontrada para vincular usuario" });
+                if (await _userManager.Users.AnyAsync(u => u.EmpresaId == model.EmpresaId))
+                    return StatusCode(StatusCodes.Status403Forbidden, new { Message = "El usuario inicial solo puede crear el primer usuario de la empresa." });
+            }
 
             var existingUser = await _userManager.FindByEmailAsync(model.Email);
             if (existingUser != null)
@@ -164,6 +200,7 @@ namespace ERP.Api.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateUser(string id, [FromBody] CreateUserDto model)
         {
             if (!ModelState.IsValid)
@@ -216,6 +253,7 @@ namespace ERP.Api.Controllers
         }
 
         [HttpPut("{id}/status")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ToggleStatus(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
@@ -233,10 +271,14 @@ namespace ERP.Api.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user == null) return NotFound(new { Message = "Usuario no encontrado" });
+
+            if (ERP.Domain.Constants.BootstrapUser.IsBootstrap(user.Email) || ERP.Domain.Constants.BootstrapUser.IsBootstrap(user.UserName))
+                return BadRequest(new { Message = "El usuario inicial de onboarding no se puede eliminar." });
 
             var roles = await _userManager.GetRolesAsync(user);
             if (roles.Contains("Admin"))
@@ -259,6 +301,7 @@ namespace ERP.Api.Controllers
         // ============================================
 
         [HttpGet("roles")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<RoleDto>>> GetRoles()
         {
             var empresaId = GetEmpresaId();
@@ -281,6 +324,7 @@ namespace ERP.Api.Controllers
         }
 
         [HttpGet("roles/{roleId}/permissions")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<RolePermissionDto>> GetRolePermissions(string roleId)
         {
             var role = await _roleManager.FindByIdAsync(roleId);
@@ -313,6 +357,7 @@ namespace ERP.Api.Controllers
         }
 
         [HttpPost("roles/permissions")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateRolePermissions([FromBody] RolePermissionDto model)
         {
             var role = await _roleManager.FindByIdAsync(model.RoleId);

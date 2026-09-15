@@ -16,14 +16,19 @@ namespace ERP.Api.Controllers
             _context = context;
         }
 
-        // GET: api/Empleados
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var eid) ? eid : 0;
+
+        // GET: api/Empleados (solo los de la empresa de la sesión)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Empleado>>> GetEmpleados()
         {
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new List<Empleado>());
             // Cargamos los empleados incluyendo los datos de empresa si es necesario
             // El filtro de FechaBaja == null suele gestionarse globalmente o aquí
             return await _context.Empleados
-                .Where(e => e.FechaBaja == null)
+                .AsNoTracking()
+                .Where(e => e.FechaBaja == null && e.EmpresaId == empresaId)
                 .OrderBy(e => e.Apellidos)
                 .ToListAsync();
         }

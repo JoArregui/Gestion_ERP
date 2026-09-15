@@ -63,7 +63,12 @@ namespace ERP.Api.Controllers
         [HttpGet("{id}/pdf")]
         public async Task<IActionResult> Pdf(int id)
         {
-            var nomina = await _context.Nominas.Include(n => n.Empleado).FirstOrDefaultAsync(n => n.Id == id);
+            var empresaId = int.TryParse(User.FindFirst("EmpresaId")?.Value, out var eid) ? eid : 0;
+            if (empresaId == 0) return NotFound("Nómina no encontrada");
+            var nomina = await _context.Nominas
+                .AsNoTracking()
+                .Include(n => n.Empleado)
+                .FirstOrDefaultAsync(n => n.Id == id && n.Empleado != null && n.Empleado.EmpresaId == empresaId);
             if (nomina == null || nomina.Empleado == null) return NotFound("Nómina no encontrada");
             var empresa = await _context.Empresas.FindAsync(nomina.Empleado.EmpresaId);
             if (empresa == null) return NotFound("Empresa no encontrada");

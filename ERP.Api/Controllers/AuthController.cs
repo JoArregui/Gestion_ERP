@@ -48,6 +48,7 @@ namespace ERP.Api.Controllers
         /// Procesa el inicio de sesión, actualiza auditoría y genera el Token JWT con contexto de empresa.
         /// </summary>
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);

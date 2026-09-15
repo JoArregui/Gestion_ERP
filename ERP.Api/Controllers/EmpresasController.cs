@@ -65,12 +65,16 @@ namespace ERP.Api.Controllers
         }
 
         /// <summary>
-        /// Crea la primera empresa durante el onboarding inicial - CIF real obligatorio, no inventado
+        /// Crea la primera empresa durante el onboarding inicial - CIF real obligatorio, no inventado.
+        /// Reservado al usuario inicial (admin@erp.local): es lo único que puede hacer junto al Paso 2.
         /// </summary>
-        [AllowAnonymous]
+        [Authorize]
         [HttpPost("crear-onboarding")]
         public async Task<ActionResult<Empresa>> CrearParaOnboarding([FromBody] CrearEmpresaOnboardingDto dto)
         {
+            if (!ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User))
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Solo el usuario inicial puede crear la empresa del primer onboarding." });
+
             var nombreEmpresa = dto.NombreEmpresa?.Trim() ?? "";
             var cif = dto.CIF?.Trim().ToUpper() ?? "";
             if (string.IsNullOrWhiteSpace(nombreEmpresa))
@@ -122,7 +126,9 @@ namespace ERP.Api.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Empresa>> GetEmpresa(int id)
         {
-            var empresa = await _context.Empresas.FindAsync(id);
+            // Encapsulación por sesión: cada usuario solo ve su empresa
+            if (id != GetEmpresaId()) return Forbid();
+            var empresa = await _context.Empresas.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
 
             if (empresa == null)
             {
@@ -152,9 +158,10 @@ namespace ERP.Api.Controllers
 
                 return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
             }
-            catch (Exception ex)
+            catch
             {
-                return BadRequest(new { Message = "Error al crear la entidad", Details = ex.Message });
+                // Sin Details: no se filtran mensajes técnicos/SQL al cliente.
+                return BadRequest(new { Message = "Error al crear la entidad" });
             }
         }
 
@@ -168,6 +175,7 @@ namespace ERP.Api.Controllers
             {
                 return BadRequest(new { Message = "El ID no coincide con la entidad" });
             }
+            if (id != GetEmpresaId()) return Forbid();
 
             // Recuperamos la entidad original para no perder la FechaAlta
             var existente = await _context.Empresas.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
@@ -200,6 +208,7 @@ namespace ERP.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEmpresa(int id)
         {
+            if (id != GetEmpresaId()) return Forbid();
             var empresa = await _context.Empresas.FindAsync(id);
             if (empresa == null)
             {

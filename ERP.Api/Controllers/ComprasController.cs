@@ -48,11 +48,14 @@ namespace ERP.API.Controllers
         [HttpGet("pendientes")]
         public async Task<ActionResult<IEnumerable<DocumentoComercial>>> GetPedidosPendientes()
         {
+            var empresaId = int.TryParse(User.FindFirst("EmpresaId")?.Value, out var eid) ? eid : 0;
+            if (empresaId == 0) return Ok(new List<DocumentoComercial>());
             return await _context.Documentos
+                .AsNoTracking()
                 .Include(d => d.Proveedor)
                 .Include(d => d.Lineas)
                     .ThenInclude(l => l.Articulo)
-                .Where(d => d.EsCompra && d.Tipo == TipoDocumento.Pedido && !d.IsContabilizado)
+                .Where(d => d.EmpresaId == empresaId && d.EsCompra && d.Tipo == TipoDocumento.Pedido && !d.IsContabilizado)
                 .OrderByDescending(d => d.Fecha)
                 .ToListAsync();
         }
@@ -68,9 +71,9 @@ namespace ERP.API.Controllers
                 int generados = await _comprasService.GenerarPedidoDesdeAlertas(alertas);
                 return Ok(new { mensaje = $"Se han generado {generados} pedidos correctamente." });
             }
-            catch (Exception ex)
+            catch
             {
-                return BadRequest(new { mensaje = "Error al generar pedidos.", detalle = ex.Message });
+                return BadRequest(new { mensaje = "Error al generar pedidos." });
             }
         }
 

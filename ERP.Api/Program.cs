@@ -97,9 +97,14 @@ builder.Services.AddAuthorization(options =>
 {
     foreach (var permission in AppPermissions.All)
     {
-        options.AddPolicy(permission, policy => 
+        options.AddPolicy(permission, policy =>
             policy.RequireClaim("Permission", permission));
     }
+    // Encapsulación de datos por sesión: todo endpoint exige usuario autenticado
+    // salvo [AllowAnonymous] explícito (login, forgot/reset-password, onboarding-check).
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 
 // --- 5. POLÍTICA DE CORS ---
@@ -134,7 +139,7 @@ builder.Services.AddScoped<ERP.Services.Fiscal.MotorIVAService>();
 // Onboarding multi-tenant: GestionX.db por empresa (miles de PCs/empresas)
 builder.Services.AddScoped<ERP.Services.Tenant.TenantDatabaseService>();
 
-builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+builder.Services.AddControllers(o => o.Filters.Add<ERP.Api.Infrastructure.BootstrapOnlyOnboardingFilter>()).AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
 
 // --- 7. SWAGGER ---
@@ -187,13 +192,19 @@ using (var scope = app.Services.CreateScope())
         }
         await SeedService.SeedAsync(context);
 
-        // --- 8b. SEED BOOTSTRAP: credenciales iniciales para BBDD vacía ---
-        // No crea empresa demo. El primer usuario entra con credenciales iniciales
-        // y desde la UI crea la empresa, familias, artículos, etc.
+        // --- 8b. SEED BOOTSTRAP: usuario genérico ÚNICO de primera interacción ---
+        // Un solo usuario (admin@erp.local), SIN rol de administrador y SIN permisos.
+        // Lo único que puede hacer es el primer onboarding: crear la empresa
+        // y el primer usuario asociado a esa empresa.
         if (!await roleManager.RoleExistsAsync("Admin"))
             await roleManager.CreateAsync(new IdentityRole("Admin"));
 
-        var bootstrapEmail = "admin@erp.local";
+        // Limpieza del alias legacy: solo existe admin@erp.local
+        var legacyCom = await userManager.FindByEmailAsync("admin@erp.com");
+        if (legacyCom != null)
+            await userManager.DeleteAsync(legacyCom);
+
+        var bootstrapEmail = ERP.Domain.Constants.BootstrapUser.Email;
         var bootstrap = await userManager.FindByEmailAsync(bootstrapEmail);
         if (bootstrap == null)
         {
@@ -201,23 +212,26 @@ using (var scope = app.Services.CreateScope())
             {
                 UserName = bootstrapEmail,
                 Email = bootstrapEmail,
-                FullName = "Administrador Inicial",
+                FullName = ERP.Domain.Constants.BootstrapUser.DisplayName,
                 EmpresaId = null, // bootstrap sin empresa; la creará tras el primer login
                 IsActivo = true,
                 EmailConfirmed = true
             };
-            var createResult = await userManager.CreateAsync(bootstrap, "Admin123!");
-            if (createResult.Succeeded)
-            {
-                await userManager.AddToRoleAsync(bootstrap, "Admin");
-                foreach (var perm in AppPermissions.All)
-                    await userManager.AddClaimAsync(bootstrap, new System.Security.Claims.Claim("Permission", perm));
-            }
-            else
+            var createResult = await userManager.CreateAsync(bootstrap, ERP.Domain.Constants.BootstrapUser.DefaultPassword);
+            if (!createResult.Succeeded)
             {
                 var loggerSeed = services.GetRequiredService<ILogger<Program>>();
                 loggerSeed.LogError("No se pudo crear usuario bootstrap: {Errors}", string.Join(", ", createResult.Errors.Select(e => e.Description)));
             }
+        }
+        if (bootstrap != null)
+        {
+            // El usuario inicial NUNCA tiene rol Admin ni permisos: solo onboarding.
+            if (await userManager.IsInRoleAsync(bootstrap, "Admin"))
+                await userManager.RemoveFromRoleAsync(bootstrap, "Admin");
+            var bootstrapClaims = await userManager.GetClaimsAsync(bootstrap);
+            foreach (var c in bootstrapClaims.Where(c => c.Type == "Permission" || c.Type == System.Security.Claims.ClaimTypes.Role || c.Type == "role").ToList())
+                await userManager.RemoveClaimAsync(bootstrap, c);
         }
 
         // --- 8c. DETECCIÓN DE ONBOARDING NECESARIO ---

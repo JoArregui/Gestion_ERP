@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using ERP.Domain.Constants;
 using ERP.Domain.Entities;
 using ERP.Services;
 using ERP.Data;
@@ -32,20 +33,21 @@ namespace ERP.Api.Controllers
         }
 
         [HttpGet("listado")]
-        public async Task<IActionResult> GetFacturas()
+        public async Task<IActionResult> GetFacturas([FromQuery] int? take = null)
         {
             var empresaIdClaim = User.FindFirst("EmpresaId")?.Value;
-            if (string.IsNullOrEmpty(empresaIdClaim)) return Unauthorized("Sesión inválida.");
+            if (!int.TryParse(empresaIdClaim, out var empresaId) || empresaId == 0)
+                return Unauthorized("Sesión inválida.");
 
-            int empresaId = int.Parse(empresaIdClaim);
-
-            var lista = await _context.Documentos
+            var query = _context.Documentos
+                .AsNoTracking()
                 .Include(d => d.Cliente)
                 .Where(d => d.EmpresaId == empresaId && d.Tipo == TipoDocumento.Factura)
-                .OrderByDescending(d => d.Fecha)
-                .ToListAsync();
+                .OrderByDescending(d => d.Fecha);
+            if (take.HasValue && take.Value > 0)
+                return Ok(await query.Take(Math.Min(take.Value, 500)).ToListAsync());
 
-            return Ok(lista);
+            return Ok(await query.ToListAsync());
         }
 
         /// <summary>
@@ -54,10 +56,10 @@ namespace ERP.Api.Controllers
         [HttpPost("crear-factura")]
         public async Task<IActionResult> CrearFactura([FromBody] DocumentoComercial factura)
         {
-            var empresaIdClaim = User.FindFirst("EmpresaId")?.Value;
-            if (string.IsNullOrEmpty(empresaIdClaim)) return Unauthorized("Sesión inválida.");
-            
-            factura.EmpresaId = int.Parse(empresaIdClaim);
+            if (!int.TryParse(User.FindFirst("EmpresaId")?.Value, out var facturaEmpresaId) || facturaEmpresaId == 0)
+                return Unauthorized("Sesión inválida.");
+
+            factura.EmpresaId = facturaEmpresaId;
 
             // El servicio gestiona: Guardado + Stock + MovimientoStock + Transaccionalidad
             var exito = await _facturacionService.RegistrarFacturaVentaAsync(factura);
@@ -75,10 +77,13 @@ namespace ERP.Api.Controllers
         [HttpGet("descargar-pdf/{id}")]
         public async Task<IActionResult> DescargarPdf(int id)
         {
+            if (!int.TryParse(User.FindFirst("EmpresaId")?.Value, out var empresaId) || empresaId == 0)
+                return NotFound();
             var factura = await _context.Documentos
+                .AsNoTracking()
                 .Include(d => d.Lineas)
                 .Include(d => d.Cliente)
-                .FirstOrDefaultAsync(d => d.Id == id);
+                .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
 
             if (factura == null) return NotFound();
 
@@ -97,10 +102,13 @@ namespace ERP.Api.Controllers
         [HttpGet("descargar-ticket/{id}")]
         public async Task<IActionResult> DescargarTicket(int id)
         {
+            if (!int.TryParse(User.FindFirst("EmpresaId")?.Value, out var empresaId) || empresaId == 0)
+                return NotFound();
             var factura = await _context.Documentos
+                .AsNoTracking()
                 .Include(d => d.Lineas)
                 .Include(d => d.Cliente)
-                .FirstOrDefaultAsync(d => d.Id == id);
+                .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
 
             if (factura == null) return NotFound();
 

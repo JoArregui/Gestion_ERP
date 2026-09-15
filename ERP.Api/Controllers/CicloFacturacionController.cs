@@ -30,14 +30,19 @@ namespace ERP.Api.Controllers
                 .ToListAsync();
         }
 
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var eid) ? eid : 0;
+
         [HttpGet("{id}")]
         public async Task<ActionResult<DocumentoComercial>> GetDocumento(int id)
         {
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return NotFound();
             var doc = await _context.Documentos
+                .AsNoTracking()
                 .Include(d => d.Empresa)
                 .Include(d => d.Cliente)
                 .Include(d => d.Lineas)
-                .FirstOrDefaultAsync(d => d.Id == id);
+                .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
             if (doc == null) return NotFound();
             return doc;
         }
@@ -46,10 +51,12 @@ namespace ERP.Api.Controllers
         public async Task<IActionResult> PutDocumento(int id, [FromBody] DocumentoComercial doc)
         {
             if (id != doc.Id) return BadRequest(new { Message = "ID no coincide" });
-            var existente = await _context.Documentos.Include(d => d.Lineas).FirstOrDefaultAsync(d => d.Id == id);
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Unauthorized(new { Message = "Sesión sin empresa." });
+            var existente = await _context.Documentos.Include(d => d.Lineas).FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
             if (existente == null) return NotFound(new { Message = "Documento no encontrado" });
             if (existente.EstaEmitidaFormalmente || existente.Tipo == TipoDocumento.FacturaRectificativa)
-                return BadRequest(new { Message = "Factura no editable por normativa. Genere una rectificativa o anulaciÃ³n." });
+                return BadRequest(new { Message = "Factura no editable por normativa. Genere una rectificativa o anulación." });
             existente.ClienteId = doc.ClienteId;
             existente.Fecha = doc.Fecha;
             existente.Observaciones = doc.Observaciones;
@@ -84,8 +91,8 @@ namespace ERP.Api.Controllers
                 if (doc.EmpresaId == 0)
                 {
                     var claim = User.FindFirst("EmpresaId")?.Value;
-                    if (int.TryParse(claim, out var eid)) doc.EmpresaId = eid;
-                    else doc.EmpresaId = await _context.Empresas.Select(e => e.Id).FirstOrDefaultAsync();
+                    if (int.TryParse(claim, out var eid) && eid != 0) doc.EmpresaId = eid;
+                    else return Unauthorized(new { Message = "Sesión sin empresa." });
                 }
                 if (doc.Tipo == 0) doc.Tipo = TipoDocumento.Presupuesto;
                 var creado = await _cicloService.CrearDocumento(doc);
@@ -93,9 +100,8 @@ namespace ERP.Api.Controllers
             }
             catch (Exception ex)
             {
-                var inner = ex.InnerException?.Message ?? "";
-                var inner2 = ex.InnerException?.InnerException?.Message ?? "";
-                return BadRequest(new { Message = ex.Message, Inner = inner, Inner2 = inner2 });
+                // No se expone la cadena de InnerExceptions (fuga de detalles técnicos/SQL).
+                return BadRequest(new { Message = ex.Message });
             }
         }
 
@@ -154,10 +160,10 @@ namespace ERP.Api.Controllers
                 
                 if (exito)
                 {
-                    return Ok(new { Message = "AlbarÃ¡n eliminado y stock liberado correctamente." });
+                    return Ok(new { Message = "Albarán eliminado y stock liberado correctamente." });
                 }
                 
-                return NotFound(new { Message = "El albarÃ¡n no existe." });
+                return NotFound(new { Message = "El albarán no existe." });
             }
             catch (Exception ex)
             {
