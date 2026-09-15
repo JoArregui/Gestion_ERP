@@ -169,8 +169,8 @@ namespace ERP.Services.Tenant
                         // SQLite permite INSERT con Id explícito aunque sea AUTOINCREMENT
                         ctx.Empresas.Add(clone);
                         await ctx.SaveChangesAsync();
-                        // Sincronizar sqlite_sequence
-                        try { await ctx.Database.ExecuteSqlRawAsync($"UPDATE sqlite_sequence SET seq = MAX(seq, {clone.Id}) WHERE name='Empresas'"); } catch { }
+                        // Sincronizar sqlite_sequence (parametrizado: ExecuteSqlAsync evita warning EF1002)
+                        try { await ctx.Database.ExecuteSqlAsync($"UPDATE sqlite_sequence SET seq = MAX(seq, {clone.Id}) WHERE name='Empresas'"); } catch { }
                     }
                     else
                     {

@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERP.Api.Hubs
 {
     // Este Hub gestiona las conexiones de los clientes
+    [Authorize]
     public class DashboardHub : Hub
     {
         public async Task SendUpdate()

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.DTOs;
@@ -11,6 +12,7 @@ using ERP.Api.Services;
 namespace ERP.Api.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/[controller]")]
     public class DashboardController : ControllerBase
     {
@@ -28,15 +30,30 @@ namespace ERP.Api.Controllers
             _emailService = emailService;
         }
 
-        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
-
         [HttpGet("resumen-financiero")]
         public async Task<ActionResult<DashboardDTO>> GetResumen()
         {
-            var empresaId = GetEmpresaId();
-            // Pasillo universal (EmpresaId 0) → programa vacío, sin datos
-            if (empresaId == 0) return Ok(new DashboardDTO { TotalVentas = 0, TotalCompras = 0, TotalNominas = 0, BeneficioNeto = 0, FacturasPendientesCobro = 0, ImportePendienteCobro = 0, FacturasVencidas = 0, ArticulosStockBajo = 0, VentasMensuales = new() });
-
+            // Genérico del primer onboarding nunca ve facturación (vacío)
+            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? User.FindFirst("email")?.Value;
+            if (ERP.Domain.Constants.BootstrapUser.IsBootstrap(email))
+            {
+                return Ok(new DashboardDTO
+                {
+                    TotalVentas = 0, TotalCompras = 0, TotalNominas = 0, BeneficioNeto = 0,
+                    FacturasPendientesCobro = 0, ImportePendienteCobro = 0, FacturasVencidas = 0,
+                    ArticulosStockBajo = 0, VentasMensuales = new List<GraficoVentasMes>()
+                });
+            }
+            var empresaIdClaim = User.FindFirst("EmpresaId")?.Value;
+            if (!int.TryParse(empresaIdClaim, out var empresaId) || empresaId == 0)
+            {
+                return Ok(new DashboardDTO
+                {
+                    TotalVentas = 0, TotalCompras = 0, TotalNominas = 0, BeneficioNeto = 0,
+                    FacturasPendientesCobro = 0, ImportePendienteCobro = 0, FacturasVencidas = 0,
+                    ArticulosStockBajo = 0, VentasMensuales = new List<GraficoVentasMes>()
+                });
+            }
             var hoy = DateTime.Today;
 
             var ventasTotal = await _context.Documentos
@@ -98,8 +115,10 @@ namespace ERP.Api.Controllers
         [HttpGet("detalle/{tipo}")]
         public async Task<ActionResult<DashboardDetalleDTO>> GetDetalle(string tipo)
         {
-            var empresaId = GetEmpresaId();
-            if (empresaId == 0) return Ok(new DashboardDetalleDTO { Titulo = tipo == "stock-bajo" ? "ARTÍCULOS BAJO MÍNIMOS" : "VENCIMIENTOS IMPAGADOS", Items = new() });
+            var empresaIdClaim = User.FindFirst("EmpresaId")?.Value;
+            if (!int.TryParse(empresaIdClaim, out var empresaId) || empresaId == 0)
+                return Ok(new DashboardDetalleDTO { Titulo = tipo == "stock-bajo" ? "ARTÍCULOS BAJO MÍNIMOS" : "VENCIMIENTOS IMPAGADOS", Items = new List<ItemDetalle>() });
+
             var detalle = new DashboardDetalleDTO 
             { 
                 Titulo = tipo == "stock-bajo" ? "ARTÍCULOS BAJO MÍNIMOS" : "VENCIMIENTOS IMPAGADOS" 

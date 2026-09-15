@@ -25,6 +25,11 @@ namespace ERP.Domain.Entities
 
         public bool IsActiva { get; set; } = true;
 
+        // Multi-tenant: aislamiento por empresa (RGPD)
+        public int EmpresaId { get; set; }
+        [ForeignKey(nameof(EmpresaId))]
+        public virtual Empresa? Empresa { get; set; }
+
         // Relación inversa con Artículos
         // Se utiliza virtual para permitir Lazy Loading si el proxy está configurado
         [JsonIgnore]

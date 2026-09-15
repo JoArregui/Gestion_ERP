@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
+using ERP.Api.Infrastructure;
 using ERP.Domain.Entities;
+using ERP.Domain.Dtos;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,118 +19,165 @@ namespace ERP.Api.Controllers
     [Route("api/[controller]")]
     public class EmpresasController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly MasterDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly ERP.Services.Tenant.TenantDatabaseService _tenantService;
+        private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly TenantDatabaseProvisioner _tenantDatabaseProvisioner;
 
-        public EmpresasController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ERP.Services.Tenant.TenantDatabaseService tenantService)
+        public EmpresasController(
+            MasterDbContext context,
+            UserManager<ApplicationUser> userManager,
+            RoleManager<IdentityRole> roleManager,
+            TenantDatabaseProvisioner tenantDatabaseProvisioner)
         {
             _context = context;
             _userManager = userManager;
-            _tenantService = tenantService;
+            _roleManager = roleManager;
+            _tenantDatabaseProvisioner = tenantDatabaseProvisioner;
         }
 
-        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
-
         /// <summary>
-        /// Obtiene el listado de empresas visibles para el usuario (pasillo EmpresaId 0 → vacío)
+        /// Obtiene empresas visibles (RGPD + multi-empresa).
+        /// - Genérico bootstrap → solo empresas sin usuarios (recién creadas para onboarding).
+        /// - Usuario con N empresas → todas las asignadas.
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Empresa>>> GetEmpresas()
         {
-            var empresaId = GetEmpresaId();
-            // Pasillo universal (admin@erp.local sin empresa) → programa vacío, sin datos
-            if (empresaId == 0) return Ok(new List<Empresa>());
-            var empresas = await _context.Empresas
-                .Where(e => e.IsActiva && e.Id == empresaId)
-                .ToListAsync();
-            return Ok(empresas);
-        }
-
-        /// <summary>
-        /// Check onboarding pasillo: ¿hay alguna empresa en el sistema? (sin filtro EmpresaId, para wizard)
-        /// </summary>
-        [HttpGet("onboarding-check")]
-        [AllowAnonymous]
-        public async Task<ActionResult> GetOnboardingCheck()
-        {
-            var count = await _context.Empresas.CountAsync(e => e.IsActiva);
-            var hasEmpresa = count > 0;
-            var primera = hasEmpresa ? await _context.Empresas.Where(e => e.IsActiva).OrderBy(e => e.Id).Select(e => new { e.Id, e.RazonSocial, e.NombreComercial }).FirstOrDefaultAsync() : null;
-            return Ok(new { hasEmpresa, count, pasilloVacio = true, primeraEmpresaId = primera?.Id, primeraRazon = primera?.RazonSocial, primeraNombre = primera?.NombreComercial });
-        }
-
-        public class CrearEmpresaOnboardingDto
-        {
-            public string NombreEmpresa { get; set; } = string.Empty;
-            public string? CIF { get; set; }
-        }
-
-        /// <summary>
-        /// Crea la primera empresa durante el onboarding inicial - CIF real obligatorio, no inventado
-        /// </summary>
-        [AllowAnonymous]
-        [HttpPost("crear-onboarding")]
-        public async Task<ActionResult<Empresa>> CrearParaOnboarding([FromBody] CrearEmpresaOnboardingDto dto)
-        {
-            var nombreEmpresa = dto.NombreEmpresa?.Trim() ?? "";
-            var cif = dto.CIF?.Trim().ToUpper() ?? "";
-            if (string.IsNullOrWhiteSpace(nombreEmpresa))
-                return BadRequest(new { Message = "El nombre de la empresa es obligatorio" });
-            if (string.IsNullOrWhiteSpace(cif) || cif.Length < 9)
-                return BadRequest(new { Message = "El CIF/NIF real es obligatorio (9 caracteres)" });
-            if (!System.Text.RegularExpressions.Regex.IsMatch(cif, @"^[A-Z0-9]{9}$"))
-                return BadRequest(new { Message = "CIF/NIF inválido. Formato: A12345678 o B12345678" });
-
-            if (await _context.Empresas.AnyAsync(e => e.CIF == cif && e.IsActiva))
-                return BadRequest(new { Message = $"Ya existe una empresa con CIF {cif}" });
-
-            var nombreLimpio = string.Join("-", nombreEmpresa.Split(new[] { ' ', '/', '\\', ':' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => string.Join("", s.Where(char.IsLetterOrDigit))));
-            if (string.IsNullOrEmpty(nombreLimpio)) nombreLimpio = "Empresa";
-
-            var empresa = new Empresa
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = userId != null ? await _userManager.FindByIdAsync(userId) : null;
+            if (user == null) return Unauthorized();
+            if (IsGenericBootstrap(user))
             {
-                NombreComercial = nombreLimpio,
-                RazonSocial = nombreEmpresa,
-                CIF = cif,
-                SerieFacturacion = DateTime.UtcNow.Year.ToString(),
-                IvaDefecto = 21m,
-                IsActiva = true,
-                ColorHex = "#3498db",
-                Eslogan = null,
-                LogoUrl = null,
-                LogoBase64 = null,
-                FechaAlta = DateTime.UtcNow,
-                UltimaModificacion = null,
-                TerritorioFiscal = ERP.Domain.Entities.Fiscal.TerritorioFiscal.PeninsulaBaleares,
-                EsSII = false
-            };
+                // Las credenciales bootstrap son compartidas y no pueden
+                // enumerar empresas huérfanas de otros onboardings.
+                return Ok(new List<Empresa>());
+            }
+            var ids = new List<int>();
+            if (user.EmpresaId.HasValue) ids.Add(user.EmpresaId.Value);
+            var extras = await _context.UserEmpresas.Where(ue => ue.UserId == user.Id).Select(ue => ue.EmpresaId).ToListAsync();
+            ids.AddRange(extras);
+            ids = ids.Distinct().ToList();
+            if (!ids.Any()) return Ok(new List<Empresa>());
+            var list = await _context.Empresas.Where(e => e.IsActiva && ids.Contains(e.Id)).ToListAsync();
+            return Ok(list);
+        }
 
-            _context.Empresas.Add(empresa);
-            await _context.SaveChangesAsync();
+        private static bool IsGenericBootstrap(ApplicationUser u)
+            => ERP.Domain.Constants.BootstrapUser.IsBootstrap(u.Email)
+            || ERP.Domain.Constants.BootstrapUser.IsBootstrap(u.UserName);
 
-            // Crear BBDD por empresa: GestionX.db (visible en carpeta, para miles de PCs/empresas)
-            // El pasillo admin@erp.local NO se vincula (sigue vacío, sin empresa), el nuevo usuario de Paso 2 se vinculará a esta empresa
-            string tenantFile = "";
-            try { tenantFile = await _tenantService.EnsureTenantDatabaseAsync(empresa); } catch { }
+        /// <summary>
+        /// Crea la primera empresa durante el onboarding inicial
+        /// </summary>
+        [Authorize]
+        [HttpPost("crear-onboarding")]
+        public async Task<ActionResult> CrearParaOnboarding([FromBody] BootstrapOnboardingRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = userId != null ? await _userManager.FindByIdAsync(userId) : null;
+            if (user == null) return Unauthorized();
+            if (!IsGenericBootstrap(user)) return Forbid();
 
-            return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, new { empresa.Id, empresa.RazonSocial, empresa.NombreComercial, empresa.CIF, TenantDatabase = tenantFile, Mensaje = tenantFile != "" ? $"BBDD {System.IO.Path.GetFileName(tenantFile)} creada" : null });
+            if (string.IsNullOrWhiteSpace(request.NombreEmpresa) ||
+                string.IsNullOrWhiteSpace(request.NombreUsuario) ||
+                string.IsNullOrWhiteSpace(request.EmailUsuario) ||
+                string.IsNullOrWhiteSpace(request.PasswordUsuario))
+            {
+                return BadRequest(new { Message = "Empresa, nombre, correo y contraseña son obligatorios" });
+            }
+            if (request.PasswordUsuario.Length < 8)
+                return BadRequest(new { Message = "La contraseña debe tener al menos 8 caracteres" });
+            if (await _userManager.FindByEmailAsync(request.EmailUsuario.Trim()) != null)
+                return Conflict(new { Message = "El correo del usuario ya está registrado" });
+
+            // Limpiar nombre: quitar caracteres especiales, tomar solo letras/números/guiones
+            var nombreLimpio = string.Join("-", request.NombreEmpresa.Split(new[] { ' ', '/', '\\', ':' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => string.Join("", s.Where(char.IsLetterOrDigit))));
+
+            // Asegurar que tenga un formato coherente
+            if (string.IsNullOrEmpty(nombreLimpio))
+                nombreLimpio = "Empresa";
+
+            var tenantProvisioned = false;
+            var provisionedEmpresaId = 0;
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var empresa = new Empresa
+                {
+                    NombreComercial = nombreLimpio,
+                    RazonSocial = request.NombreEmpresa.Trim(),
+                    CIF = $"B{Guid.NewGuid():N}"[..10],
+                    SerieFacturacion = DateTime.UtcNow.Year.ToString(),
+                    IvaDefecto = 21m,
+                    IsActiva = true,
+                    ColorHex = "#3498db",
+                    FechaAlta = DateTime.UtcNow,
+                    TerritorioFiscal = ERP.Domain.Entities.Fiscal.TerritorioFiscal.PeninsulaBaleares
+                };
+                _context.Empresas.Add(empresa);
+                await _context.SaveChangesAsync();
+                provisionedEmpresaId = empresa.Id;
+
+                var owner = new ApplicationUser
+                {
+                    UserName = request.EmailUsuario.Trim(),
+                    Email = request.EmailUsuario.Trim(),
+                    FullName = request.NombreUsuario.Trim(),
+                    EmpresaId = empresa.Id,
+                    IsActivo = true,
+                    EmailConfirmed = true
+                };
+                var createUser = await _userManager.CreateAsync(owner, request.PasswordUsuario);
+                if (!createUser.Succeeded)
+                {
+                    var errors = string.Join(", ", createUser.Errors.Select(e => e.Description));
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { Message = "No se pudo crear el usuario inicial", Errors = errors });
+                }
+
+                _context.UserEmpresas.Add(new UserEmpresa { UserId = owner.Id, EmpresaId = empresa.Id });
+                if (!await _roleManager.RoleExistsAsync("Admin"))
+                    await _roleManager.CreateAsync(new IdentityRole("Admin"));
+                await _userManager.AddToRoleAsync(owner, "Admin");
+                await _context.SaveChangesAsync();
+                await _tenantDatabaseProvisioner.EnsureCreatedAsync(empresa);
+                tenantProvisioned = true;
+                await transaction.CommitAsync();
+
+                return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, new
+                {
+                    EmpresaId = empresa.Id,
+                    UsuarioCreado = true,
+                    Mensaje = "Empresa y usuario creados. Cierra sesión y vuelve a entrar con tus credenciales."
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                if (tenantProvisioned)
+                    _tenantDatabaseProvisioner.DeleteProvisionedDatabase(provisionedEmpresaId);
+                return BadRequest(new { Message = "No se pudo completar el onboarding inicial", Details = ex.Message });
+            }
         }
 
         /// <summary>
-        /// Obtiene el detalle de una empresa por ID
+        /// Obtiene detalle — solo si el usuario pertenece a esa empresa (multi-tenant).
         /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<Empresa>> GetEmpresa(int id)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = userId != null ? await _userManager.FindByIdAsync(userId) : null;
+            if (user == null) return Unauthorized();
+            if (IsGenericBootstrap(user)) return Forbid();
+            var ids = new List<int>();
+            if (user.EmpresaId.HasValue) ids.Add(user.EmpresaId.Value);
+            ids.AddRange(await _context.UserEmpresas.Where(ue => ue.UserId == user.Id).Select(ue => ue.EmpresaId).ToListAsync());
+            if (!ids.Contains(id)) return Forbid();
             var empresa = await _context.Empresas.FindAsync(id);
-
-            if (empresa == null)
-            {
-                return NotFound(new { Message = "Empresa no encontrada" });
-            }
-
+            if (empresa == null) return NotFound(new { Message = "Empresa no encontrada" });
             return empresa;
         }
 
@@ -140,15 +189,57 @@ namespace ERP.Api.Controllers
         {
             try
             {
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentUser = currentUserId != null
+                    ? await _userManager.FindByIdAsync(currentUserId)
+                    : null;
+                if (currentUser == null) return Unauthorized();
+                if (IsGenericBootstrap(currentUser))
+                    return Forbid("El usuario bootstrap debe utilizar el onboarding inicial.");
+
+                // Nunca aceptar la identidad ni relaciones de una entidad enviada
+                // por el cliente al crear una empresa.
+                empresa.Id = 0;
+                empresa.CertificadoVerifactuId = null;
+                empresa.CertificadoVerifactu = null;
+                empresa.UltimoNumeroFactura = 0;
+                empresa.IsActiva = true;
                 empresa.FechaAlta = DateTime.UtcNow;
                 empresa.UltimaModificacion = null;
-                
-                _context.Empresas.Add(empresa);
-                await _context.SaveChangesAsync();
 
-                // Crear BBDD por empresa: GestionX.db (para miles de PCs/empresas)
-                // Nota: admin@erp.local (pasillo) NO se vincula nunca, sigue vacío
-                try { await _tenantService.EnsureTenantDatabaseAsync(empresa); } catch { }
+                var tenantProvisioned = false;
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    _context.Empresas.Add(empresa);
+                    await _context.SaveChangesAsync();
+
+                    var userId = currentUser.Id;
+                    if (string.IsNullOrEmpty(userId))
+                        throw new InvalidOperationException("El usuario autenticado no tiene identificador.");
+
+                    if (currentUser.EmpresaId == null)
+                    {
+                        currentUser.EmpresaId = empresa.Id;
+                        var updateResult = await _userManager.UpdateAsync(currentUser);
+                        if (!updateResult.Succeeded)
+                            throw new InvalidOperationException(string.Join("; ", updateResult.Errors.Select(e => e.Description)));
+                    }
+
+                    if (!await _context.UserEmpresas.AnyAsync(ue => ue.UserId == currentUser.Id && ue.EmpresaId == empresa.Id))
+                        _context.UserEmpresas.Add(new UserEmpresa { UserId = currentUser.Id, EmpresaId = empresa.Id });
+                    await _context.SaveChangesAsync();
+                    await _tenantDatabaseProvisioner.EnsureCreatedAsync(empresa);
+                    tenantProvisioned = true;
+                    await transaction.CommitAsync();
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    if (tenantProvisioned)
+                        _tenantDatabaseProvisioner.DeleteProvisionedDatabase(empresa.Id);
+                    throw;
+                }
 
                 return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
             }
@@ -169,8 +260,7 @@ namespace ERP.Api.Controllers
                 return BadRequest(new { Message = "El ID no coincide con la entidad" });
             }
 
-            // Recuperamos la entidad original para no perder la FechaAlta
-            var existente = await _context.Empresas.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
+            var existente = await GetEmpresaGestionableAsync(id);
             if (existente == null)
             {
                 return NotFound();
@@ -200,7 +290,7 @@ namespace ERP.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEmpresa(int id)
         {
-            var empresa = await _context.Empresas.FindAsync(id);
+            var empresa = await GetEmpresaGestionableAsync(id);
             if (empresa == null)
             {
                 return NotFound();
@@ -218,6 +308,29 @@ namespace ERP.Api.Controllers
         private bool EmpresaExists(int id)
         {
             return _context.Empresas.Any(e => e.Id == id);
+        }
+
+        private async Task<Empresa?> GetEmpresaGestionableAsync(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = userId != null ? await _userManager.FindByIdAsync(userId) : null;
+            if (user == null) return null;
+
+            if (IsGenericBootstrap(user))
+            {
+                // Durante el primer arranque solo se puede gestionar una empresa huérfana.
+                var ocupada = await _context.Users.AnyAsync(u => u.EmpresaId == id)
+                    || await _context.UserEmpresas.AnyAsync(ue => ue.EmpresaId == id);
+                if (ocupada) return null;
+            }
+            else
+            {
+                var pertenece = user.EmpresaId == id
+                    || await _context.UserEmpresas.AnyAsync(ue => ue.UserId == user.Id && ue.EmpresaId == id);
+                if (!pertenece) return null;
+            }
+
+            return await _context.Empresas.FirstOrDefaultAsync(e => e.Id == id);
         }
     }
 }

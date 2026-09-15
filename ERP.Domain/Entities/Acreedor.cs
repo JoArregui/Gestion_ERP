@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ERP.Domain.Entities
 {
@@ -33,6 +34,11 @@ namespace ERP.Domain.Entities
         public bool EsAcreedor { get; set; }
 
         public bool IsActivo { get; set; } = true;
+
+        // Multi-tenant: aislamiento por empresa (RGPD)
+        public int EmpresaId { get; set; }
+        [ForeignKey(nameof(EmpresaId))]
+        public virtual Empresa? Empresa { get; set; }
 
         // Auditoría básica
         public DateTime FechaAlta { get; set; } = DateTime.Now;
