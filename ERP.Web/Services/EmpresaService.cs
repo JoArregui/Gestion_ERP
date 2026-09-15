@@ -107,6 +107,27 @@ namespace ERP.Web.Services
         public int EmpresaId => _empresaId;
         public bool IsLoaded => _empresas != null && _empresas.Count > 0;
 
+        /// <summary>
+        /// Borrado completo de estado en memoria + localStorage. Llamar en Logout para evitar remanentes de sesión.
+        /// Garantiza que el pasillo (admin@erp.local) vuelva virgen tras cerrar sesión.
+        /// </summary>
+        public async Task ClearAsync()
+        {
+            _empresas = null;
+            EmpresaActual = null;
+            _empresaId = 0;
+            try { await _js.InvokeVoidAsync("localStorage.removeItem", StorageKey); } catch { }
+            OnChange?.Invoke();
+        }
+
+        public void ClearSync()
+        {
+            _empresas = null;
+            EmpresaActual = null;
+            _empresaId = 0;
+            OnChange?.Invoke();
+        }
+
         public async Task<Empresa?> GetEmpresaActualAsync()
         {
             if (EmpresaActual != null) return EmpresaActual;

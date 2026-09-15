@@ -4,6 +4,8 @@
 @using ERP.Web.Components
 @inject ERP.Web.Services.AuthService AuthService
 @inject NavigationManager Navigation
+@inject ERP.Web.Services.EmpresaService EmpresaService
+@inject ERP.Web.Services.NotificationService NotificationService
 
 @* NavMenu.razor - Menú Lateral Acordeón con rutas exactas del proyecto *@
 <div class="flex flex-col h-full bg-[#0f172a] text-slate-400 font-sans shadow-2xl border-r border-slate-800/50">
@@ -305,6 +307,57 @@
             </div>
         </div>
 
+        @* CATEGORÍA: LEGAL (Dossier) *@
+        <div>
+            <button @onclick='() => ToggleSection("legal")'
+                    class="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/5 hover:text-white text-left focus:outline-none select-none">
+                <span class="text-[9px] font-black text-amber-400 uppercase tracking-[0.2em]">Legal</span>
+                <i class="bi bi-chevron-down text-xs transition-transform duration-300 @(activeSection == "legal" ? "rotate-0" : "-rotate-90")"></i>
+            </button>
+            <div class="mt-1 space-y-1 pl-2 transition-all duration-300 @(activeSection == "legal" ? "block" : "hidden")">
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="bancario" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-bank text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Bancario SEPA</span>
+                </NavLink>
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="contabilidad" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-journal-text text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Contabilidad PGC</span>
+                </NavLink>
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="firmadigital" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-patch-check-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Firma Digital eIDAS</span>
+                </NavLink>
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="fiscal" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-calculator-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Fiscal IVA</span>
+                </NavLink>
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="trazabilidad" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-upc-scan text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Trazabilidad Lotes</span>
+                </NavLink>
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="verifactu" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-shield-check text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Verifactu</span>
+                </NavLink>
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="iva" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-percent text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">IVA/IGIC</span>
+                </NavLink>
+                <NavLink class="flex items-center gap-3 p-3 rounded-xl transition-all group hover:bg-white/5 hover:text-white no-underline text-inherit"
+                         href="facturae" ActiveClass="bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/50">
+                    <i class="bi bi-file-earmark-code-fill text-lg"></i>
+                    <span class="text-[10px] uppercase font-black tracking-widest">Facturae FACe</span>
+                </NavLink>
+            </div>
+        </div>
+
         @* CATEGORÍA: CONFIGURACIÓN SISTEMA *@
         <AuthorizeView Roles="Admin">
             <Authorized>
@@ -403,6 +456,9 @@
     private async Task HandleLogout()
     {
         await AuthService.Logout();
-        Navigation.NavigateTo("/login");
+        try { await EmpresaService.ClearAsync(); } catch { }
+        try { NotificationService.ClearHistory(); } catch { }
+        // forceLoad destruye el circuito Blazor y garantiza pasillo virgen (sin remanentes)
+        Navigation.NavigateTo("/login", forceLoad: true);
     }
 }

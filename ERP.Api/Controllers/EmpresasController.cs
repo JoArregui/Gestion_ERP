@@ -19,59 +19,84 @@ namespace ERP.Api.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ERP.Services.Tenant.TenantDatabaseService _tenantService;
 
-        public EmpresasController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public EmpresasController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ERP.Services.Tenant.TenantDatabaseService tenantService)
         {
             _context = context;
             _userManager = userManager;
+            _tenantService = tenantService;
         }
 
         private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
 
         /// <summary>
-        /// Obtiene la empresa de la sesión (encapsulación: nadie lista el registro completo).
+        /// Obtiene el listado de empresas visibles para el usuario (pasillo EmpresaId 0 → vacío)
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Empresa>>> GetEmpresas()
         {
             var empresaId = GetEmpresaId();
+            // Pasillo universal (admin@erp.local sin empresa) → programa vacío, sin datos
             if (empresaId == 0) return Ok(new List<Empresa>());
             var empresas = await _context.Empresas
                 .AsNoTracking()
                 .Where(e => e.IsActiva && e.Id == empresaId)
                 .ToListAsync();
-
             return Ok(empresas);
         }
 
         /// <summary>
-        /// Crea la primera empresa durante el onboarding inicial.
-        /// Reservado al usuario inicial (admin@erp.local, sin rol).
+        /// Check onboarding pasillo: ¿hay alguna empresa en el sistema? (sin filtro EmpresaId, para wizard)
+        /// </summary>
+        [HttpGet("onboarding-check")]
+        [AllowAnonymous]
+        public async Task<ActionResult> GetOnboardingCheck()
+        {
+            var count = await _context.Empresas.CountAsync(e => e.IsActiva);
+            var hasEmpresa = count > 0;
+            var primera = hasEmpresa ? await _context.Empresas.Where(e => e.IsActiva).OrderBy(e => e.Id).Select(e => new { e.Id, e.RazonSocial, e.NombreComercial }).FirstOrDefaultAsync() : null;
+            return Ok(new { hasEmpresa, count, pasilloVacio = true, primeraEmpresaId = primera?.Id, primeraRazon = primera?.RazonSocial, primeraNombre = primera?.NombreComercial });
+        }
+
+        public class CrearEmpresaOnboardingDto
+        {
+            public string NombreEmpresa { get; set; } = string.Empty;
+            public string? CIF { get; set; }
+        }
+
+        /// <summary>
+        /// Crea la primera empresa durante el onboarding inicial - CIF real obligatorio, no inventado.
+        /// Reservado al usuario inicial (admin@erp.local): es lo único que puede hacer junto al Paso 2.
         /// </summary>
         [Authorize]
         [HttpPost("crear-onboarding")]
-        public async Task<ActionResult<Empresa>> CrearParaOnboarding([FromBody] string nombreEmpresa)
+        public async Task<ActionResult<Empresa>> CrearParaOnboarding([FromBody] CrearEmpresaOnboardingDto dto)
         {
             if (!ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User))
                 return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Solo el usuario inicial puede crear la empresa del primer onboarding." });
-            if (string.IsNullOrWhiteSpace(nombreEmpresa))
-            {
-                return BadRequest(new { Message = "El nombre de la empresa es obligatorio" });
-            }
 
-            // Limpiar nombre: quitar caracteres especiales, tomar solo letras/números/guiones
+            var nombreEmpresa = dto.NombreEmpresa?.Trim() ?? "";
+            var cif = dto.CIF?.Trim().ToUpper() ?? "";
+            if (string.IsNullOrWhiteSpace(nombreEmpresa))
+                return BadRequest(new { Message = "El nombre de la empresa es obligatorio" });
+            if (string.IsNullOrWhiteSpace(cif) || cif.Length < 9)
+                return BadRequest(new { Message = "El CIF/NIF real es obligatorio (9 caracteres)" });
+            if (!System.Text.RegularExpressions.Regex.IsMatch(cif, @"^[A-Z0-9]{9}$"))
+                return BadRequest(new { Message = "CIF/NIF inválido. Formato: A12345678 o B12345678" });
+
+            if (await _context.Empresas.AnyAsync(e => e.CIF == cif && e.IsActiva))
+                return BadRequest(new { Message = $"Ya existe una empresa con CIF {cif}" });
+
             var nombreLimpio = string.Join("-", nombreEmpresa.Split(new[] { ' ', '/', '\\', ':' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => string.Join("", s.Where(char.IsLetterOrDigit))));
-
-            // Asegurar que tenga un formato coherente
-            if (string.IsNullOrEmpty(nombreLimpio))
-                nombreLimpio = "Empresa";
+            if (string.IsNullOrEmpty(nombreLimpio)) nombreLimpio = "Empresa";
 
             var empresa = new Empresa
             {
                 NombreComercial = nombreLimpio,
                 RazonSocial = nombreEmpresa,
-                CIF = $"B{Guid.NewGuid():N}"[..10],
+                CIF = cif,
                 SerieFacturacion = DateTime.UtcNow.Year.ToString(),
                 IvaDefecto = 21m,
                 IsActiva = true,
@@ -88,30 +113,12 @@ namespace ERP.Api.Controllers
             _context.Empresas.Add(empresa);
             await _context.SaveChangesAsync();
 
-            // El usuario inicial (admin@erp.local) NO se vincula nunca: sigue vacío.
-            // Solo se vincula un usuario real autenticado que aún no tenga empresa.
-            try
-            {
-                ApplicationUser? targetUser = null;
-                if (User?.Identity?.IsAuthenticated == true)
-                {
-                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                    if (!string.IsNullOrEmpty(userId))
-                        targetUser = await _userManager.FindByIdAsync(userId);
-                }
+            // Crear BBDD por empresa: GestionX.db (visible en carpeta, para miles de PCs/empresas)
+            // El pasillo admin@erp.local NO se vincula (sigue vacío, sin empresa), el nuevo usuario de Paso 2 se vinculará a esta empresa
+            string tenantFile = "";
+            try { tenantFile = await _tenantService.EnsureTenantDatabaseAsync(empresa); } catch { }
 
-                if (targetUser != null
-                    && !ERP.Domain.Constants.BootstrapUser.IsBootstrap(targetUser.Email)
-                    && !ERP.Domain.Constants.BootstrapUser.IsBootstrap(targetUser.UserName)
-                    && targetUser.EmpresaId == null)
-                {
-                    targetUser.EmpresaId = empresa.Id;
-                    await _userManager.UpdateAsync(targetUser);
-                }
-            }
-            catch { /* no bloquea la creación si falla la vinculación */ }
-
-            return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
+            return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, new { empresa.Id, empresa.RazonSocial, empresa.NombreComercial, empresa.CIF, TenantDatabase = tenantFile, Mensaje = tenantFile != "" ? $"BBDD {System.IO.Path.GetFileName(tenantFile)} creada" : null });
         }
 
         /// <summary>
@@ -146,25 +153,9 @@ namespace ERP.Api.Controllers
                 _context.Empresas.Add(empresa);
                 await _context.SaveChangesAsync();
 
-                // El usuario inicial (admin@erp.local) NO se vincula nunca: sigue vacío.
-                // Solo se vincula un usuario real que aún no tenga empresa.
-                try
-                {
-                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                    if (!string.IsNullOrEmpty(userId))
-                    {
-                        var u = await _userManager.FindByIdAsync(userId);
-                        if (u != null
-                            && !ERP.Domain.Constants.BootstrapUser.IsBootstrap(u.Email)
-                            && !ERP.Domain.Constants.BootstrapUser.IsBootstrap(u.UserName)
-                            && u.EmpresaId == null)
-                        {
-                            u.EmpresaId = empresa.Id;
-                            await _userManager.UpdateAsync(u);
-                        }
-                    }
-                }
-                catch { }
+                // Crear BBDD por empresa: GestionX.db (para miles de PCs/empresas)
+                // Nota: admin@erp.local (pasillo) NO se vincula nunca, sigue vacío
+                try { await _tenantService.EnsureTenantDatabaseAsync(empresa); } catch { }
 
                 return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
             }

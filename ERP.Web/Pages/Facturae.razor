@@ -1,9 +1,8 @@
 @page "/facturae"
 @using ERP.Domain.Entities
 @using ERP.Web.Services
-@using ERP.Services
 @inject EmpresaService EmpresaService
-@inject FacturaeService FacturaeService
+@inject HttpClient Http
 @inject NotificationService Notification
 @inject NavigationManager Nav
 
@@ -159,13 +158,15 @@
 
         try
         {
-            var factResult = await FacturaeService.GetFacturasElectronicasAsync(Empresa.Id == 0 ? null : Empresa.Id);
+            // Intenta cargar desde API Fiscal/Facturae si existe, si no muestra vacío (evita DI crash WASM)
+            var factResult = await Http.GetFromJsonAsync<List<FacturaElectronica>>("api/Facturae") ?? new List<FacturaElectronica>();
+            // Si el endpoint no existe (404), se captura y queda vacío
             Facturas = factResult.Select(f => new FacturaElectronicaView
             {
                 Id = f.Id,
                 Documento = f.Documento ?? new DocumentoComercial { NumeroDocumento = "-", Fecha = f.FechaCreacion },
-                FormatoTexto = f.Formato switch { FormatoFacturaElectronica.Facturae32 => "Facturae 3.2.2", FormatoFacturaElectronica.UBL21 => "UBL", FormatoFacturaElectronica.CEFACT => "CEFACT", _ => "Desconocido" },
-                EstadoTexto = f.Estado switch { EstadoFacturaElectronica.Borrador => "Borrador", EstadoFacturaElectronica.Generada => "Generada", EstadoFacturaElectronica.Firmada => "Firmada", EstadoFacturaElectronica.Registrada => "Registrada", EstadoFacturaElectronica.Aceptada => "Aceptada", EstadoFacturaElectronica.Rechazada => "Rechazada", EstadoFacturaElectronica.Pagada => "Pagada", EstadoFacturaElectronica.Anulada => "Anulada", _ => f.Estado.ToString() },
+                FormatoTexto = f.Formato.ToString(),
+                EstadoTexto = f.Estado.ToString(),
                 ImporteTotal = f.Documento?.Total ?? 0m
             }).ToList();
         }
@@ -188,9 +189,9 @@
 
         try
         {
-            await FacturaeService.RegistrarEnFACeAsync(factura.Id);
-            Notification.Success("Factura registrada en FACe correctamente");
-            await OnInitializedAsync();
+            var resp = await Http.PostAsync($"api/Facturae/{factura.Id}/registrar-face", null);
+            if (resp.IsSuccessStatusCode) { Notification.Success("Factura registrada en FACe correctamente"); await OnInitializedAsync(); }
+            else Notification.Error($"FACe no disponible: {await resp.Content.ReadAsStringAsync()}");
         }
         catch (Exception ex)
         {

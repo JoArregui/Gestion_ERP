@@ -85,9 +85,30 @@ namespace ERP.Web.Services
             return result;
         }
 
+        public async Task<(bool ok, string message)> ForgotPassword(string email)
+        {
+            var resp = await _httpClient.PostAsJsonAsync("api/auth/forgot-password", new { Email = email });
+            var body = await resp.Content.ReadAsStringAsync();
+            if (resp.IsSuccessStatusCode) return (true, body);
+            return (false, body);
+        }
+
+        public async Task<(bool ok, string message)> ResetPassword(string email, string token, string newPassword, string confirmPassword)
+        {
+            var resp = await _httpClient.PostAsJsonAsync("api/auth/reset-password", new { Email = email, Token = token, NewPassword = newPassword, ConfirmPassword = confirmPassword });
+            var body = await resp.Content.ReadAsStringAsync();
+            if (resp.IsSuccessStatusCode) return (true, body);
+            return (false, body);
+        }
+
         public async Task Logout()
         {
-            await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
+            // Borrado completo de sesión para evitar remanentes entre usuarios/empresas
+            // Limpia authToken + estado de empresa + onboarding + cabecera HTTP
+            try { await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken"); } catch { }
+            try { await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "erp_empresas_active_id"); } catch { }
+            try { await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "erp_onboarding_dismissed"); } catch { }
+            try { await _jsRuntime.InvokeVoidAsync("eval", "Object.keys(localStorage).forEach(k=>{if(k.startsWith('erp_'))localStorage.removeItem(k)}); try{sessionStorage.clear();}catch(e){}"); } catch { }
             _authStateProvider.NotifyUserLogout();
             _httpClient.DefaultRequestHeaders.Authorization = null;
         }

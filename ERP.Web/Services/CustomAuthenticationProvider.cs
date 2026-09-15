@@ -26,8 +26,11 @@ namespace ERP.Web.Services
 
                 try
                 {
-                    // En Blazor WASM el JS Interop puede fallar durante el arranque / desconexión
-                    token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+                    // Timeout 1.5s para evitar spinner infinito si JS no responde (WASM pasillo)
+                    var jsTask = _jsRuntime.InvokeAsync<string>("localStorage.getItem", "authToken").AsTask();
+                    var completed = await Task.WhenAny(jsTask, Task.Delay(1500));
+                    if (completed != jsTask) return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+                    token = await jsTask;
                 }
                 catch (InvalidOperationException)
                 {
@@ -39,7 +42,6 @@ namespace ERP.Web.Services
                 }
                 catch (Exception)
                 {
-                    // JSDisconnectedException y otros durante blazor-error-ui / reload
                     return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
                 }
 
@@ -59,14 +61,12 @@ namespace ERP.Web.Services
             {
                 try
                 {
-                    await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
+                    // Fire-and-forget con timeout para no bloquear Authorizing
+                    var rmTask = _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken").AsTask();
+                    await Task.WhenAny(rmTask, Task.Delay(500));
                 }
-                catch
-                {
-                    // Evita que un fallo de JS Interop al limpiar detenga la app
-                }
-
-                _httpClient.DefaultRequestHeaders.Authorization = null;
+                catch { }
+                try { _httpClient.DefaultRequestHeaders.Authorization = null; } catch { }
                 return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
             }
         }

@@ -32,21 +32,25 @@
         <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div class="md:col-span-6">
                 <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Artículo</label>
-                <select @bind="articuloId" class="w-full rounded-xl border border-slate-200 p-4 bg-slate-50">
+                <select value="@articuloId" @onchange="OnArticuloSeleccionado" class="w-full rounded-xl border border-slate-200 p-4 bg-slate-50">
                     <option value="0">Selecciona un artículo</option>
                     @foreach (var articulo in articulos)
                     {
-                        <option value="@articulo.Id">@articulo.Codigo - @articulo.Descripcion</option>
+                        <option value="@articulo.Id">@articulo.Codigo - @articulo.Descripcion (@articulo.PrecioCompra.ToString("C2"))</option>
                     }
                 </select>
+                @if (articuloId != 0 && articulos.FirstOrDefault(a => a.Id == articuloId) is Articulo sel)
+                {
+                    <p class="text-[10px] text-slate-400 mt-1">Precio compra sugerido: <span class="font-bold text-slate-600">@sel.PrecioCompra.ToString("C2")</span> · editable</p>
+                }
             </div>
             <div class="md:col-span-2">
                 <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Cantidad</label>
-                <input @bind="cantidad" type="number" min="1" step="0.01" class="w-full rounded-xl border border-slate-200 p-4 bg-slate-50" />
+                <input @bind="cantidad" @bind:event="oninput" type="number" min="1" step="0.01" class="w-full rounded-xl border border-slate-200 p-4 bg-slate-50" />
             </div>
             <div class="md:col-span-2">
-                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Precio</label>
-                <input @bind="precio" type="number" min="0" step="0.01" class="w-full rounded-xl border border-slate-200 p-4 bg-slate-50" />
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Precio <span class="text-[9px] normal-case font-normal text-slate-400">(editable)</span></label>
+                <input @bind="precio" @bind:event="oninput" type="number" min="0" step="0.01" class="w-full rounded-xl border border-slate-200 p-4 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0,00" />
             </div>
             <button @onclick="AnadirLinea" class="md:col-span-2 rounded-xl bg-slate-900 text-white p-4 text-xs font-black uppercase">Añadir línea</button>
         </div>
@@ -95,6 +99,29 @@
     {
         proveedores = await Http.GetFromJsonAsync<List<Proveedor>>("api/proveedores") ?? new();
         articulos = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos") ?? new();
+    }
+
+    private void OnArticuloSeleccionado(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            articuloId = id;
+            var articulo = articulos.FirstOrDefault(a => a.Id == id);
+            if (articulo != null)
+            {
+                // Carga automática del precio de compra, editable después
+                precio = articulo.PrecioCompra;
+            }
+            else
+            {
+                precio = 0;
+            }
+        }
+        else
+        {
+            articuloId = 0;
+            precio = 0;
+        }
     }
 
     private async Task AnadirLinea()

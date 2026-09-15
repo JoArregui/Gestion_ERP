@@ -1,9 +1,8 @@
 @page "/verifactu"
 @using ERP.Domain.Entities
 @using ERP.Web.Services
-@using ERP.Services
-@inject VerifactuService VerifactuService
 @inject EmpresaService EmpresaService
+@inject HttpClient Http
 @inject NotificationService Notification
 @inject NavigationManager Nav
 @implements IDisposable
@@ -169,36 +168,45 @@
         var emp = await EmpresaService.GetEmpresaActualAsync();
         Empresa = emp ?? new Empresa { RazonSocial = "Empresa sin configurar" };
 
-        var altaResult = await VerifactuService.GetRegistrosAltaAsync(Empresa.Id == 0 ? null : Empresa.Id);
-        var anulResult = await VerifactuService.GetRegistrosAnulacionAsync(Empresa.Id == 0 ? null : Empresa.Id);
-
-        RegistrosAlta = altaResult.Select(r => new AltaView
+        try
         {
-            Id = r.Id,
-            FechaHoraHusoGeneracion = r.FechaHoraHusoGeneracion,
-            NombreRazonEmisor = r.NombreRazonEmisor ?? r.NifEmisor,
-            NifEmisor = r.NifEmisor,
-            TipoRectificativa = r.TipoRectificativa,
-            DescripcionOperacion = r.DescripcionOperacion ?? "",
-            Hash = r.Huella ?? "",
-            Estado = r.EstadoRemision == "Pendiente" ? 0 : r.EstadoRemision == "Aceptado" ? 1 : 0,
-            FechaRemision = r.FechaRemision,
-            EstadoRemision = r.EstadoRemision
-        }).ToList();
+            var empresaId = Empresa.Id == 0 ? 0 : Empresa.Id;
+            var altaResult = await Http.GetFromJsonAsync<List<ERP.Domain.Entities.RegistroVerifactu>>($"api/Verifactu/altas?empresaId={empresaId}") ?? new();
+            var anulResult = await Http.GetFromJsonAsync<List<ERP.Domain.Entities.RegistroVerifactuAnulacion>>($"api/Verifactu/anulaciones?empresaId={empresaId}") ?? new();
 
-        RegistrosAnulacion = anulResult.Select(r => new AltaView
+            RegistrosAlta = altaResult.Select(r => new AltaView
+            {
+                Id = r.Id,
+                FechaHoraHusoGeneracion = r.FechaHoraHusoGeneracion,
+                NombreRazonEmisor = r.NombreRazonEmisor ?? r.NifEmisor,
+                NifEmisor = r.NifEmisor,
+                TipoRectificativa = r.TipoRectificativa,
+                DescripcionOperacion = r.DescripcionOperacion ?? "",
+                Hash = r.Huella ?? "",
+                Estado = r.EstadoRemision == "Pendiente" ? 0 : r.EstadoRemision == "Aceptado" ? 1 : 0,
+                FechaRemision = r.FechaRemision,
+                EstadoRemision = r.EstadoRemision
+            }).ToList();
+
+            RegistrosAnulacion = anulResult.Select(r => new AltaView
+            {
+                Id = r.RegistroAltaId,
+                FechaHoraHusoGeneracion = r.FechaHoraHusoGeneracion,
+                NombreRazonEmisor = r.NifEmisor,
+                NifEmisor = r.NifEmisor,
+                TipoRectificativa = null,
+                DescripcionOperacion = $"Anulación factura {r.NumeroFactura}",
+                Hash = r.Huella ?? "",
+                Estado = 1,
+                FechaRemision = r.FechaRemision,
+                EstadoRemision = r.EstadoRemision
+            }).ToList();
+        }
+        catch
         {
-            Id = r.RegistroAltaId,
-            FechaHoraHusoGeneracion = r.FechaHoraHusoGeneracion,
-            NombreRazonEmisor = r.NifEmisor,
-            NifEmisor = r.NifEmisor,
-            TipoRectificativa = null,
-            DescripcionOperacion = $"Anulación factura {r.NumeroFactura}",
-            Hash = r.Huella ?? "",
-            Estado = 1,
-            FechaRemision = r.FechaRemision,
-            EstadoRemision = r.EstadoRemision
-        }).ToList();
+            // Si API no disponible, muestra vacío sin romper WASM (evita blazor-error-ui)
+            RegistrosAlta = new(); RegistrosAnulacion = new();
+        }
 
         if (RegistrosAlta.Any())
         {
@@ -217,23 +225,14 @@
             return;
         }
 
-        var exito = await VerifactuService.GenerarRegistroAltaAsync(
-           EmpresaId: Empresa.Id,
-           FechaHora: fechaAlta,
-           NombreRazonEmisor: Empresa.RazonSocial ?? "Sin nombre",
-           TipoRectificativa: tipoRectificativa ?? 0,
-           DescripcionOperacion: descripcionOperacion
-        );
-
-        if (exito)
+        try
         {
-            Notification.Success("Registro VERI*FACTU generado correctamente");
-            await OnInitializedAsync();
+            var payload = new { EmpresaId = Empresa.Id, FechaHora = fechaAlta, NombreRazonEmisor = Empresa.RazonSocial ?? "Sin nombre", TipoRectificativa = tipoRectificativa ?? 0, DescripcionOperacion = descripcionOperacion };
+            var resp = await Http.PostAsJsonAsync("api/Verifactu/alta", payload);
+            if (resp.IsSuccessStatusCode) { Notification.Success("Registro VERI*FACTU generado correctamente"); await OnInitializedAsync(); }
+            else Notification.Error($"No se pudo generar: {await resp.Content.ReadAsStringAsync()}");
         }
-        else
-        {
-            Notification.Error("No se pudo generar el registro - verificar conexión SII");
-        }
+        catch (Exception ex) { Notification.Error($"Error SII: {ex.Message}"); }
     }
 
     private void EliminarSeleccion()

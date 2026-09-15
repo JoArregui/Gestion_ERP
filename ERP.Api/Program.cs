@@ -16,14 +16,39 @@ using ERP.Services; // SeedService para seeding inicial
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. CONFIGURACIÓN DE BASE DE DATOS ---
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-var useSqlite = builder.Configuration.GetValue<bool>("Database:UseSqlite");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// BBDD INICIAL erp.db (maestro) con todos los usuarios duplicados. Por request se resuelve GestionX.db vía claim Tenant.
+// Si no hay Tenant (bootstrap admin@erp.local pasillo) se usa DefaultConnection (maestro).
+var masterConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=erp.db";
+var masterUseSqlite = builder.Configuration.GetValue<bool>("Database:UseSqlite");
+var contentRoot = builder.Environment.ContentRootPath;
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
 {
-    if (useSqlite)
-        options.UseSqlite(connectionString);
+    var httpCtx = sp.GetService<IHttpContextAccessor>()?.HttpContext;
+    var tenantFile = httpCtx?.User?.FindFirst("Tenant")?.Value;
+    string conn = masterConnectionString;
+    bool useSqlite = masterUseSqlite;
+    if (!string.IsNullOrWhiteSpace(tenantFile))
+    {
+        var masterFile = masterConnectionString.Contains("Data Source=") ? masterConnectionString.Split("Data Source=")[1].Split(';')[0].Trim() : "erp.db";
+        var dir = Path.IsPathRooted(masterFile) ? Path.GetDirectoryName(masterFile)! : contentRoot;
+        var tenantPath = Path.Combine(dir, tenantFile);
+        if (File.Exists(tenantPath))
+        {
+            conn = $"Data Source={tenantPath}";
+            useSqlite = true;
+        }
+    }
     else
-        options.UseSqlServer(connectionString);
+    {
+        // Asegurar que maestro apunta a ContentRoot, no a bin
+        if (masterConnectionString.Contains("Data Source="))
+        {
+            var mf = masterConnectionString.Split("Data Source=")[1].Split(';')[0].Trim();
+            if (!Path.IsPathRooted(mf)) conn = $"Data Source={Path.Combine(contentRoot, mf)}";
+        }
+    }
+    if (useSqlite) options.UseSqlite(conn); else options.UseSqlServer(conn);
 });
 
 // --- 2. CONFIGURACIÓN DE IDENTITY ---
@@ -105,6 +130,14 @@ builder.Services.AddScoped<ComprasService>();
 builder.Services.AddScoped<CicloFacturacionService>();
 builder.Services.AddScoped<FacturacionService>();
 builder.Services.AddScoped<VerifactuService>();
+// Módulos legales 2026 - Dossier §3-9
+builder.Services.AddScoped<ERP.Services.Bancario.BancarioService>();
+builder.Services.AddScoped<ERP.Services.Bancario.SepaXmlGeneratorService>();
+builder.Services.AddScoped<ERP.Services.Contabilidad.ContabilidadService>();
+builder.Services.AddScoped<ERP.Services.Trazabilidad.TrazabilidadService>();
+builder.Services.AddScoped<ERP.Services.Fiscal.MotorIVAService>();
+// Onboarding multi-tenant: GestionX.db por empresa (miles de PCs/empresas)
+builder.Services.AddScoped<ERP.Services.Tenant.TenantDatabaseService>();
 
 builder.Services.AddControllers(o => o.Filters.Add<ERP.Api.Infrastructure.BootstrapOnlyOnboardingFilter>()).AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
@@ -159,14 +192,18 @@ using (var scope = app.Services.CreateScope())
         }
         await SeedService.SeedAsync(context);
 
-        // --- 8b. SEED BOOTSTRAP: credenciales iniciales para BBDD vacía ---
-        // No crea empresa demo. El primer usuario entra con credenciales iniciales
-        // y desde la UI crea la empresa, familias, artículos, etc.
+        // --- 8b. SEED BOOTSTRAP: usuario genérico ÚNICO de primera interacción ---
+        // Un solo usuario (admin@erp.local), SIN rol de administrador y SIN permisos.
+        // Lo único que puede hacer es el primer onboarding: crear la empresa
+        // y el primer usuario asociado a esa empresa.
         if (!await roleManager.RoleExistsAsync("Admin"))
             await roleManager.CreateAsync(new IdentityRole("Admin"));
 
-        // Usuario genérico ÚNICO de primera interacción (admin@erp.local),
-        // SIN rol de administrador y SIN permisos: solo primer onboarding.
+        // Limpieza del alias legacy: solo existe admin@erp.local
+        var legacyCom = await userManager.FindByEmailAsync("admin@erp.com");
+        if (legacyCom != null)
+            await userManager.DeleteAsync(legacyCom);
+
         var bootstrapEmail = ERP.Domain.Constants.BootstrapUser.Email;
         var bootstrap = await userManager.FindByEmailAsync(bootstrapEmail);
         if (bootstrap == null)
@@ -190,10 +227,6 @@ using (var scope = app.Services.CreateScope())
         if (bootstrap != null)
         {
             // El usuario inicial NUNCA tiene rol Admin ni permisos: solo onboarding.
-            // También se elimina el alias legacy admin@erp.com si existiera.
-            var legacyCom = await userManager.FindByEmailAsync("admin@erp.com");
-            if (legacyCom != null)
-                await userManager.DeleteAsync(legacyCom);
             if (await userManager.IsInRoleAsync(bootstrap, "Admin"))
                 await userManager.RemoveFromRoleAsync(bootstrap, "Admin");
             var bootstrapClaims = await userManager.GetClaimsAsync(bootstrap);

@@ -15,18 +15,15 @@ namespace ERP.Web.Services
         private readonly IJSRuntime _jsRuntime;
         private readonly NavigationManager _navManager;
         private readonly NotificationService _notify;
-        private readonly IServiceProvider _serviceProvider;
 
         public ErrorHandlerHandler(
             IJSRuntime jsRuntime, 
             NavigationManager navManager, 
-            NotificationService notify,
-            IServiceProvider serviceProvider)
+            NotificationService notify)
         {
             _jsRuntime = jsRuntime;
             _navManager = navManager;
             _notify = notify;
-            _serviceProvider = serviceProvider;
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -72,11 +69,9 @@ namespace ERP.Web.Services
             try
             {
                 try { await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken"); } catch { }
-                var authProvider = _serviceProvider.GetService<AuthenticationStateProvider>();
-                if (authProvider is CustomAuthenticationProvider provider)
-                {
-                    provider.NotifyUserLogout();
-                }
+                // No resolvemos AuthenticationStateProvider aquí para evitar ciclo
+                // CustomAuthenticationProvider <-> HttpClient <-> ErrorHandlerHandler
+                // El logout se notificará en el próximo GetAuthenticationStateAsync
                 _notify.Error("Sesión expirada. Por favor, vuelva a iniciar sesión.");
             }
             catch { }

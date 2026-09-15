@@ -6,7 +6,7 @@
 
 ### 1. Introducción
 
-**ERP.NET** es una solución de planificación empresarial (ERP) completa diseñada específicamente para PYMES y autónomos en España, cumpliendo con la normativa legal 2026. El sistema integra módulos de ventas, compras, inventario, RR.HH., fiscalidad, verifactu, factura electrónica y contabilidad.
+**ERP.NET** es una solución de planificación empresarial (ERP) completa diseñada específicamente para PYMES y autónomos en España, cumpliendo con la normativa legal. El sistema integra módulos de ventas, compras, inventario, RR.HH., fiscalidad, verifactu, factura electrónica y contabilidad.
 
 **Arquitectura**: Aplicación Web Blazor con API REST subyacente.
 **Acceso**: Navegador web en `http://localhost:5109`
@@ -183,7 +183,7 @@
 
 ### 6. Cuestiones Importantes y Consideraciones
 
-#### 6.1. Cumplimiento Legal 2026
+#### 6.1. Cumplimiento Legal
 - **Verifactu**: Obligatorio para facturas emitidas a partir de julio de 2025. El sistema genera registros SIF con hash SHA256 encadenado.
 - **Factura Electrónica (FACe)**: Obligatorio para facturas a administraciones públicas. Formato Facturae 3.2.x con firma XAdES.
 - **Control Horario Digital**: Registro obligatorio de entrada/salida por RDL 8/2019. El módulo RR.HH. cumple este requisito.

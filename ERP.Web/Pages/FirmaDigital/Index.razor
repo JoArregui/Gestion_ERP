@@ -1,0 +1,75 @@
+@page "/firmadigital"
+@attribute [Authorize]
+@using ERP.Domain.Entities.FirmaDigital
+@inject HttpClient Http
+@inject ERP.Web.Services.NotificationService Notify
+@inject IJSRuntime JS
+
+<div class="p-8 bg-slate-50 min-h-screen">
+    <div class="flex justify-between items-end mb-8">
+        <div><p class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">eIDAS 910/2014 · Ley 6/2020</p><h1 class="text-4xl font-black italic uppercase tracking-tighter">Firma <span class="text-blue-600">Digital</span></h1><p class="text-sm text-slate-500">QSCD · PAdES/XAdES/CAdES · RFC3161 · QTSP</p></div>
+        <div class="flex gap-2">
+            <button @onclick='()=>tab="certs"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="certs"?"bg-slate-900 text-white":"bg-white border")">Certificados</button>
+            <button @onclick='()=>tab="firmas"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="firmas"?"bg-slate-900 text-white":"bg-white border")">Firmas</button>
+            <button @onclick='()=>tab="solicitudes"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="solicitudes"?"bg-slate-900 text-white":"bg-white border")">Solicitudes</button>
+            <button @onclick='()=>tab="sellos"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="sellos"?"bg-slate-900 text-white":"bg-white border")">Sellos</button>
+            <button @onclick='()=>tab="coms"' class="px-5 py-3 rounded-xl text-xs font-black uppercase @(tab=="coms"?"bg-slate-900 text-white":"bg-white border")">Comunicaciones</button>
+        </div>
+    </div>
+
+    @if(tab=="certs"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Certificados X.509 (QTSP)</h3><button @onclick="CrearCertDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Cert demo</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Nombre</th><th class="p-4">Subject</th><th class="p-4">Válido</th><th class="p-4">Días</th><th class="p-4">QTSP</th><th></th></tr></thead><tbody>@foreach(var c in certs){<tr class="border-t"><td class="p-4 font-bold">@c.Nombre</td><td class="p-4 font-mono text-xs">@c.SubjectDN</td><td class="p-4">@c.NotBefore.ToString("dd/MM/yyyy") - @c.NotAfter.ToString("dd/MM/yyyy") @(c.EstaVigente?"✓":"✗")</td><td class="p-4 @(c.EstaProximoExpirar?"text-amber-600 font-black":"")">@c.DiasParaExpiracion</td><td class="p-4">@c.QTSP</td><td class="p-4 text-right"><button @onclick="()=>Revocar(c.Id)" class="text-rose-600 text-xs font-black">Revocar</button></td></tr>} @if(!certs.Any()){<tr><td colspan="6" class="p-12 text-center text-slate-400">Sin certificados</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="firmas"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Firmas Electrónicas</h3><button @onclick="CrearFirmaDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Firmar doc demo</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Doc</th><th class="p-4">Tipo/Formato</th><th class="p-4">Firmante</th><th class="p-4">Validez</th><th></th></tr></thead><tbody>@foreach(var f in firmas){<tr class="border-t"><td class="p-4">@f.DocumentoTipo #@f.DocumentoId</td><td class="p-4">@f.Tipo / @f.Formato</td><td class="p-4">@f.FirmanteNombre</td><td class="p-4">@f.EstadoVerificacion @(f.EsValidaLegal?"✓":"")</td><td class="p-4 text-right"><button @onclick="()=>Verificar(f.Id)" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs">Verificar</button></td></tr>} @if(!firmas.Any()){<tr><td colspan="5" class="p-12 text-center text-slate-400">Sin firmas</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="solicitudes"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Solicitudes de Firma</h3><button @onclick="CrearSolicitudDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Solicitud</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Ref</th><th class="p-4">Título</th><th class="p-4">Estado</th><th></th></tr></thead><tbody>@foreach(var s in solicitudes){<tr class="border-t"><td class="p-4 font-mono">@s.Referencia</td><td class="p-4">@s.Titulo</td><td class="p-4">@s.Estado</td><td class="p-4 text-right"><button @onclick="()=>Recordatorio(s.Id)" class="bg-blue-600 text-white px-3 py-2 rounded-xl text-xs">Recordatorio</button></td></tr>} @if(!solicitudes.Any()){<tr><td colspan="4" class="p-12 text-center text-slate-400">Sin solicitudes</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="sellos"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Sellos Tiempo RFC3161</h3><button @onclick="CrearSelloDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Sello</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Hash</th><th class="p-4">TSA</th><th class="p-4">Fecha</th></tr></thead><tbody>@foreach(var s in sellos){<tr class="border-t"><td class="p-4 font-mono text-xs">@s.HashDatosSHA256.Substring(0,8)...</td><td class="p-4">@s.TSAName</td><td class="p-4">@s.FechaTimestamp.ToString("dd/MM/yyyy HH:mm")</td></tr>} @if(!sellos.Any()){<tr><td colspan="3" class="p-12 text-center text-slate-400">Sin sellos</td></tr>}</tbody></table>
+        </div>
+    }
+    @if(tab=="coms"){
+        <div class="bg-white rounded-3xl shadow-xl border p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-black uppercase text-sm">Comunicaciones Certificadas (eIDAS Art.43)</h3><button @onclick="CrearComDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Comunicación</button></div>
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4">Ref</th><th class="p-4">Asunto</th><th class="p-4">Estado</th><th></th></tr></thead><tbody>@foreach(var c in coms){<tr class="border-t"><td class="p-4 font-mono">@c.Referencia</td><td class="p-4">@c.Asunto</td><td class="p-4">@c.Estado</td><td class="p-4 text-right"><button @onclick="()=>Acuse(c.Id)" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs">Acuse</button></td></tr>} @if(!coms.Any()){<tr><td colspan="4" class="p-12 text-center text-slate-400">Sin comunicaciones</td></tr>}</tbody></table>
+        </div>
+    }
+</div>
+
+@code{
+    private string tab="certs";
+    private List<CertificadoDigital> certs=new();
+    private List<FirmaElectronica> firmas=new();
+    private List<SolicitudFirma> solicitudes=new();
+    private List<SelloTiempo> sellos=new();
+    private List<ComunicacionCertificada> coms=new();
+
+    protected override async Task OnInitializedAsync(){ await Task.WhenAll(CargarCerts(),CargarFirmas(),CargarSols(),CargarSellos(),CargarComs()); }
+    private async Task CargarCerts(){ try{ certs = await Http.GetFromJsonAsync<List<CertificadoDigital>>("api/FirmaDigital/certificados") ?? new(); }catch{}}
+    private async Task CargarFirmas(){ try{ firmas = await Http.GetFromJsonAsync<List<FirmaElectronica>>("api/FirmaDigital/firmas") ?? new(); }catch{}}
+    private async Task CargarSols(){ try{ solicitudes = await Http.GetFromJsonAsync<List<SolicitudFirma>>("api/FirmaDigital/solicitudes") ?? new(); }catch{}}
+    private async Task CargarSellos(){ try{ sellos = await Http.GetFromJsonAsync<List<SelloTiempo>>("api/FirmaDigital/sellos") ?? new(); }catch{}}
+    private async Task CargarComs(){ try{ coms = await Http.GetFromJsonAsync<List<ComunicacionCertificada>>("api/FirmaDigital/comunicaciones") ?? new(); }catch{}}
+    private async Task CrearCertDemo(){ var dto=new CertificadoDigital{ Nombre="FNMT Demo", SubjectDN="CN=Demo", IssuerDN="CN=FNMT", NotBefore=DateTime.Now.AddDays(-1), NotAfter=DateTime.Now.AddYears(1), SerialNumber=Guid.NewGuid().ToString("N"), ThumbprintSHA256=Convert.ToHexString(System.Security.Cryptography.SHA256.Create().ComputeHash(System.Text.Encoding.UTF8.GetBytes(Guid.NewGuid().ToString()))), ThumbprintSHA1="00", PublicKeyPem="-----BEGIN PUBLIC KEY-----", QTSP="FNMT" }; var r=await Http.PostAsJsonAsync("api/FirmaDigital/certificados", dto); Notify.Success(r.IsSuccessStatusCode?"Cert creado":await r.Content.ReadAsStringAsync()); await CargarCerts(); }
+    private async Task Revocar(int id){ var r=await Http.PostAsJsonAsync($"api/FirmaDigital/certificados/{id}/revocar", new{ Motivo="Demo" }); Notify.Success(r.IsSuccessStatusCode?"Revocado":await r.Content.ReadAsStringAsync()); await CargarCerts(); }
+    private async Task CrearFirmaDemo(){ if(!certs.Any()){Notify.Error("Crea certificado primero");return;} var dto=new FirmaElectronica{ CertificadoId=certs[0].Id, Tipo=TipoFirma.Avanzada, Formato=FormatoFirma.PAdES, DocumentoTipo="Factura", DocumentoId=1, HashDocumentoSHA256=Convert.ToHexString(System.Security.Cryptography.SHA256.Create().ComputeHash(System.Text.Encoding.UTF8.GetBytes("demo"))), FirmanteNombre="Demo", FirmanteNIF="00000000A" }; var r=await Http.PostAsJsonAsync("api/FirmaDigital/firmas", dto); Notify.Success(r.IsSuccessStatusCode?"Firmado":await r.Content.ReadAsStringAsync()); await CargarFirmas(); }
+    private async Task Verificar(int id){ var r=await Http.PostAsync($"api/FirmaDigital/firmas/{id}/verificar", null); Notify.Success(r.IsSuccessStatusCode?"Verificación OK":await r.Content.ReadAsStringAsync()); await CargarFirmas(); }
+    private async Task CrearSolicitudDemo(){ var dto=new SolicitudFirma{ Referencia=$"SOL-{DateTime.Now:yyyyMMddHHmmss}", Titulo="Contrato demo", DocumentoBase64=Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("demo")), NombreArchivo="demo.pdf", HashDocumentoSHA256=Convert.ToHexString(System.Security.Cryptography.SHA256.Create().ComputeHash(System.Text.Encoding.UTF8.GetBytes("demo")))}; var r=await Http.PostAsJsonAsync("api/FirmaDigital/solicitudes", dto); Notify.Success(r.IsSuccessStatusCode?"Solicitud creada":await r.Content.ReadAsStringAsync()); await CargarSols(); }
+    private async Task Recordatorio(int id){ var r=await Http.PostAsync($"api/FirmaDigital/solicitudes/{id}/recordatorio", null); Notify.Success(r.IsSuccessStatusCode?"Recordatorio enviado":await r.Content.ReadAsStringAsync()); }
+    private async Task CrearSelloDemo(){ var dto=new SelloTiempo{ HashDatosSHA256=Convert.ToHexString(System.Security.Cryptography.SHA256.Create().ComputeHash(System.Text.Encoding.UTF8.GetBytes(Guid.NewGuid().ToString()))), TSAUrl="https://tsa.fnmt.es", TSAName="FNMT-TSA" }; var r=await Http.PostAsJsonAsync("api/FirmaDigital/sellos", dto); Notify.Success(r.IsSuccessStatusCode?"Sello creado":await r.Content.ReadAsStringAsync()); await CargarSellos(); }
+    private async Task CrearComDemo(){ var dto=new ComunicacionCertificada{ Referencia=$"COM-{DateTime.Now:yyyyMMddHHmmss}", Asunto="Notificación demo", Contenido="Contenido certificado demo", RemitenteNombre="ERP", RemitenteEmail="noreply@erp.local", DestinatariosJson="[\"dest@example.com\"]" }; var r=await Http.PostAsJsonAsync("api/FirmaDigital/comunicaciones", dto); Notify.Success(r.IsSuccessStatusCode?"Comunicación creada":await r.Content.ReadAsStringAsync()); await CargarComs(); }
+    private async Task Acuse(int id){ var r=await Http.PostAsJsonAsync($"api/FirmaDigital/comunicaciones/{id}/acuse", Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("prueba entrega"))); Notify.Success(r.IsSuccessStatusCode?"Acuse registrado":await r.Content.ReadAsStringAsync()); await CargarComs(); }
+}

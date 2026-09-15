@@ -219,6 +219,7 @@
         try 
         {
             empresas = await Http.GetFromJsonAsync<List<Empresa>>("api/empresas");
+            // Filtrado server-side por EmpresaId (pasillo 0 -> vacio, privado -> solo suya)
         } 
         catch (Exception ex) 
         { 

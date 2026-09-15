@@ -1,11 +1,11 @@
 @echo off
-title Iniciar ERP - Ciclo Legal 2026
+title Iniciar ERP - Ciclo Legal 
 color 0A
 cls
 
 echo.
 echo ==========================================
-echo  Iniciando ERP - Ciclo Legal 2026
+echo  Iniciando ERP - Ciclo Legal 
 echo ==========================================
 echo.
 

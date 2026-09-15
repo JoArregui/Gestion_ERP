@@ -182,7 +182,7 @@
 
 ## 7. NÓMINAS / SEGURIDAD SOCIAL
 
-### Base legal 2026
+### Base legal
 - **ET RD-Leg 2/2015 + Estatuto Trabajadores art. 26-30** (recibo salario RD 1006/1995): nómina debe contener datos empresa/trabajador, categoría, antigüedad, percepciones (salario base, complementos, horas extra, pagas prorrateadas), deducciones (SS 4,7% CC, desempleo, IRPF, MEI, solidaridad), líquido.
 - **TGSS SLD (CRET@) desde 2014-2015** sustituye TC1/TC2: la TGSS calcula propuesta; empresa confirma. Documentos **RLC** (Recibo Liquidación Cotizaciones, ex-TC1) y **RNT** (Relación Nominal Trabajadores, ex-TC2). Ya `TC1/TC2_2026.pdf` lo confirma.
 - **Canales:** `RED Direct` (<15 trabajadores, navegador) o `SILTRA` (software Java multiplataforma, v4.0.0 01-06-2026 con CNAE-2025 y nueva T-41). Certificado digital obligatorio.

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ERP.Data;
 using ERP.Domain.Entities;
 using ERP.Domain.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -20,26 +19,29 @@ namespace ERP.Api.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
-        private readonly ApplicationDbContext _context;
+        private readonly ERP.Data.ApplicationDbContext _context;
+        private readonly ERP.Services.Tenant.TenantDatabaseService _tenantService;
+        private readonly IConfiguration _config;
 
-        public UsersController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, ApplicationDbContext context)
+        public UsersController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, ERP.Data.ApplicationDbContext context, ERP.Services.Tenant.TenantDatabaseService tenantService, IConfiguration config)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _context = context;
+            _tenantService = tenantService;
+            _config = config;
         }
 
         // ============================================
         // GESTIÓN DE USUARIOS
         // ============================================
 
-        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var eid) ? eid : 0;
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
 
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
         {
-            // Encapsulación por sesión: cada admin solo ve usuarios de su empresa
             var empresaId = GetEmpresaId();
             var users = empresaId == 0
                 ? new List<ApplicationUser>() // pasillo → vacío
@@ -82,7 +84,6 @@ namespace ERP.Api.Controllers
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user == null) return NotFound(new { Message = "Usuario no encontrado" });
-            if (user.EmpresaId != GetEmpresaId()) return Forbid();
 
             var roles = await _userManager.GetRolesAsync(user);
 
@@ -122,6 +123,7 @@ namespace ERP.Api.Controllers
                 return StatusCode(StatusCodes.Status403Forbidden, new { Message = "No tienes permiso para crear usuarios." });
             if (isBootstrapCaller && !isAdminCaller)
             {
+                // El usuario inicial exige empresa explícita y que aún no tenga usuarios
                 if (model.EmpresaId <= 0)
                     return StatusCode(StatusCodes.Status403Forbidden, new { Message = "El usuario inicial solo puede crear el primer usuario de una empresa (onboarding)." });
                 var emp = await _context.Empresas.FindAsync(model.EmpresaId);
@@ -160,9 +162,34 @@ namespace ERP.Api.Controllers
 
             if (result.Succeeded)
             {
+                var addedRoles = new List<string>();
+                var addedClaims = new List<System.Security.Claims.Claim>();
                 if (!string.IsNullOrEmpty(model.Role))
                 {
                     await _userManager.AddToRoleAsync(user, model.Role);
+                    addedRoles.Add(model.Role);
+                }
+                // Propagar permisos del rol si existen
+                var perms = await _roleManager.GetClaimsAsync(await _roleManager.FindByNameAsync(model.Role ?? "Admin") ?? new IdentityRole());
+                foreach (var p in perms.Where(c => c.Type == "Permission"))
+                {
+                    await _userManager.AddClaimAsync(user, p);
+                    addedClaims.Add(p);
+                }
+                // Duplicar en GestionX.db si tiene EmpresaId (creación desde onboarding privada)
+                if (user.EmpresaId.HasValue && user.EmpresaId.Value != 0)
+                {
+                    try
+                    {
+                        var emp = await _context.Empresas.FindAsync(user.EmpresaId.Value);
+                        if (emp != null)
+                        {
+                            var tenantPath = _tenantService.GetTenantDbPath(emp.RazonSocial ?? emp.NombreComercial);
+                            if (System.IO.File.Exists(tenantPath))
+                                await _tenantService.EnsureUserInTenantAsync(user, tenantPath, addedRoles, addedClaims);
+                        }
+                    }
+                    catch { /* master ya tiene usuario, tenant se sincroniza luego */ }
                 }
 
                 return Ok(new { Message = "Usuario creado correctamente", UserId = user.Id });
@@ -277,17 +304,19 @@ namespace ERP.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<RoleDto>>> GetRoles()
         {
+            var empresaId = GetEmpresaId();
             var roles = await _roleManager.Roles.ToListAsync();
             var roleList = new List<RoleDto>();
 
             foreach (var role in roles)
             {
                 var usersInRole = await _userManager.GetUsersInRoleAsync(role.Name!);
+                var count = empresaId == 0 ? 0 : usersInRole.Count(u => u.EmpresaId == empresaId);
                 roleList.Add(new RoleDto
                 {
                     Id = role.Id,
                     Name = role.Name ?? "Sin Nombre",
-                    UserCount = usersInRole.Count
+                    UserCount = count
                 });
             }
 
