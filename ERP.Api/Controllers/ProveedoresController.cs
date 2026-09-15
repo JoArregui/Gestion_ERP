@@ -24,6 +24,7 @@ namespace ERP.Api.Controllers
         public async Task<ActionResult<IEnumerable<Proveedor>>> Get()
         {
             return await _context.Proveedores
+                .AsNoTracking()
                 .OrderBy(p => p.RazonSocial)
                 .ToListAsync();
         }

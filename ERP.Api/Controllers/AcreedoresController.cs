@@ -24,6 +24,7 @@ namespace ERP.Api.Controllers
         public async Task<ActionResult<IEnumerable<Acreedor>>> Get()
         {
             return await _context.Acreedores
+                .AsNoTracking()
                 .Where(a => a.IsActivo)
                 .OrderBy(a => a.RazonSocial)
                 .ToListAsync();

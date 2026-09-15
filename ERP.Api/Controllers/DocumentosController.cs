@@ -24,39 +24,53 @@ namespace ERP.Api.Controllers
             _pdfService = pdfService;
         }
 
-        // GET: api/Documentos
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+
+        // GET: api/Documentos (solo empresa de la sesión; take opcional)
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<DocumentoComercial>>> GetDocumentos()
+        public async Task<ActionResult<IEnumerable<DocumentoComercial>>> GetDocumentos([FromQuery] int? take = null)
         {
-            return await _context.Documentos
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new List<DocumentoComercial>());
+            var query = _context.Documentos
+                .AsNoTracking()
+                .Where(d => d.EmpresaId == empresaId)
                 .Include(d => d.Cliente)
                 .Include(d => d.Proveedor)
-                .OrderByDescending(d => d.Fecha)
-                .ToListAsync();
+                .OrderByDescending(d => d.Fecha);
+            if (take.HasValue && take.Value > 0)
+                return await query.Take(Math.Min(take.Value, 500)).ToListAsync();
+            return await query.ToListAsync();
         }
 
-        // GET: api/Documentos/5
+        // GET: api/Documentos/5 (solo documentos de la empresa de la sesión)
         [HttpGet("{id}")]
         public async Task<ActionResult<DocumentoComercial>> GetDocumento(int id)
         {
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return NotFound();
             var documento = await _context.Documentos
+                .AsNoTracking()
                 .Include(d => d.Lineas)
                 .Include(d => d.Empresa)
                 .Include(d => d.Cliente)
                 .Include(d => d.Proveedor)
-                .FirstOrDefaultAsync(d => d.Id == id);
+                .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
 
             if (documento == null) return NotFound();
 
             return documento;
         }
 
-        // POST: api/Documentos
+        // POST: api/Documentos (la empresa siempre sale del token, nunca del cliente)
         [HttpPost]
         public async Task<ActionResult<DocumentoComercial>> PostDocumento(DocumentoComercial documento)
         {
             try
             {
+                var empresaId = GetEmpresaId();
+                if (empresaId == 0) return Unauthorized(new { Message = "Sesión sin empresa." });
+                documento.EmpresaId = empresaId;
                 var nuevoDoc = await _cicloService.CrearDocumento(documento);
                 return CreatedAtAction(nameof(GetDocumento), new { id = nuevoDoc.Id }, nuevoDoc);
             }
@@ -72,6 +86,10 @@ namespace ERP.Api.Controllers
         {
             try
             {
+                var empresaId = GetEmpresaId();
+                if (empresaId == 0) return Unauthorized(new { Message = "Sesión sin empresa." });
+                var propio = await _context.Documentos.AnyAsync(d => d.Id == id && d.EmpresaId == empresaId);
+                if (!propio) return NotFound(new { Message = "Documento no encontrado." });
                 var destino = await _cicloService.ConvertirDocumento(id, nuevoTipo);
                 return CreatedAtAction(nameof(GetDocumento), new { id = destino.Id }, destino);
             }
@@ -85,11 +103,14 @@ namespace ERP.Api.Controllers
         [HttpGet("{id}/pdf")]
         public async Task<IActionResult> DescargarPdf(int id)
         {
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return NotFound("Documento no encontrado.");
             var doc = await _context.Documentos
+                .AsNoTracking()
                 .Include(d => d.Lineas)
                 .Include(d => d.Empresa)
                 .Include(d => d.Cliente)
-                .FirstOrDefaultAsync(d => d.Id == id);
+                .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
 
             if (doc == null) return NotFound("Documento no encontrado.");
             if (doc.EsCompra) return BadRequest("La generación de PDF solo está disponible para documentos de venta.");
@@ -101,9 +122,9 @@ namespace ERP.Api.Controllers
                 string nombreArchivo = $"{doc.Tipo}_{doc.NumeroDocumento}.pdf";
                 return File(pdfBytes, "application/pdf", nombreArchivo);
             }
-            catch (Exception ex)
+            catch
             {
-                return StatusCode(500, $"Error al generar el PDF: {ex.Message}");
+                return StatusCode(500, "Error al generar el PDF.");
             }
         }
 

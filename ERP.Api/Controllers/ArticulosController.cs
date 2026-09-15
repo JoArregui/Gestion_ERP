@@ -148,10 +148,19 @@ namespace ERP.API.Controllers
             int empresaId = GetEmpresaId();
             var fechaSincro = DateTime.Now;
 
+            // Carga masiva en 1 query (antes: 1 SELECT por lectura = N+1)
+            var codigos = lecturas
+                .Select(l => l.CodigoBarras)
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Distinct()
+                .ToList();
+            var articulosPorCodigo = await _context.Articulos
+                .Where(a => a.EmpresaId == empresaId && codigos.Contains(a.Codigo))
+                .ToDictionaryAsync(a => a.Codigo);
+
             foreach (var lectura in lecturas)
             {
-                var articulo = await _context.Articulos
-                    .FirstOrDefaultAsync(a => a.EmpresaId == empresaId && a.Codigo == lectura.CodigoBarras);
+                if (!articulosPorCodigo.TryGetValue(lectura.CodigoBarras, out var articulo)) continue;
 
                 if (articulo != null)
                 {
@@ -179,15 +188,25 @@ namespace ERP.API.Controllers
         // --- MÉTODOS CRUD ESTÁNDAR ---
 
         [HttpGet]
-        public async Task<ActionResult> GetArticulos()
+        public async Task<ActionResult> GetArticulos([FromQuery] string? search = null, [FromQuery] int? take = null)
         {
             int empresaId = GetEmpresaId();
-            
+
             // Usamos AsNoTracking y proyección anónima/DTO para evitar
-            // excepciones por ciclos de referencia de Entity Framework al serializar JSON
-            var articulos = await _context.Articulos
+            // excepciones por ciclos de referencia de Entity Framework al serializar JSON.
+            // search/take opcionales: el TPV móvil pide páginas pequeñas en vez del catálogo entero.
+            var query = _context.Articulos
                 .AsNoTracking()
-                .Where(a => a.EmpresaId == empresaId)
+                .Where(a => a.EmpresaId == empresaId);
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                query = query.Where(a => a.Descripcion.ToLower().Contains(s) || a.Codigo.ToLower().Contains(s));
+            }
+            query = query.OrderBy(a => a.Descripcion);
+            if (take.HasValue && take.Value > 0)
+                query = query.Take(Math.Min(take.Value, 500));
+            var articulos = await query
                 .Select(a => new
                 {
                     a.Id,

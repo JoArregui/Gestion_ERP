@@ -72,9 +72,14 @@ builder.Services.AddAuthorization(options =>
 {
     foreach (var permission in AppPermissions.All)
     {
-        options.AddPolicy(permission, policy => 
+        options.AddPolicy(permission, policy =>
             policy.RequireClaim("Permission", permission));
     }
+    // Encapsulación de datos por sesión: todo endpoint exige usuario autenticado
+    // salvo [AllowAnonymous] explícito (login, forgot/reset-password, onboarding-check).
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 
 // --- 5. POLÍTICA DE CORS ---
@@ -101,7 +106,7 @@ builder.Services.AddScoped<CicloFacturacionService>();
 builder.Services.AddScoped<FacturacionService>();
 builder.Services.AddScoped<VerifactuService>();
 
-builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+builder.Services.AddControllers(o => o.Filters.Add<ERP.Api.Infrastructure.BootstrapOnlyOnboardingFilter>()).AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
 
 // --- 7. SWAGGER ---
@@ -160,7 +165,9 @@ using (var scope = app.Services.CreateScope())
         if (!await roleManager.RoleExistsAsync("Admin"))
             await roleManager.CreateAsync(new IdentityRole("Admin"));
 
-        var bootstrapEmail = "admin@erp.local";
+        // Usuario genérico ÚNICO de primera interacción (admin@erp.local),
+        // SIN rol de administrador y SIN permisos: solo primer onboarding.
+        var bootstrapEmail = ERP.Domain.Constants.BootstrapUser.Email;
         var bootstrap = await userManager.FindByEmailAsync(bootstrapEmail);
         if (bootstrap == null)
         {
@@ -168,23 +175,30 @@ using (var scope = app.Services.CreateScope())
             {
                 UserName = bootstrapEmail,
                 Email = bootstrapEmail,
-                FullName = "Administrador Inicial",
+                FullName = ERP.Domain.Constants.BootstrapUser.DisplayName,
                 EmpresaId = null, // bootstrap sin empresa; la creará tras el primer login
                 IsActivo = true,
                 EmailConfirmed = true
             };
-            var createResult = await userManager.CreateAsync(bootstrap, "Admin123!");
-            if (createResult.Succeeded)
-            {
-                await userManager.AddToRoleAsync(bootstrap, "Admin");
-                foreach (var perm in AppPermissions.All)
-                    await userManager.AddClaimAsync(bootstrap, new System.Security.Claims.Claim("Permission", perm));
-            }
-            else
+            var createResult = await userManager.CreateAsync(bootstrap, ERP.Domain.Constants.BootstrapUser.DefaultPassword);
+            if (!createResult.Succeeded)
             {
                 var loggerSeed = services.GetRequiredService<ILogger<Program>>();
                 loggerSeed.LogError("No se pudo crear usuario bootstrap: {Errors}", string.Join(", ", createResult.Errors.Select(e => e.Description)));
             }
+        }
+        if (bootstrap != null)
+        {
+            // El usuario inicial NUNCA tiene rol Admin ni permisos: solo onboarding.
+            // También se elimina el alias legacy admin@erp.com si existiera.
+            var legacyCom = await userManager.FindByEmailAsync("admin@erp.com");
+            if (legacyCom != null)
+                await userManager.DeleteAsync(legacyCom);
+            if (await userManager.IsInRoleAsync(bootstrap, "Admin"))
+                await userManager.RemoveFromRoleAsync(bootstrap, "Admin");
+            var bootstrapClaims = await userManager.GetClaimsAsync(bootstrap);
+            foreach (var c in bootstrapClaims.Where(c => c.Type == "Permission" || c.Type == System.Security.Claims.ClaimTypes.Role || c.Type == "role").ToList())
+                await userManager.RemoveClaimAsync(bootstrap, c);
         }
 
         // --- 8c. DETECCIÓN DE ONBOARDING NECESARIO ---

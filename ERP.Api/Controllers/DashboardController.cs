@@ -4,8 +4,6 @@ using ERP.Data;
 using ERP.Domain.DTOs;
 using ERP.Domain.Entities;
 using System.Globalization;
-using Microsoft.AspNetCore.SignalR;
-using ERP.Api.Hubs;
 using ERP.Api.Services;
 
 namespace ERP.Api.Controllers
@@ -15,52 +13,60 @@ namespace ERP.Api.Controllers
     public class DashboardController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly IHubContext<DashboardHub> _hubContext;
         private readonly IEmailService _emailService;
 
         public DashboardController(
-            ApplicationDbContext context, 
-            IHubContext<DashboardHub> hubContext,
+            ApplicationDbContext context,
             IEmailService emailService)
         {
             _context = context;
-            _hubContext = hubContext;
             _emailService = emailService;
         }
+
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var eid) ? eid : 0;
 
         [HttpGet("resumen-financiero")]
         public async Task<ActionResult<DashboardDTO>> GetResumen()
         {
+            var empresaId = GetEmpresaId();
+            // Pasillo universal (EmpresaId 0) → programa vacío, sin datos
+            if (empresaId == 0) return Ok(new DashboardDTO { TotalVentas = 0, TotalCompras = 0, TotalNominas = 0, BeneficioNeto = 0, FacturasPendientesCobro = 0, ImportePendienteCobro = 0, FacturasVencidas = 0, ArticulosStockBajo = 0, VentasMensuales = new() });
+
             var hoy = DateTime.Today;
 
             var ventasTotal = await _context.Documentos
-                .Where(d => d.Tipo == TipoDocumento.Factura && !d.EsCompra)
+                .Where(d => d.EmpresaId == empresaId && d.Tipo == TipoDocumento.Factura && !d.EsCompra)
                 .Select(d => d.Total != 0
                     ? d.Total
                     : d.Lineas.Sum(l => l.Cantidad * l.PrecioUnitario * (1 + l.PorcentajeIva / 100m)))
                 .SumAsync();
 
             var comprasTotal = await _context.Documentos
-                .Where(d => d.Tipo == TipoDocumento.Factura && d.EsCompra)
+                .Where(d => d.EmpresaId == empresaId && d.Tipo == TipoDocumento.Factura && d.EsCompra)
                 .SumAsync(d => d.Total);
 
             var nominasTotal = await _context.Nominas
+                .Where(n => n.Empleado != null && n.Empleado.EmpresaId == empresaId)
                 .SumAsync(n => n.SalarioBase + n.Complementos);
 
             var pendientesQuery = _context.Vencimientos
-                .Where(v => v.Estado != "Pagado" && v.Documento != null && !v.Documento.EsCompra);
+                .AsNoTracking()
+                .Where(v => v.EmpresaId == empresaId && v.Estado != "Pagado" && v.Documento != null && !v.Documento.EsCompra);
 
-            var pendientes = await pendientesQuery.ToListAsync();
-            
+            // Agregados en BBDD: antes se materializaba toda la lista en memoria
+            var pendientesCount = await pendientesQuery.CountAsync();
+            var pendienteImporte = await pendientesQuery.SumAsync(v => (decimal?)v.Importe ?? 0);
+
             var vencidasCount = await pendientesQuery
                 .CountAsync(v => v.FechaVencimiento < hoy);
 
             var stockCritico = await _context.Articulos
+                .Where(a => a.EmpresaId == empresaId)
                 .CountAsync(a => a.Stock < a.StockMinimo || a.Stock < 5);
 
             var seisMesesAtras = DateTime.Today.AddMonths(-5);
             var ventasPorMes = await _context.Documentos
-                .Where(d => d.Tipo == TipoDocumento.Factura && !d.EsCompra && d.Fecha >= seisMesesAtras)
+                .Where(d => d.EmpresaId == empresaId && d.Tipo == TipoDocumento.Factura && !d.EsCompra && d.Fecha >= seisMesesAtras)
                 .GroupBy(d => new { d.Fecha.Year, d.Fecha.Month })
                 .Select(g => new GraficoVentasMes
                 {
@@ -79,8 +85,8 @@ namespace ERP.Api.Controllers
                 TotalCompras = comprasTotal,
                 TotalNominas = nominasTotal,
                 BeneficioNeto = ventasTotal - comprasTotal - nominasTotal,
-                FacturasPendientesCobro = pendientes.Count,
-                ImportePendienteCobro = pendientes.Sum(p => p.Importe),
+                FacturasPendientesCobro = pendientesCount,
+                ImportePendienteCobro = pendienteImporte,
                 FacturasVencidas = vencidasCount,
                 ArticulosStockBajo = stockCritico,
                 VentasMensuales = ventasPorMes
@@ -90,15 +96,17 @@ namespace ERP.Api.Controllers
         [HttpGet("detalle/{tipo}")]
         public async Task<ActionResult<DashboardDetalleDTO>> GetDetalle(string tipo)
         {
-            var detalle = new DashboardDetalleDTO 
-            { 
-                Titulo = tipo == "stock-bajo" ? "ARTÍCULOS BAJO MÍNIMOS" : "VENCIMIENTOS IMPAGADOS" 
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new DashboardDetalleDTO { Titulo = tipo == "stock-bajo" ? "ARTÍCULOS BAJO MÍNIMOS" : "VENCIMIENTOS IMPAGADOS", Items = new() });
+            var detalle = new DashboardDetalleDTO
+            {
+                Titulo = tipo == "stock-bajo" ? "ARTÍCULOS BAJO MÍNIMOS" : "VENCIMIENTOS IMPAGADOS"
             };
 
             if (tipo == "stock-bajo")
             {
                 detalle.Items = await _context.Articulos
-                    .Where(a => a.Stock < a.StockMinimo || a.Stock < 5)
+                    .Where(a => a.EmpresaId == empresaId && (a.Stock < a.StockMinimo || a.Stock < 5))
                     .Select(a => new ItemDetalle {
                         IdRelacionado = a.Id,
                         Principal = a.Descripcion,
@@ -113,7 +121,7 @@ namespace ERP.Api.Controllers
                 detalle.Items = await _context.Vencimientos
                     .Include(v => v.Documento)
                     .ThenInclude(d => d!.Cliente)
-                    .Where(v => v.Estado != "Pagado" && v.FechaVencimiento < DateTime.Today)
+                    .Where(v => v.EmpresaId == empresaId && v.Estado != "Pagado" && v.FechaVencimiento < DateTime.Today)
                     .Select(v => new ItemDetalle {
                         IdRelacionado = v.DocumentoId ?? 0,
                         Principal = v.Documento != null ? v.Documento.NumeroDocumento : (v.DocumentoId == null ? "NÓMINA" : "S/N"),
@@ -138,17 +146,11 @@ namespace ERP.Api.Controllers
                 await _emailService.SendReporteAsync(request);
                 return Ok(new { Message = "Reporte enviado con éxito." });
             }
-            catch (Exception ex)
+            catch
             {
-                return StatusCode(500, $"Error al enviar email: {ex.Message}");
+                // Mensaje genérico: no se exponen detalles SMTP/infra al cliente.
+                return StatusCode(500, "Error al enviar email.");
             }
-        }
-
-        [HttpPost("notificar-cambio")]
-        public async Task<IActionResult> NotificarCambio()
-        {
-            await _hubContext.Clients.All.SendAsync("ReceiveDashboardUpdate");
-            return Ok(new { Message = "Notificación enviada" });
         }
     }
 }

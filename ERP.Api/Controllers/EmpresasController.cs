@@ -26,26 +26,34 @@ namespace ERP.Api.Controllers
             _userManager = userManager;
         }
 
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+
         /// <summary>
-        /// Obtiene el listado completo de empresas activas
+        /// Obtiene la empresa de la sesión (encapsulación: nadie lista el registro completo).
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Empresa>>> GetEmpresas()
         {
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new List<Empresa>());
             var empresas = await _context.Empresas
-                .Where(e => e.IsActiva)
+                .AsNoTracking()
+                .Where(e => e.IsActiva && e.Id == empresaId)
                 .ToListAsync();
 
             return Ok(empresas);
         }
 
         /// <summary>
-        /// Crea la primera empresa durante el onboarding inicial
+        /// Crea la primera empresa durante el onboarding inicial.
+        /// Reservado al usuario inicial (admin@erp.local, sin rol).
         /// </summary>
-        [AllowAnonymous]
+        [Authorize]
         [HttpPost("crear-onboarding")]
         public async Task<ActionResult<Empresa>> CrearParaOnboarding([FromBody] string nombreEmpresa)
         {
+            if (!ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User))
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Solo el usuario inicial puede crear la empresa del primer onboarding." });
             if (string.IsNullOrWhiteSpace(nombreEmpresa))
             {
                 return BadRequest(new { Message = "El nombre de la empresa es obligatorio" });
@@ -80,8 +88,8 @@ namespace ERP.Api.Controllers
             _context.Empresas.Add(empresa);
             await _context.SaveChangesAsync();
 
-            // Vincular automáticamente al usuario bootstrap (admin@erp.local) si aún no tiene empresa
-            // o al usuario autenticado si lo hay
+            // El usuario inicial (admin@erp.local) NO se vincula nunca: sigue vacío.
+            // Solo se vincula un usuario real autenticado que aún no tenga empresa.
             try
             {
                 ApplicationUser? targetUser = null;
@@ -91,10 +99,11 @@ namespace ERP.Api.Controllers
                     if (!string.IsNullOrEmpty(userId))
                         targetUser = await _userManager.FindByIdAsync(userId);
                 }
-                if (targetUser == null)
-                    targetUser = await _userManager.FindByEmailAsync("admin@erp.local");
 
-                if (targetUser != null && targetUser.EmpresaId == null)
+                if (targetUser != null
+                    && !ERP.Domain.Constants.BootstrapUser.IsBootstrap(targetUser.Email)
+                    && !ERP.Domain.Constants.BootstrapUser.IsBootstrap(targetUser.UserName)
+                    && targetUser.EmpresaId == null)
                 {
                     targetUser.EmpresaId = empresa.Id;
                     await _userManager.UpdateAsync(targetUser);
@@ -111,7 +120,9 @@ namespace ERP.Api.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Empresa>> GetEmpresa(int id)
         {
-            var empresa = await _context.Empresas.FindAsync(id);
+            // Encapsulación por sesión: cada usuario solo ve su empresa
+            if (id != GetEmpresaId()) return Forbid();
+            var empresa = await _context.Empresas.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
 
             if (empresa == null)
             {
@@ -135,14 +146,18 @@ namespace ERP.Api.Controllers
                 _context.Empresas.Add(empresa);
                 await _context.SaveChangesAsync();
 
-                // Si es la primera empresa y el usuario bootstrap aún no tiene EmpresaId, vincularla
+                // El usuario inicial (admin@erp.local) NO se vincula nunca: sigue vacío.
+                // Solo se vincula un usuario real que aún no tenga empresa.
                 try
                 {
                     var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                     if (!string.IsNullOrEmpty(userId))
                     {
                         var u = await _userManager.FindByIdAsync(userId);
-                        if (u != null && u.EmpresaId == null)
+                        if (u != null
+                            && !ERP.Domain.Constants.BootstrapUser.IsBootstrap(u.Email)
+                            && !ERP.Domain.Constants.BootstrapUser.IsBootstrap(u.UserName)
+                            && u.EmpresaId == null)
                         {
                             u.EmpresaId = empresa.Id;
                             await _userManager.UpdateAsync(u);
@@ -153,9 +168,10 @@ namespace ERP.Api.Controllers
 
                 return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
             }
-            catch (Exception ex)
+            catch
             {
-                return BadRequest(new { Message = "Error al crear la entidad", Details = ex.Message });
+                // Sin Details: no se filtran mensajes técnicos/SQL al cliente.
+                return BadRequest(new { Message = "Error al crear la entidad" });
             }
         }
 
@@ -169,6 +185,7 @@ namespace ERP.Api.Controllers
             {
                 return BadRequest(new { Message = "El ID no coincide con la entidad" });
             }
+            if (id != GetEmpresaId()) return Forbid();
 
             // Recuperamos la entidad original para no perder la FechaAlta
             var existente = await _context.Empresas.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
@@ -201,6 +218,7 @@ namespace ERP.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEmpresa(int id)
         {
+            if (id != GetEmpresaId()) return Forbid();
             var empresa = await _context.Empresas.FindAsync(id);
             if (empresa == null)
             {

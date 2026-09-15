@@ -27,12 +27,13 @@ namespace ERP.API.Controllers
             try
             {
                 return await _context.Familia
+                    .AsNoTracking()
                     .OrderBy(f => f.Nombre)
                     .ToListAsync();
             }
-            catch (Exception ex)
+            catch
             {
-                return StatusCode(500, $"Error al recuperar familias: {ex.Message}");
+                return StatusCode(500, "Error al recuperar familias.");
             }
         }
 
@@ -71,7 +72,7 @@ namespace ERP.API.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Error al crear familia: {ex.Message}");
+                return StatusCode(500, "Error al crear familia.");
             }
         }
 
@@ -106,7 +107,7 @@ namespace ERP.API.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Error al actualizar: {ex.Message}");
+                return StatusCode(500, "Error al actualizar.");
             }
 
             return NoContent();

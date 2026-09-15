@@ -123,7 +123,7 @@
         await CargarDatos();
 
         hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5109/dashboardHub")
+            .WithUrl(new Uri(new Uri(Navigation.BaseUri), "dashboardHub"))
             .WithAutomaticReconnect()
             .Build();
 
