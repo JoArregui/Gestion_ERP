@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using ERP.Domain.Entities;
 using ERP.Domain.Dtos;
 using System;
@@ -12,9 +13,6 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.Extensions.Configuration;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.WebUtilities;
-using ERP.Api.Services;
 
 namespace ERP.Api.Controllers
 {
@@ -25,24 +23,23 @@ namespace ERP.Api.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IConfiguration _configuration;
-        private readonly ERP.Data.ApplicationDbContext _context;
-        private readonly IEmailService _emailService;
-        private readonly ILogger<AuthController> _logger;
+        private readonly ERP.Api.Services.IEmailService? _emailService;
+        private readonly ILogger<AuthController>? _logger;
+        private readonly ERP.Data.MasterDbContext _context;
 
         public AuthController(
             UserManager<ApplicationUser> userManager, 
             SignInManager<ApplicationUser> signInManager,
             IConfiguration configuration,
-            ERP.Data.ApplicationDbContext context,
-            IEmailService emailService,
-            ILogger<AuthController> logger)
+            IServiceProvider serviceProvider,
+            ERP.Data.MasterDbContext context)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _configuration = configuration;
+            _emailService = serviceProvider.GetService<ERP.Api.Services.IEmailService>();
+            _logger = serviceProvider.GetService<ILogger<AuthController>>();
             _context = context;
-            _emailService = emailService;
-            _logger = logger;
         }
 
         /// <summary>
@@ -75,123 +72,127 @@ namespace ERP.Api.Controllers
                 await _userManager.UpdateAsync(user);
                 // ----------------------------
 
-                // 4. Generar Token JWT con Claims profesionales
+                // 4. Generar Token JWT con Claims profesionales (multi-empresa)
                 var token = await GenerateJwtToken(user);
+                var allEmpresas = await GetAllEmpresaIdsForUser(user);
 
                 return Ok(new 
                 { 
                     Token = token,
                     UserName = user.UserName,
                     FullName = user.FullName,
-                    EmpresaId = user.EmpresaId
+                    EmpresaId = user.EmpresaId,
+                    EmpresaIds = allEmpresas
                 });
             }
 
             return Unauthorized(new { Message = "Intento de inicio de sesión no autorizado" });
         }
 
-        /// <summary>
-        /// Solicita recuperación de contraseña: genera token y envía correo con enlace de restablecimiento.
-        /// Siempre responde 200 para no revelar si el email existe (seguridad).
-        /// </summary>
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        [HttpPost("switch-empresa/{empresaId}")]
+        public async Task<IActionResult> SwitchEmpresa(int empresaId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound();
+            if (IsGenericBootstrap(user)) return Forbid();
+            var all = await GetAllEmpresaIdsForUser(user);
+            if (!all.Contains(empresaId)) return Forbid();
+            // Actualizar EmpresaId principal al seleccionado (persistir para próximos logins)
+            user.EmpresaId = empresaId;
+            await _userManager.UpdateAsync(user);
+            var token = await GenerateJwtToken(user);
+            return Ok(new { Token = token, EmpresaId = empresaId, EmpresaIds = all });
+        }
+
+        private async Task<List<int>> GetAllEmpresaIdsForUser(ApplicationUser user)
+        {
+            if (IsGenericBootstrap(user)) return new List<int>();
+            var ids = new List<int>();
+            if (user.EmpresaId.HasValue) ids.Add(user.EmpresaId.Value);
+            var extras = await _context.UserEmpresas.Where(ue => ue.UserId == user.Id).Select(ue => ue.EmpresaId).ToListAsync();
+            ids.AddRange(extras);
+            return ids.Distinct().ToList();
+        }
+
+        private static bool IsGenericBootstrap(ApplicationUser user) =>
+            ERP.Domain.Constants.BootstrapUser.IsBootstrap(user.Email)
+            || ERP.Domain.Constants.BootstrapUser.IsBootstrap(user.UserName);
+
+        public class ForgotPasswordRequest { public string Email { get; set; } = string.Empty; }
+        public class ResetPasswordRequest { public string Email { get; set; } = string.Empty; public string Token { get; set; } = string.Empty; public string NewPassword { get; set; } = string.Empty; public string ConfirmPassword { get; set; } = string.Empty; }
+
         [HttpPost("forgot-password")]
         [AllowAnonymous]
-        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto model)
+        [ProducesResponseType(200)]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest model)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            var user = await _userManager.FindByEmailAsync(model.Email);
-            // Respuesta genérica para no enumerar usuarios
-            var genericOk = Ok(new { Message = "Si el correo existe en el sistema, recibirás un email con instrucciones para restablecer tu contraseña." });
-
+            if (string.IsNullOrWhiteSpace(model.Email)) return BadRequest(new { Message = "Email requerido" });
+            var user = await _userManager.FindByEmailAsync(model.Email.Trim());
+            // Respuesta genérica para no revelar si el email existe (seguridad)
+            var genericOk = Ok(new { Message = "Si el correo existe, recibirás instrucciones para restablecer tu contraseña." });
             if (user == null) return genericOk;
             if (!user.IsActivo) return genericOk;
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            // Codificar para URL segura
-            var tokenEncoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+            // Token debe ser URL-safe para el link
+            var encodedToken = System.Net.WebUtility.UrlEncode(token);
 
-            // BaseUrl del front (configurable). Fallback a localhost:5053 (ERP.Web)
-            var webBaseUrl = _configuration["WebApp:BaseUrl"] 
-                ?? _configuration["ERP.Web:BaseUrl"] 
-                ?? "http://localhost:5053";
-            webBaseUrl = webBaseUrl.TrimEnd('/');
-            var resetLink = $"{webBaseUrl}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(tokenEncoded)}";
-
-            var html = $@"
-                <div style='font-family:sans-serif;max-width:600px;margin:auto;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden'>
-                  <div style='background:#0f172a;color:white;padding:24px;text-align:center'>
-                    <div style='width:48px;height:48px;background:#2563eb;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:20px'>E</div>
-                    <h2 style='margin:12px 0 0;text-transform:uppercase;letter-spacing:1px;font-size:16px'>Recuperar contraseña — ERP PYMES 2026</h2>
-                  </div>
-                  <div style='padding:24px;color:#334155;line-height:1.6'>
-                    <p>Hola <b>{System.Net.WebUtility.HtmlEncode(user.FullName ?? user.Email)}</b>,</p>
-                    <p>Has solicitado restablecer tu contraseña para <b>{System.Net.WebUtility.HtmlEncode(user.Email)}</b>.</p>
-                    <p>Haz clic en el siguiente botón (válido 2 horas):</p>
-                    <p style='text-align:center;margin:24px 0'>
-                      <a href='{resetLink}' style='background:#2563eb;color:white;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:900;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;display:inline-block'>Restablecer contraseña</a>
-                    </p>
-                    <p style='font-size:12px;color:#64748b'>Si no solicitaste este cambio, ignora este correo. Tu contraseña actual seguirá siendo válida.</p>
-                    <p style='font-size:11px;color:#94a3b8;word-break:break-all'>Enlace alternativo:<br/><a href='{resetLink}'>{resetLink}</a></p>
-                  </div>
-                  <div style='background:#f8fafc;padding:12px;text-align:center;font-size:11px;color:#94a3b8'>&copy; 2026 ERP Industrial — {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC</div>
-                </div>";
-
-            var sent = false;
+            // Intentar envío por email si está configurado; si no, lo devolvemos en modo desarrollo
+            var resetLink = $"{Request.Scheme}://{Request.Host}/reset-password?email={System.Net.WebUtility.UrlEncode(user.Email!)}&token={encodedToken}";
+            var devMode = string.IsNullOrEmpty(_configuration["EmailSettings:SmtpServer"]) || _configuration["EmailSettings:SmtpServer"] == "smtp.gmail.com";
             try
             {
-                sent = await _emailService.SendEmailAsync(user.Email!, "Recuperar contraseña — ERP", html);
+                if (_emailService != null && !devMode)
+                {
+                    var html = $"<p>Hola {user.FullName ?? user.Email},</p><p>Has solicitado restablecer tu contraseña.</p><p><a href=\"{resetLink}\">Haz clic aquí para crear una nueva contraseña</a></p><p>Si no fuiste tú, ignora este correo.</p><p>Token: {token}</p>";
+                    await _emailService.SendEmailAsync(user.Email!, "Restablecer contraseña - ERP", html, null!);
+                    _logger?.LogInformation("ForgotPassword email enviado a {Email}", user.Email);
+                }
+                else
+                {
+                    _logger?.LogWarning("ForgotPassword dev token para {Email}: {Token} link {Link}", user.Email, token, resetLink);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error enviando email de recuperación a {Email}", user.Email);
+                _logger?.LogError(ex, "Error enviando email forgot-password a {Email}", model.Email);
             }
 
-            if (!sent)
-            {
-                _logger.LogWarning("No se pudo enviar email a {Email}. Token (solo desarrollo): {Token}", user.Email, tokenEncoded);
-                // En desarrollo, devolver token para facilitar pruebas si el SMTP no está configurado
-                if (_configuration.GetValue<bool>("EmailSettings:ReturnTokenInDev") || 
-                    Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
-                {
-                    return Ok(new { Message = "Si el correo existe en el sistema, recibirás un email con instrucciones para restablecer tu contraseña.", DevToken = tokenEncoded, DevLink = resetLink });
-                }
-            }
+            // En desarrollo devolvemos el token para facilitar pruebas sin SMTP
+            if (devMode)
+                return Ok(new { Message = "Si el correo existe, recibirás instrucciones.", DevToken = token, DevLink = resetLink });
 
             return genericOk;
         }
 
-        /// <summary>
-        /// Restablece la contraseña con el token recibido por email.
-        /// </summary>
         [HttpPost("reset-password")]
         [AllowAnonymous]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto model)
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest model)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Token) || string.IsNullOrWhiteSpace(model.NewPassword))
+                return BadRequest(new { Message = "Datos incompletos" });
+            if (model.NewPassword != model.ConfirmPassword)
+                return BadRequest(new { Message = "Las contraseñas no coinciden" });
+            if (model.NewPassword.Length < 8)
+                return BadRequest(new { Message = "La contraseña debe tener al menos 8 caracteres" });
 
-            var user = await _userManager.FindByEmailAsync(model.Email);
-            if (user == null) return BadRequest(new { Message = "Solicitud no válida." });
+            var user = await _userManager.FindByEmailAsync(model.Email.Trim());
+            if (user == null) return BadRequest(new { Message = "Solicitud inválida" });
 
-            string tokenDecoded;
-            try
-            {
-                tokenDecoded = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(model.Token));
-            }
-            catch
-            {
-                return BadRequest(new { Message = "Token no válido." });
-            }
-
-            var result = await _userManager.ResetPasswordAsync(user, tokenDecoded, model.NewPassword);
+            // El token viene URL-encoded desde el link
+            var decodedToken = System.Net.WebUtility.UrlDecode(model.Token);
+            var result = await _userManager.ResetPasswordAsync(user, decodedToken, model.NewPassword);
             if (result.Succeeded)
             {
-                _logger.LogInformation("Contraseña restablecida para {Email}", user.Email);
+                // Opcional: desbloquear si estaba bloqueado
+                await _userManager.SetLockoutEndDateAsync(user, null);
                 return Ok(new { Message = "Contraseña restablecida correctamente. Ya puedes iniciar sesión." });
             }
-
             var errors = string.Join("; ", result.Errors.Select(e => e.Description));
-            return BadRequest(new { Message = errors });
+            return BadRequest(new { Message = $"No se pudo restablecer: {errors}" });
         }
 
         private async Task<string> GenerateJwtToken(ApplicationUser user)
@@ -199,29 +200,21 @@ namespace ERP.Api.Controllers
             var roles = await _userManager.GetRolesAsync(user);
             var permissions = await _userManager.GetClaimsAsync(user);
             
-            // Resolver Tenant file desde BBDD INICIAL (erp.db) — registro maestro de TODOS los usuarios/empresas
-            // El usuario existe duplicado en erp.db (maestro) y en GestionX.db; el login siempre consulta erp.db
-            // porque en ese momento aún no hay claim Tenant, por lo que ApplicationDbContext apunta al maestro.
-            string? tenantFile = null;
-            if (user.EmpresaId.HasValue && user.EmpresaId.Value != 0)
-            {
-                var emp = await _context.Empresas.FindAsync(user.EmpresaId.Value);
-                if (emp != null) tenantFile = ERP.Services.Tenant.TenantDatabaseService.GetTenantFileName(emp.RazonSocial ?? emp.NombreComercial);
-            }
-
-            // Claims básicos y personalizados para el ERP
+            var allEmps = await GetAllEmpresaIdsForUser(user);
+            // Claims básicos — sub = Id para que MapInboundClaims no colisione con Email
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Email!),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Name, user.UserName ?? user.Email!),
                 new Claim(ClaimTypes.Email, user.Email!),
                 new Claim("FullName", user.FullName ?? string.Empty),
-                // CLAIM DE TENANCY: Vital para filtrar datos por empresa en los servicios (0 si bootstrap sin empresa)
                 new Claim("EmpresaId", (user.EmpresaId ?? 0).ToString())
             };
-            if (!string.IsNullOrWhiteSpace(tenantFile)) claims.Add(new Claim("Tenant", tenantFile));
+            // Multi-empresa: añadir todas como claims adicionales para que el backend pueda validar acceso a cualquiera
+            foreach (var eid in allEmps.Where(id => id != (user.EmpresaId ?? 0)).Distinct())
+                claims.Add(new Claim("EmpresaId", eid.ToString()));
 
             // Mapeo explícito de roles a claims de seguridad
             foreach (var role in roles)

@@ -9,17 +9,37 @@ using ERP.Domain.Entities.RGPD;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using System;
 using System.Linq;
+using System.Linq.Expressions;
 
 namespace ERP.Data
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        private readonly ITenantContext? _tenantContext;
+
+        public ApplicationDbContext(
+            DbContextOptions<ApplicationDbContext> options,
+            ITenantContext? tenantContext = null)
             : base(options)
         {
+            _tenantContext = tenantContext;
+        }
+
+        /// <summary>
+        /// Empresa activa derivada exclusivamente de la sesión autenticada.
+        /// Un identificador enviado por el cliente no modifica este valor.
+        /// Fuera de una petición HTTP (migraciones, seed y pruebas) queda nulo.
+        /// </summary>
+        private int? CurrentEmpresaId
+        {
+            get
+            {
+                return _tenantContext?.EmpresaId;
+            }
         }
 
         public DbSet<Empresa> Empresas { get; set; }
+        public DbSet<UserEmpresa> UserEmpresas { get; set; }
         public DbSet<Cliente> Clientes { get; set; }
         public DbSet<Proveedor> Proveedores { get; set; }
         public DbSet<Acreedor> Acreedores { get; set; }
@@ -85,13 +105,54 @@ namespace ERP.Data
             base.OnModelCreating(modelBuilder);
 
             // --- 1. FILTROS GLOBALES (Tu lógica de negocio) ---
-            modelBuilder.Entity<Cliente>().HasQueryFilter(c => c.IsActivo);
-            modelBuilder.Entity<Articulo>().HasQueryFilter(a => !a.IsDescatalogado);
-            modelBuilder.Entity<Empleado>().HasQueryFilter(e => e.FechaBaja == null || e.FechaBaja > DateTime.Now);
-            modelBuilder.Entity<Proveedor>().HasQueryFilter(p => p.IsActivo);
-            modelBuilder.Entity<Acreedor>().HasQueryFilter(a => a.IsActivo);
-            modelBuilder.Entity<Familia>().HasQueryFilter(f => f.IsActiva);
+            modelBuilder.Entity<Cliente>().HasQueryFilter(c =>
+                (CurrentEmpresaId == null || c.EmpresaId == CurrentEmpresaId) && c.IsActivo);
+            modelBuilder.Entity<Articulo>().HasQueryFilter(a =>
+                (CurrentEmpresaId == null || a.EmpresaId == CurrentEmpresaId) && !a.IsDescatalogado);
+            modelBuilder.Entity<Empleado>().HasQueryFilter(e =>
+                (CurrentEmpresaId == null || e.EmpresaId == CurrentEmpresaId) &&
+                (e.FechaBaja == null || e.FechaBaja > DateTime.Now));
+            modelBuilder.Entity<Proveedor>().HasQueryFilter(p =>
+                (CurrentEmpresaId == null || p.EmpresaId == CurrentEmpresaId) && p.IsActivo);
+            modelBuilder.Entity<Acreedor>().HasQueryFilter(a =>
+                (CurrentEmpresaId == null || a.EmpresaId == CurrentEmpresaId) && a.IsActivo);
+            modelBuilder.Entity<Familia>().HasQueryFilter(f =>
+                (CurrentEmpresaId == null || f.EmpresaId == CurrentEmpresaId) && f.IsActiva);
             modelBuilder.Entity<Familia>().ToTable("Familia"); 
+
+            // Defensa adicional para entidades tenant-aware. Los controladores siguen
+            // comprobando la pertenencia del usuario; este filtro evita que un servicio
+            // que olvide repetir EmpresaId pueda leer datos de otra empresa.
+            var alreadyFiltered = new HashSet<Type>
+            {
+                typeof(Cliente), typeof(Articulo), typeof(Empleado), typeof(Proveedor), typeof(Acreedor), typeof(Familia)
+            };
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                if (alreadyFiltered.Contains(entityType.ClrType) ||
+                    entityType.ClrType == typeof(ApplicationUser) ||
+                    entityType.ClrType == typeof(UserEmpresa))
+                    continue;
+
+                var empresaProperty = entityType.FindProperty("EmpresaId");
+                if (empresaProperty == null ||
+                    (empresaProperty.ClrType != typeof(int) && empresaProperty.ClrType != typeof(int?)))
+                    continue;
+
+                var entity = Expression.Parameter(entityType.ClrType, "entity");
+                var property = Expression.Call(
+                    typeof(EF), nameof(EF.Property), new[] { empresaProperty.ClrType },
+                    entity, Expression.Constant("EmpresaId"));
+                var current = Expression.Property(Expression.Constant(this), nameof(CurrentEmpresaId));
+                Expression tenantMatches = empresaProperty.ClrType == typeof(int)
+                    ? Expression.Equal(
+                        property,
+                        Expression.Call(current, nameof(Nullable<int>.GetValueOrDefault), Type.EmptyTypes))
+                    : Expression.Equal(property, current);
+                var noTenant = Expression.Equal(current, Expression.Constant(null, typeof(int?)));
+                var predicate = Expression.Lambda(Expression.OrElse(noTenant, tenantMatches), entity);
+                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(predicate);
+            }
 
             // --- 2. CONFIGURACIÓN DE PRECISIÓN DECIMAL ---
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -146,6 +207,36 @@ namespace ERP.Data
                 .HasOne(u => u.Empresa)
                 .WithMany()
                 .HasForeignKey(u => u.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<UserEmpresa>()
+                .HasKey(ue => new { ue.UserId, ue.EmpresaId });
+            modelBuilder.Entity<UserEmpresa>()
+                .HasOne(ue => ue.User)
+                .WithMany(u => u.UserEmpresas)
+                .HasForeignKey(ue => ue.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<UserEmpresa>()
+                .HasOne(ue => ue.Empresa)
+                .WithMany()
+                .HasForeignKey(ue => ue.EmpresaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Multi-tenant: Familia / Proveedor / Acreedor aislados por Empresa
+            modelBuilder.Entity<Familia>()
+                .HasOne(f => f.Empresa)
+                .WithMany()
+                .HasForeignKey(f => f.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Proveedor>()
+                .HasOne(p => p.Empresa)
+                .WithMany()
+                .HasForeignKey(p => p.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Acreedor>()
+                .HasOne(a => a.Empresa)
+                .WithMany()
+                .HasForeignKey(a => a.EmpresaId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Articulo>()

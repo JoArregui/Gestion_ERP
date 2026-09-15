@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2957.106" />
+  </ItemGroup>
+
+  <!-- Copia ERP.Api publicado + wwwroot de ERP.Web para que el modo escritorio sea 1-click (API sirve el Blazor) -->
+  <Target Name="CopyApiToDesktop" AfterTargets="Build">
+    <Exec Command="dotnet publish &quot;$(ProjectDir)..\ERP.Api\ERP.Api.csproj&quot; -c $(Configuration) -o &quot;$(OutDir)&quot;" Condition="Exists('$(ProjectDir)..\ERP.Api\ERP.Api.csproj')" />
+    <Exec Command="dotnet publish &quot;$(ProjectDir)..\ERP.Web\ERP.Web.csproj&quot; -c $(Configuration) -o &quot;$(OutDir)WebTmp&quot;" Condition="Exists('$(ProjectDir)..\ERP.Web\ERP.Web.csproj')" />
+    <Exec Command="xcopy /E /I /Y &quot;$(OutDir)WebTmp\wwwroot&quot; &quot;$(OutDir)wwwroot&quot;" Condition="Exists('$(OutDir)WebTmp\wwwroot')" />
+  </Target>
+
+</Project>

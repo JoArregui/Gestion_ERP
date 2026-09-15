@@ -148,9 +148,10 @@ namespace ERP.Services.Tenant
                 var exists = await ctx.Empresas.AnyAsync(e => e.RazonSocial == empresa.RazonSocial || e.CIF == empresa.CIF);
                 if (!exists)
                 {
-                    // Clonar empresa sin Id
+                    // Clonar empresa preservando Id maestro para que JWT EmpresaId == tenant Empresa.Id (evita desfase 1 vs 5)
                     var clone = new Empresa
                     {
+                        Id = empresa.Id != 0 ? empresa.Id : 0,
                         NombreComercial = empresa.NombreComercial,
                         RazonSocial = empresa.RazonSocial,
                         CIF = empresa.CIF,
@@ -162,8 +163,21 @@ namespace ERP.Services.Tenant
                         TerritorioFiscal = empresa.TerritorioFiscal,
                         EsSII = empresa.EsSII
                     };
-                    ctx.Empresas.Add(clone);
-                    await ctx.SaveChangesAsync();
+                    // Si Id !=0, forzar inserción con Id explícito deshabilitando IDENTITY temporalmente (SQLite lo permite)
+                    if (clone.Id != 0)
+                    {
+                        // SQLite permite INSERT con Id explícito aunque sea AUTOINCREMENT
+                        ctx.Empresas.Add(clone);
+                        await ctx.SaveChangesAsync();
+                        // Sincronizar sqlite_sequence (parametrizado: ExecuteSqlAsync evita warning EF1002)
+                        try { await ctx.Database.ExecuteSqlAsync($"UPDATE sqlite_sequence SET seq = MAX(seq, {clone.Id}) WHERE name='Empresas'"); } catch { }
+                    }
+                    else
+                    {
+                        clone.Id = 0;
+                        ctx.Empresas.Add(clone);
+                        await ctx.SaveChangesAsync();
+                    }
                     _logger.LogInformation("Empresa {Razon} insertada en tenant {Path} con Id {Id}", clone.RazonSocial, path, clone.Id);
                 }
             }

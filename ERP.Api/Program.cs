@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -9,46 +10,46 @@ using ERP.Data;
 using ERP.Domain.Entities;
 using ERP.Services;
 using ERP.Api.Hubs;
+using ERP.Api.Infrastructure;
 using ERP.Api.Services; // IEmailService / EmailService siguen aquí (Api-specific infra)
 using ERP.Domain.Constants;
-using ERP.Services; // SeedService para seeding inicial
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- 1. CONFIGURACIÓN DE BASE DE DATOS ---
-// BBDD INICIAL erp.db (maestro) con todos los usuarios duplicados. Por request se resuelve GestionX.db vía claim Tenant.
-// Si no hay Tenant (bootstrap admin@erp.local pasillo) se usa DefaultConnection (maestro).
-var masterConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=erp.db";
-var masterUseSqlite = builder.Configuration.GetValue<bool>("Database:UseSqlite");
-var contentRoot = builder.Environment.ContentRootPath;
+// Necesario para que ApplicationDbContext derive el tenant de la identidad
+// autenticada y aplique sus filtros globales de EmpresaId.
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ITenantContext, HttpTenantContext>();
+builder.Services.AddSingleton<ITenantDatabasePathResolver, TenantDatabasePathResolver>();
+builder.Services.AddSingleton<TenantDatabaseProvisioner>();
+
+// --- 1. CONFIGURACIÓN DE BASE DE DATOS ---
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var useSqlite = builder.Configuration.GetValue<bool>("Database:UseSqlite");
 builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
 {
-    var httpCtx = sp.GetService<IHttpContextAccessor>()?.HttpContext;
-    var tenantFile = httpCtx?.User?.FindFirst("Tenant")?.Value;
-    string conn = masterConnectionString;
-    bool useSqlite = masterUseSqlite;
-    if (!string.IsNullOrWhiteSpace(tenantFile))
+    var tenantId = sp.GetRequiredService<ITenantContext>().EmpresaId;
+    var tenantPathResolver = sp.GetRequiredService<ITenantDatabasePathResolver>();
+    var effectiveConnection = connectionString;
+    if (tenantId is > 0)
     {
-        var masterFile = masterConnectionString.Contains("Data Source=") ? masterConnectionString.Split("Data Source=")[1].Split(';')[0].Trim() : "erp.db";
-        var dir = Path.IsPathRooted(masterFile) ? Path.GetDirectoryName(masterFile)! : contentRoot;
-        var tenantPath = Path.Combine(dir, tenantFile);
-        if (File.Exists(tenantPath))
-        {
-            conn = $"Data Source={tenantPath}";
-            useSqlite = true;
-        }
+        var tenantPath = tenantPathResolver.GetPath(tenantId.Value);
+        if (!File.Exists(tenantPath))
+            throw new InvalidOperationException($"No existe la base de datos de la empresa {tenantId.Value}.");
+        effectiveConnection = $"Data Source={tenantPath}";
     }
+
+    if (useSqlite)
+        options.UseSqlite(effectiveConnection);
     else
-    {
-        // Asegurar que maestro apunta a ContentRoot, no a bin
-        if (masterConnectionString.Contains("Data Source="))
-        {
-            var mf = masterConnectionString.Split("Data Source=")[1].Split(';')[0].Trim();
-            if (!Path.IsPathRooted(mf)) conn = $"Data Source={Path.Combine(contentRoot, mf)}";
-        }
-    }
-    if (useSqlite) options.UseSqlite(conn); else options.UseSqlServer(conn);
+        options.UseSqlServer(effectiveConnection);
+});
+builder.Services.AddDbContext<MasterDbContext>(options =>
+{
+    if (useSqlite)
+        options.UseSqlite(connectionString);
+    else
+        options.UseSqlServer(connectionString);
 });
 
 // --- 2. CONFIGURACIÓN DE IDENTITY ---
@@ -59,7 +60,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
     options.Password.RequireUppercase = false;
     options.Password.RequireLowercase = false;
 })
-.AddEntityFrameworkStores<ApplicationDbContext>()
+ .AddEntityFrameworkStores<MasterDbContext>()
 .AddDefaultTokenProviders();
 
 // --- 3. CONFIGURACIÓN DE SEGURIDAD JWT ---
@@ -80,6 +81,7 @@ builder.Services.AddAuthentication(options =>
 {
     options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.SaveToken = true;
+    options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
@@ -88,7 +90,9 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = jwtIssuer,
         ValidateAudience = true,
         ValidAudience = jwtAudience,
-        ClockSkew = TimeSpan.Zero 
+        ClockSkew = TimeSpan.Zero,
+        NameClaimType = ClaimTypes.Name,
+        RoleClaimType = ClaimTypes.Role
     };
 });
 
@@ -136,8 +140,6 @@ builder.Services.AddScoped<ERP.Services.Bancario.SepaXmlGeneratorService>();
 builder.Services.AddScoped<ERP.Services.Contabilidad.ContabilidadService>();
 builder.Services.AddScoped<ERP.Services.Trazabilidad.TrazabilidadService>();
 builder.Services.AddScoped<ERP.Services.Fiscal.MotorIVAService>();
-// Onboarding multi-tenant: GestionX.db por empresa (miles de PCs/empresas)
-builder.Services.AddScoped<ERP.Services.Tenant.TenantDatabaseService>();
 
 builder.Services.AddControllers(o => o.Filters.Add<ERP.Api.Infrastructure.BootstrapOnlyOnboardingFilter>()).AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
@@ -174,6 +176,7 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
+        var masterContext = services.GetRequiredService<MasterDbContext>();
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         
@@ -190,7 +193,42 @@ using (var scope = app.Services.CreateScope())
             loggerMigrate.LogWarning(migrateEx, "MigrateAsync falló, intentando EnsureCreated como fallback.");
             await context.Database.EnsureCreatedAsync();
         }
+
+        // Reconciliar instalaciones anteriores: antes de UserEmpresas algunos
+        // usuarios solo tenían EmpresaId. Crear la pertenencia explícita evita
+        // que el aislamiento y el estado del onboarding dependan de ese legado.
+        var usersWithPrimaryCompany = await masterContext.Users
+            .Where(u => u.EmpresaId.HasValue && u.EmpresaId.Value > 0)
+            .Select(u => new { u.Id, EmpresaId = u.EmpresaId!.Value })
+            .ToListAsync();
+        var existingMemberships = await masterContext.UserEmpresas
+            .Select(ue => new { ue.UserId, ue.EmpresaId })
+            .ToListAsync();
+        var existingMembershipKeys = existingMemberships
+            .Select(ue => $"{ue.UserId}:{ue.EmpresaId}")
+            .ToHashSet(StringComparer.Ordinal);
+        var missingMemberships = usersWithPrimaryCompany
+            .Where(u => !existingMembershipKeys.Contains($"{u.Id}:{u.EmpresaId}"))
+            .Select(u => new UserEmpresa { UserId = u.Id, EmpresaId = u.EmpresaId })
+            .ToList();
+        if (missingMemberships.Count > 0)
+        {
+            masterContext.UserEmpresas.AddRange(missingMemberships);
+            await masterContext.SaveChangesAsync();
+        }
+
         await SeedService.SeedAsync(context);
+
+        // Toda empresa existente debe tener su almacén físico antes de que
+        // pueda emitirse un token con su EmpresaId. La operación es idempotente:
+        // una empresa ya provisionada solo aplica las migraciones pendientes.
+        var tenantProvisioner = services.GetRequiredService<TenantDatabaseProvisioner>();
+        var empresasExistentes = await context.Empresas
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .ToListAsync();
+        foreach (var empresaExistente in empresasExistentes)
+            await tenantProvisioner.EnsureCreatedAsync(empresaExistente);
 
         // --- 8b. SEED BOOTSTRAP: usuario genérico ÚNICO de primera interacción ---
         // Un solo usuario (admin@erp.local), SIN rol de administrador y SIN permisos.
@@ -232,6 +270,45 @@ using (var scope = app.Services.CreateScope())
             var bootstrapClaims = await userManager.GetClaimsAsync(bootstrap);
             foreach (var c in bootstrapClaims.Where(c => c.Type == "Permission" || c.Type == System.Security.Claims.ClaimTypes.Role || c.Type == "role").ToList())
                 await userManager.RemoveClaimAsync(bootstrap, c);
+        }
+
+        // El bootstrap no debe conservar privilegios aunque proceda de una base
+        // creada por una versión anterior que lo sembraba como Admin.
+        if (bootstrap != null)
+        {
+            var oldRoles = await userManager.GetRolesAsync(bootstrap);
+            if (oldRoles.Count > 0) await userManager.RemoveFromRolesAsync(bootstrap, oldRoles);
+            var oldClaims = await userManager.GetClaimsAsync(bootstrap);
+            foreach (var oldClaim in oldClaims)
+                await userManager.RemoveClaimAsync(bootstrap, oldClaim);
+            var staleLinks = await masterContext.UserEmpresas.Where(x => x.UserId == bootstrap.Id).ToListAsync();
+            if (staleLinks.Count > 0)
+            {
+                masterContext.UserEmpresas.RemoveRange(staleLinks);
+                await masterContext.SaveChangesAsync();
+            }
+        }
+
+        // Bootstrap genérico nunca debe quedar asignado a una empresa (vacío por diseño, RGPD)
+        // Si por una asignación previa quedó con EmpresaId, lo limpiamos para que no vea datos de ninguna empresa
+        if (bootstrap != null && bootstrap.EmpresaId != null)
+        {
+            bootstrap.EmpresaId = null;
+            bootstrap.SetupTutorialVisto = false;
+            bootstrap.SetupTutorialCompletado = false;
+            await userManager.UpdateAsync(bootstrap);
+        }
+        // El alias legacy admin@erp.com se elimina: el usuario inicial unificado es admin@erp.local
+        var bootstrapCom = await userManager.FindByEmailAsync("admin@erp.com");
+        if (bootstrapCom != null)
+        {
+            var staleAliasLinks = await masterContext.UserEmpresas.Where(x => x.UserId == bootstrapCom.Id).ToListAsync();
+            if (staleAliasLinks.Count > 0)
+            {
+                masterContext.UserEmpresas.RemoveRange(staleAliasLinks);
+                await masterContext.SaveChangesAsync();
+            }
+            await userManager.DeleteAsync(bootstrapCom);
         }
 
         // --- 8c. DETECCIÓN DE ONBOARDING NECESARIO ---
