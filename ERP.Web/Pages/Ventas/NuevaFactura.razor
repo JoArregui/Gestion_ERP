@@ -153,6 +153,7 @@
     [Parameter] public int? FacturaOriginalId { get; set; }
     private DocumentoComercial documento = new() { EsCompra = false, Fecha = DateTime.Now, Lineas = new List<DocumentoLinea>() };
     private List<Cliente>? clientes;
+    private List<Empresa>? empresasList;
     private List<Articulo> articulosList = new();
 
     private bool EsRectificativa => FacturaOriginalId.HasValue || documento.Tipo == TipoDocumento.FacturaRectificativa;
@@ -172,6 +173,7 @@
     protected override async Task OnInitializedAsync()
     {
         try {
+            empresasList = await Http.GetFromJsonAsync<List<Empresa>>("api/empresas") ?? new List<Empresa>();
             clientes = await Http.GetFromJsonAsync<List<Cliente>>("api/clientes");
             articulosList = await Http.GetFromJsonAsync<List<Articulo>>("api/articulos") ?? new List<Articulo>();
 
@@ -183,6 +185,7 @@
                     documento.Tipo = TipoDocumento.FacturaRectificativa;
                     documento.ClienteId = original.ClienteId;
                     documento.DocumentoOrigenId = original.Id;
+                    documento.EmpresaId = original.EmpresaId;
                     documento.Lineas = original.Lineas.Select(l => new DocumentoLinea {
                         ArticuloId = l.ArticuloId,
                         DescripcionArticulo = l.DescripcionArticulo,
@@ -201,6 +204,8 @@
 
                 // NumeroDocumento es [Required] pero lo genera el servidor -> placeholder para que OnValidSubmit no bloquee
                 if (string.IsNullOrWhiteSpace(documento.NumeroDocumento)) documento.NumeroDocumento = "AUTO";
+                if (documento.EmpresaId == 0 && empresasList != null && empresasList.Any())
+                    documento.EmpresaId = EmpresaService.EmpresaId != 0 ? EmpresaService.EmpresaId : empresasList.First().Id;
                 if (!documento.Lineas.Any()) AgregarLinea();
             }
         } catch (Exception ex) {

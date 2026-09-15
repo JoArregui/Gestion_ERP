@@ -1,18 +1,24 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using ERP.Data;
 using ERP.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace ERP.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class LlamadasController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+        private bool IsGeneric => ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User);
 
         public LlamadasController(ApplicationDbContext context)
         {
@@ -20,12 +26,16 @@ namespace ERP.Api.Controllers
         }
 
         /// <summary>
-        /// Obtiene la lista de llamadas registradas en la base de datos
+        /// Obtiene llamadas solo de su empresa (genérico vacío)
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<LlamadaDTO>>> GetLlamadas()
         {
+            if (IsGeneric) return Ok(new List<LlamadaDTO>());
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new List<LlamadaDTO>());
             var llamadas = await _context.Llamadas
+                .Where(l => l.EmpresaId == empresaId)
                 .OrderByDescending(l => l.Fecha)
                 .Take(20)
                 .ToListAsync();
@@ -47,9 +57,13 @@ namespace ERP.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<LlamadaDTO>> CrearLlamada([FromBody] LlamadaDTO dto)
         {
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Unauthorized();
             if (string.IsNullOrWhiteSpace(dto.Empresa)) return BadRequest("Empresa es obligatoria");
             var entidad = new Llamada
             {
+                EmpresaId = empresaId,
                 Empresa = dto.Empresa,
                 Motivo = dto.Motivo,
                 Telefono = dto.Telefono ?? "",

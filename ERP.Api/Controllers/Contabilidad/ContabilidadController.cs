@@ -37,6 +37,11 @@ namespace ERP.Api.Controllers.Contabilidad
         {
             dto.EmpresaId = GetEmpresaId();
             if (dto.EmpresaId == 0) return BadRequest(new { Message = "EmpresaId requerido" });
+            if (string.IsNullOrWhiteSpace(dto.Codigo))
+                dto.Codigo = dto.FechaInicio.Year.ToString();
+            // Evitar duplicado por empresa/año
+            if (await _context.EjerciciosContables.AnyAsync(e => e.EmpresaId == dto.EmpresaId && e.Codigo == dto.Codigo))
+                return BadRequest(new { Message = $"Ya existe el ejercicio {dto.Codigo} para esta empresa" });
             _context.EjerciciosContables.Add(dto);
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetEjercicio), new { id = dto.Id }, dto);

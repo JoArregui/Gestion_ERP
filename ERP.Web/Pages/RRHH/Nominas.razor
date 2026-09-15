@@ -81,19 +81,33 @@
                                 <span class="text-white font-black bg-slate-800 px-3 py-1 rounded-lg">@nom.TotalNeto.ToString("N2")€</span>
                             </td>
                             <td class="p-5 text-right">
+                                <div class="flex items-center justify-end gap-2">
                                 @if (nom.EstaPagada)
                                 {
-                                    <div class="flex items-center justify-end gap-2 text-emerald-500">
+                                    <div class="flex items-center gap-2 text-emerald-500">
                                         <i class="bi bi-check-circle-fill"></i>
                                         <span class="font-black uppercase text-[10px]">Pagada</span>
                                     </div>
                                 }
                                 else
                                 {
-                                    <button @onclick="() => ConfirmarPago(nom)" class="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-xl transition-all uppercase text-[10px] font-black border border-blue-600/20">
-                                        Confirmar Pago
+                                    <button @onclick="() => ConfirmarPago(nom)" class="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-3 py-2 rounded-xl transition-all uppercase text-[10px] font-black border border-blue-600/20">
+                                        Pagar
+                                    </button>
+                                    <button @onclick="() => IniciarEdicion(nom)" class="bg-amber-600/10 text-amber-500 hover:bg-amber-600 hover:text-white px-3 py-2 rounded-xl transition-all text-[10px] font-black border border-amber-600/20" title="Modificar">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button @onclick="() => Eliminar(nom)" class="bg-rose-600/10 text-rose-500 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-xl transition-all text-[10px] font-black border border-rose-600/20" title="Eliminar">
+                                        <i class="bi bi-trash"></i>
                                     </button>
                                 }
+                                @if (nom.EstaPagada)
+                                {
+                                    <button @onclick="() => Eliminar(nom)" class="bg-slate-700 text-slate-400 px-3 py-2 rounded-xl text-[10px] font-black opacity-50 cursor-not-allowed" disabled title="No se puede eliminar pagada">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                                </div>
                             </td>
                         </tr>
                     }
@@ -101,6 +115,38 @@
             </tbody>
         </table>
     </div>
+
+    @if (mostrarEdicion && editando != null)
+    {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
+            <div class="bg-[#0f172a] border border-slate-700 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
+                <div class="p-6 border-b border-slate-800 flex justify-between items-center">
+                    <h3 class="text-white font-black uppercase text-sm">Modificar Nómina — @editando.Empleado?.Nombre @editando.Empleado?.Apellidos (@editando.Mes/@editando.Anio)</h3>
+                    <button @onclick="CancelarEdicion" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-400 flex items-center justify-center"><i class="bi bi-x-lg"></i></button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-[10px] font-black uppercase text-slate-400">Salario Base</label><input type="number" step="0.01" @bind="editando.SalarioBase" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" /></div>
+                        <div><label class="text-[10px] font-black uppercase text-slate-400">Complementos</label><input type="number" step="0.01" @bind="editando.Complementos" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" /></div>
+                        <div><label class="text-[10px] font-black uppercase text-slate-400">Horas Extra</label><input type="number" step="0.01" @bind="editando.HorasExtra" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" /></div>
+                        <div><label class="text-[10px] font-black uppercase text-slate-400">Pagas Extra Prorr.</label><input type="number" step="0.01" @bind="editando.PagasExtraProrrateadas" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" /></div>
+                        <div><label class="text-[10px] font-black uppercase text-slate-400">Cuota S.S.</label><input type="number" step="0.01" @bind="editando.CuotaSegSocialTrabajador" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" /></div>
+                        <div><label class="text-[10px] font-black uppercase text-slate-400">IRPF %</label><input type="number" step="0.01" @bind="editando.TipoIRPF" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" /></div>
+                        <div><label class="text-[10px] font-black uppercase text-slate-400">Retención IRPF €</label><input type="number" step="0.01" @bind="editando.RetencionIRPF" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" /></div>
+                        <div><label class="text-[10px] font-black uppercase text-slate-400">Deducciones</label><input type="number" step="0.01" @bind="editando.Deducciones" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm" /></div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(errorEdicion))
+                    {
+                        <div class="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3 rounded-xl">@errorEdicion</div>
+                    }
+                </div>
+                <div class="p-6 border-t border-slate-800 flex gap-3 justify-end">
+                    <button @onclick="CancelarEdicion" class="px-6 py-3 rounded-xl bg-slate-800 text-slate-300 text-xs font-black uppercase">Cancelar</button>
+                    <button @onclick="GuardarEdicion" disabled="@guardandoEdicion" class="px-8 py-3 rounded-xl bg-blue-600 text-white text-xs font-black uppercase disabled:opacity-50">@(guardandoEdicion?"Guardando...":"Guardar")</button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -148,6 +194,47 @@
     }
 
     private bool generando = false;
+    private Nomina? editando;
+    private bool mostrarEdicion = false;
+    private bool guardandoEdicion = false;
+    private string? errorEdicion;
+
+    private void IniciarEdicion(Nomina n)
+    {
+        if (n.EstaPagada) return;
+        editando = new Nomina
+        {
+            Id = n.Id, EmpleadoId = n.EmpleadoId, Empleado = n.Empleado, Mes = n.Mes, Anio = n.Anio,
+            SalarioBase = n.SalarioBase, Complementos = n.Complementos, HorasExtra = n.HorasExtra,
+            PagasExtraProrrateadas = n.PagasExtraProrrateadas, BaseContingenciasComunes = n.BaseContingenciasComunes,
+            BaseContingenciasProfesionales = n.BaseContingenciasProfesionales, BaseHorasExtra = n.BaseHorasExtra,
+            CuotaSegSocialTrabajador = n.CuotaSegSocialTrabajador, TipoIRPF = n.TipoIRPF, RetencionIRPF = n.RetencionIRPF,
+            Deducciones = n.Deducciones, ImportePagasExtra = n.ImportePagasExtra
+        };
+        errorEdicion = null;
+        mostrarEdicion = true;
+    }
+    private void CancelarEdicion(){ mostrarEdicion=false; editando=null; errorEdicion=null; }
+    private async Task GuardarEdicion()
+    {
+        if (editando == null) return;
+        guardandoEdicion = true; errorEdicion = null;
+        try
+        {
+            var r = await Http.PutAsJsonAsync($"api/nominas/{editando.Id}", editando);
+            if (r.IsSuccessStatusCode) { mostrarEdicion=false; editando=null; await CargarNominas(); }
+            else errorEdicion = await r.Content.ReadAsStringAsync();
+        }
+        catch (Exception ex) { errorEdicion = ex.Message; }
+        finally { guardandoEdicion=false; }
+    }
+    private async Task Eliminar(Nomina n)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"¿Eliminar nómina de {n.Empleado?.Nombre} {n.Mes}/{n.Anio}?")) return;
+        var r = await Http.DeleteAsync($"api/nominas/{n.Id}");
+        if (r.IsSuccessStatusCode) await CargarNominas();
+        else await JS.InvokeVoidAsync("alert", await r.Content.ReadAsStringAsync());
+    }
 
     private async Task GenerarNominasMasivas()
     {

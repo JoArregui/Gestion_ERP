@@ -1,18 +1,24 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using ERP.Data;
 using ERP.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace ERP.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class TareasController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+        private bool IsGeneric => ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User);
 
         public TareasController(ApplicationDbContext context)
         {
@@ -20,12 +26,16 @@ namespace ERP.Api.Controllers
         }
 
         /// <summary>
-        /// Obtiene la lista de tareas registradas en el sistema
+        /// Obtiene tareas solo de su empresa (genérico vacío)
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TareaDTO>>> GetTareas()
         {
+            if (IsGeneric) return Ok(new List<TareaDTO>());
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new List<TareaDTO>());
             var tareas = await _context.Tareas
+                .Where(t => t.EmpresaId == empresaId)
                 .OrderBy(t => t.Hora)
                 .ToListAsync();
 
@@ -45,6 +55,9 @@ namespace ERP.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<TareaDTO>> CrearTarea([FromBody] TareaDTO dto)
         {
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Unauthorized();
             if (string.IsNullOrWhiteSpace(dto.Titulo)) return BadRequest("El título es obligatorio");
             var entidad = new Tarea
             {
@@ -52,7 +65,8 @@ namespace ERP.Api.Controllers
                 Titulo = dto.Titulo,
                 Descripcion = dto.Descripcion,
                 Prioridad = string.IsNullOrWhiteSpace(dto.Prioridad) ? "MEDIA" : dto.Prioridad.ToUpper(),
-                Completada = dto.Completada
+                Completada = dto.Completada,
+                EmpresaId = empresaId
             };
             _context.Tareas.Add(entidad);
             await _context.SaveChangesAsync();
@@ -63,7 +77,9 @@ namespace ERP.Api.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> ActualizarTarea(int id, [FromBody] TareaDTO dto)
         {
-            var entidad = await _context.Tareas.FindAsync(id);
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
+            var entidad = await _context.Tareas.FirstOrDefaultAsync(t=>t.Id==id && t.EmpresaId==empresaId);
             if (entidad == null) return NotFound();
             entidad.Hora = dto.Hora;
             entidad.Titulo = dto.Titulo;
@@ -77,7 +93,9 @@ namespace ERP.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> EliminarTarea(int id)
         {
-            var entidad = await _context.Tareas.FindAsync(id);
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
+            var entidad = await _context.Tareas.FirstOrDefaultAsync(t=>t.Id==id && t.EmpresaId==empresaId);
             if (entidad == null) return NotFound();
             _context.Tareas.Remove(entidad);
             await _context.SaveChangesAsync();
@@ -87,7 +105,9 @@ namespace ERP.Api.Controllers
         [HttpPatch("{id}/toggle")]
         public async Task<IActionResult> ToggleCompletada(int id)
         {
-            var entidad = await _context.Tareas.FindAsync(id);
+            if (IsGeneric) return Forbid();
+            var empresaId = GetEmpresaId();
+            var entidad = await _context.Tareas.FirstOrDefaultAsync(t=>t.Id==id && t.EmpresaId==empresaId);
             if (entidad == null) return NotFound();
             entidad.Completada = !entidad.Completada;
             await _context.SaveChangesAsync();

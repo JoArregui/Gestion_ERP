@@ -11,10 +11,13 @@ namespace ERP.Domain.Entities
         public int EmpresaId { get; set; }
         [ForeignKey(nameof(EmpresaId))]
         public virtual Empresa? Empresa { get; set; }
+<<<<<<< HEAD
 
         // Estado del segundo onboarding para esta relación concreta.
         // No debe compartirse entre empresas del mismo usuario.
         public bool SetupTutorialVisto { get; set; }
         public bool SetupTutorialCompletado { get; set; }
+=======
+>>>>>>> developer
     }
 }

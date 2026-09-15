@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.DTOs;
 using ERP.Domain.Entities;
 using ERP.Services;
+using System.Security.Claims;
 
 namespace ERP.API.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class StockController : ControllerBase
@@ -20,14 +23,20 @@ namespace ERP.API.Controllers
             _stockService = stockService;
         }
 
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
+        private bool IsGeneric => ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User);
+
         /// <summary>
-        /// Obtiene los indicadores clave de valoración de inventario para el Dashboard.
+        /// Obtiene los indicadores clave de valoración de inventario — RGPD por empresa.
         /// </summary>
         [HttpGet("valoracion-dashboard")]
         public async Task<ActionResult<ValoracionStockDTO>> GetValoracionDashboard()
         {
+            if (IsGeneric) return Ok(new ValoracionStockDTO { ValorTotalAlmacen = 0, TotalArticulosDiferentes = 0, CantidadTotalUnidades = 0, TopArticulosMasValiosos = new List<ArticuloValoradoDTO>() });
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new ValoracionStockDTO { ValorTotalAlmacen = 0, TotalArticulosDiferentes = 0, CantidadTotalUnidades = 0, TopArticulosMasValiosos = new List<ArticuloValoradoDTO>() });
             var articulos = await _context.Articulos
-                .Where(a => a.Stock > 0)
+                .Where(a => a.EmpresaId == empresaId && a.Stock > 0)
                 .ToListAsync();
 
             var dto = new ValoracionStockDTO
@@ -52,13 +61,17 @@ namespace ERP.API.Controllers
         }
 
         /// <summary>
-        /// Obtiene el historial de movimientos (Kardex) de un artículo específico.
+        /// Obtiene el historial de movimientos (Kardex) — solo si el artículo es de su empresa.
         /// </summary>
         [HttpGet("movimientos/{articuloId}")]
         public async Task<ActionResult<IEnumerable<MovimientoStock>>> GetMovimientos(int articuloId, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
         {
+            if (IsGeneric) return Ok(new List<MovimientoStock>());
+            var empresaId = GetEmpresaId();
+            var articuloPertenece = await _context.Articulos.AnyAsync(a => a.Id == articuloId && a.EmpresaId == empresaId);
+            if (!articuloPertenece) return Forbid();
             var query = _context.MovimientosStock
-                .Where(m => m.ArticuloId == articuloId);
+                .Where(m => m.ArticuloId == articuloId && m.EmpresaId == empresaId);
 
             if (desde.HasValue)
                 query = query.Where(m => m.Fecha >= desde.Value);
@@ -84,6 +97,14 @@ namespace ERP.API.Controllers
         [HttpPost("ajuste-manual")]
         public async Task<IActionResult> AjusteManual([FromBody] AjusteStockDTO ajuste)
         {
+            if (IsGeneric) return Unauthorized("Genérico sin empresa no opera stock.");
+            var empresaIdChk = GetEmpresaId();
+            if (empresaIdChk == 0) return Unauthorized("Sesión sin empresa.");
+            if (ajuste.ArticuloId > 0)
+            {
+                var pertenece = await _context.Articulos.AnyAsync(a => a.Id == ajuste.ArticuloId && a.EmpresaId == empresaIdChk);
+                if (!pertenece) return Forbid();
+            }
             if (ajuste.ArticuloId >= 0)
             {
                 try
@@ -97,18 +118,19 @@ namespace ERP.API.Controllers
                 }
             }
 
+            if (IsGeneric) return Unauthorized("Genérico sin empresa no opera stock.");
+            var empresaIdAjuste = GetEmpresaId();
+            if (empresaIdAjuste == 0) return Unauthorized("Sesión sin empresa.");
             Articulo? articulo;
-            
             if (ajuste.ArticuloId > 0)
             {
-                articulo = await _context.Articulos.FindAsync(ajuste.ArticuloId);
+                articulo = await _context.Articulos.FirstOrDefaultAsync(a => a.Id == ajuste.ArticuloId && a.EmpresaId == empresaIdAjuste);
             }
             else
             {
-                articulo = await _context.Articulos.FirstOrDefaultAsync(a => a.Codigo == ajuste.CodigoBarras);
+                articulo = await _context.Articulos.FirstOrDefaultAsync(a => a.Codigo == ajuste.CodigoBarras && a.EmpresaId == empresaIdAjuste);
             }
-
-            if (articulo == null) return NotFound("Artículo no encontrado");
+            if (articulo == null) return NotFound("Artículo no encontrado en su empresa");
 
             decimal stockObjetivo = ajuste.ArticuloId > 0 ? ajuste.NuevoStock : ajuste.CantidadReal;
             decimal diferencia = stockObjetivo - articulo.Stock;
@@ -118,6 +140,7 @@ namespace ERP.API.Controllers
             var movimiento = new MovimientoStock
             {
                 ArticuloId = articulo.Id,
+                EmpresaId = empresaIdAjuste,
                 Fecha = DateTime.Now,
                 TipoMovimiento = diferencia > 0 ? "ENTRADA" : "SALIDA",
                 Cantidad = Math.Abs(diferencia),
@@ -135,16 +158,17 @@ namespace ERP.API.Controllers
         }
 
         /// <summary>
-        /// Reconstruye el inventario a una fecha determinada para auditorías.
-        /// Lógica: Stock Actual - Entradas Posteriores + Salidas Posteriores.
+        /// Reconstruye el inventario a una fecha — RGPD por empresa.
         /// </summary>
         [HttpGet("existencias-a-fecha")]
         public async Task<ActionResult<IEnumerable<object>>> GetStockAFecha([FromQuery] DateTime fechaCorte)
         {
-            // Traemos los artículos y todos los movimientos posteriores a la fecha de una sola vez para optimizar
-            var articulos = await _context.Articulos.ToListAsync();
+            if (IsGeneric) return Ok(new List<object>());
+            var empresaId = GetEmpresaId();
+            if (empresaId == 0) return Ok(new List<object>());
+            var articulos = await _context.Articulos.Where(a => a.EmpresaId == empresaId).ToListAsync();
             var movimientosPosteriores = await _context.MovimientosStock
-                .Where(m => m.Fecha > fechaCorte)
+                .Where(m => m.EmpresaId == empresaId && m.Fecha > fechaCorte)
                 .ToListAsync();
 
             var informe = articulos.Select(a => {
@@ -171,13 +195,15 @@ namespace ERP.API.Controllers
         }
 
         /// <summary>
-        /// Obtiene los datos necesarios para generar etiquetas de un conjunto de artículos.
+        /// Obtiene datos para etiquetas — solo artículos de su empresa.
         /// </summary>
         [HttpPost("preparar-etiquetas")]
         public async Task<ActionResult<IEnumerable<EtiquetaArticuloDTO>>> PrepararEtiquetas([FromBody] List<int> articuloIds)
         {
+            if (IsGeneric) return Ok(new List<EtiquetaArticuloDTO>());
+            var empresaId = GetEmpresaId();
             var articulos = await _context.Articulos
-                .Where(a => articuloIds.Contains(a.Id))
+                .Where(a => a.EmpresaId == empresaId && articuloIds.Contains(a.Id))
                 .Select(a => new EtiquetaArticuloDTO
                 {
                     Codigo = a.Codigo,

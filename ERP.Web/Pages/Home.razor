@@ -8,6 +8,7 @@
 
 <script src="https://cdn.tailwindcss.com"></script>
 <ERP.Web.Shared.Components.OnboardingWizard />
+<ERP.Web.Shared.Components.SetupWizard />
 
 <div class="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500">
     
@@ -17,7 +18,8 @@
             <h1 class="text-4xl font-black text-slate-900 uppercase tracking-tighter">Escritorio Principal</h1>
             <p class="text-slate-500 text-lg font-medium italic">Gestión operativa y control de tareas del sistema</p>
         </div>
-        <div class="flex gap-4">
+        <div class="flex gap-4 items-center">
+            <button @onclick="ReabrirTutorial" title="Reabrir tutorial de configuración inicial" class="text-[11px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 underline">Reabrir tutorial</button>
             <NavLink href="configuracion" class="bg-slate-700 hover:bg-slate-800 text-white px-8 py-4 rounded-md font-bold text-xs transition shadow-lg border-b-4 border-slate-900 no-underline text-center">
                 CONFIGURACIÓN
             </NavLink>
@@ -224,6 +226,12 @@
     }
 
     private void VerDocumento(int id) => Navigation.NavigateTo($"/ventas/editor/{id}");
+
+    private async Task ReabrirTutorial()
+    {
+        try { await Http.PostAsync("api/onboarding/setup-reset", null); } catch {}
+        Navigation.NavigateTo("/", forceLoad:true);
+    }
 
     public class TareaHome { public int Id { get; set; } public string Hora { get; set; } = ""; public string Titulo { get; set; } = ""; public string Prioridad { get; set; } = "MEDIA"; public bool Completada { get; set; } }
     public class LlamadaHome { public int Id { get; set; } public string Empresa { get; set; } = ""; public string Motivo { get; set; } = ""; public string Telefono { get; set; } = ""; public string Tiempo { get; set; } = ""; public bool Urgente { get; set; } }

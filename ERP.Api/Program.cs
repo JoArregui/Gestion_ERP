@@ -219,7 +219,7 @@ using (var scope = app.Services.CreateScope())
 
         await SeedService.SeedAsync(context);
 
-        // Toda empresa existente debe tener su almacén físico antes de que
+// Toda empresa existente debe tener su almacén físico antes de que
         // pueda emitirse un token con su EmpresaId. La operación es idempotente:
         // una empresa ya provisionada solo aplica las migraciones pendientes.
         var tenantProvisioner = services.GetRequiredService<TenantDatabaseProvisioner>();
@@ -238,9 +238,15 @@ using (var scope = app.Services.CreateScope())
             await roleManager.CreateAsync(new IdentityRole("Admin"));
 
         // Limpieza del alias legacy: solo existe admin@erp.local
-        var legacyCom = await userManager.FindByEmailAsync("admin@erp.com");
-        if (legacyCom != null)
-            await userManager.DeleteAsync(legacyCom);
+        var bootstrapCom = await userManager.FindByEmailAsync("admin@erp.com");
+        if (bootstrapCom != null)
+        {
+            await userManager.DeleteAsync(bootstrapCom);
+            services.GetRequiredService<ILogger<Program>>().LogInformation("Alias legacy admin@erp.com eliminado: el usuario inicial unificado es admin@erp.local.");
+        }
+
+        var bootstrapEmail = ERP.Domain.Constants.BootstrapUser.Email;
+>>>>>>> developer
 
         var bootstrapEmail = ERP.Domain.Constants.BootstrapUser.Email;
         var bootstrap = await userManager.FindByEmailAsync(bootstrapEmail);
@@ -309,6 +315,25 @@ using (var scope = app.Services.CreateScope())
                 await masterContext.SaveChangesAsync();
             }
             await userManager.DeleteAsync(bootstrapCom);
+        }
+
+        // Bootstrap genérico nunca debe quedar asignado a una empresa (vacío por diseño, RGPD)
+        // Si por una asignación previa quedó con EmpresaId, lo limpiamos para que no vea datos de ninguna empresa.
+        // Tampoco tiene rol Admin ni permisos: solo onboarding.
+        if (bootstrap != null)
+        {
+            if (bootstrap.EmpresaId != null)
+            {
+                bootstrap.EmpresaId = null;
+                bootstrap.SetupTutorialVisto = false;
+                bootstrap.SetupTutorialCompletado = false;
+                await userManager.UpdateAsync(bootstrap);
+            }
+            if (await userManager.IsInRoleAsync(bootstrap, "Admin"))
+                await userManager.RemoveFromRoleAsync(bootstrap, "Admin");
+            var bootstrapClaims = await userManager.GetClaimsAsync(bootstrap);
+            foreach (var c in bootstrapClaims.Where(c => c.Type == "Permission" || c.Type == System.Security.Claims.ClaimTypes.Role || c.Type == "role").ToList())
+                await userManager.RemoveClaimAsync(bootstrap, c);
         }
 
         // --- 8c. DETECCIÓN DE ONBOARDING NECESARIO ---

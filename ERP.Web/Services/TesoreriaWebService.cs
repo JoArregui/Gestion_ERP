@@ -27,5 +27,19 @@ namespace ERP.Web.Services
             var response = await _http.PostAsync($"api/tesoreria/liquidar/{id}?metodoPago={metodoPago}", null);
             return response.IsSuccessStatusCode;
         }
+
+        public async Task<(bool ok, string? error)> ModificarVencimiento(Vencimiento v)
+        {
+            var resp = await _http.PutAsJsonAsync($"api/tesoreria/vencimiento/{v.Id}", v);
+            if (resp.IsSuccessStatusCode) return (true, null);
+            return (false, await resp.Content.ReadAsStringAsync());
+        }
+
+        public async Task<(bool ok, string? error)> AnularVencimiento(int id)
+        {
+            var resp = await _http.PostAsync($"api/tesoreria/anular/{id}", null);
+            if (resp.IsSuccessStatusCode) return (true, null);
+            return (false, await resp.Content.ReadAsStringAsync());
+        }
     }
 }
