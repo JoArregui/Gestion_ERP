@@ -14,7 +14,7 @@ namespace ERP.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -44,10 +44,7 @@ namespace ERP.Api.Controllers
         }
 
         private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
-        private bool IsGeneric => string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.com", StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.com", StringComparison.OrdinalIgnoreCase);
+        private bool IsGeneric => ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User);
 
         // ============================================
         // GESTIÓN DE USUARIOS
@@ -60,22 +57,42 @@ namespace ERP.Api.Controllers
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var currentUser = await _userManager.FindByIdAsync(currentUserId!);
             if (currentUser == null) return Unauthorized();
-            var myEmpresas = await GetAccessibleEmpresaIds(currentUser);
-            if (!myEmpresas.Any()) return Ok(new List<UserDto>());
-            // Usuarios que comparten al menos una empresa con el solicitante
-            var allUsers = await _userManager.Users.ToListAsync();
-            var filtered = new List<ApplicationUser>();
-            foreach (var u in allUsers)
+
+            // Carga en lote (4 queries) en vez de N+1 por usuario
+            var allUsers = await _userManager.Users.AsNoTracking().ToListAsync();
+            var todasUE = await _context.UserEmpresas.AsNoTracking().ToListAsync();
+            List<int> Accesibles(ApplicationUser u)
             {
-                var uEmps = await GetAccessibleEmpresaIds(u);
-                if (uEmps.Intersect(myEmpresas).Any()) filtered.Add(u);
+                var ids = new List<int>();
+                if (u.EmpresaId.HasValue) ids.Add(u.EmpresaId.Value);
+                ids.AddRange(todasUE.Where(ue => ue.UserId == u.Id).Select(ue => ue.EmpresaId));
+                return ids.Distinct().ToList();
             }
+            var myEmpresas = Accesibles(currentUser).ToHashSet();
+            if (myEmpresas.Count == 0) return Ok(new List<UserDto>());
+            // Usuarios que comparten al menos una empresa con el solicitante
+            var filtered = allUsers.Where(u => Accesibles(u).Any(myEmpresas.Contains)).ToList();
+            if (filtered.Count == 0) return Ok(new List<UserDto>());
+
+            var filteredIds = filtered.Select(u => u.Id).ToList();
+            var rolesByUser = await (from ur in _context.UserRoles.AsNoTracking()
+                                     join r in _context.Roles.AsNoTracking() on ur.RoleId equals r.Id
+                                     where filteredIds.Contains(ur.UserId)
+                                     select new { ur.UserId, r.Name })
+                                    .ToListAsync();
+            var rolesMap = rolesByUser
+                .GroupBy(x => x.UserId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.Name).ToList());
+            var empresasNecesarias = filtered.SelectMany(Accesibles).Distinct().ToList();
+            var nombresMap = await _context.Empresas.AsNoTracking()
+                .Where(e => empresasNecesarias.Contains(e.Id))
+                .ToDictionaryAsync(e => e.Id, e => e.NombreComercial);
+
             var userList = new List<UserDto>();
             foreach (var user in filtered)
             {
-                var roles = await _userManager.GetRolesAsync(user);
-                var emps = await GetAccessibleEmpresaIds(user);
-                var nombres = await _context.Empresas.Where(e => emps.Contains(e.Id)).Select(e => e.NombreComercial).ToListAsync();
+                var emps = Accesibles(user);
+                var role = rolesMap.TryGetValue(user.Id, out var rl) ? rl.FirstOrDefault() ?? "Sin Rol" : "Sin Rol";
                 userList.Add(new UserDto
                 {
                     Id = user.Id,
@@ -83,17 +100,18 @@ namespace ERP.Api.Controllers
                     Email = user.Email ?? string.Empty,
                     FullName = user.FullName,
                     IsActive = user.IsActivo,
-                    Role = roles.FirstOrDefault() ?? "Sin Rol",
+                    Role = role,
                     LastLogin = user.UltimoAcceso,
                     EmpresaId = user.EmpresaId,
                     EmpresaIds = emps,
-                    EmpresaNombres = nombres
+                    EmpresaNombres = emps.Where(nombresMap.ContainsKey).Select(e => nombresMap[e]).ToList()
                 });
             }
             return Ok(userList);
         }
 
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserDto>> GetUserById(string id)
         {
             var target = await _userManager.FindByIdAsync(id);
@@ -122,6 +140,7 @@ namespace ERP.Api.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserDto model)
         {
             // Validación manual para devolver mensaje limpio en lugar de ProblemDetails con "errors.Password"
@@ -153,6 +172,10 @@ namespace ERP.Api.Controllers
             var requestedIds = (model.EmpresaIds != null && model.EmpresaIds.Any()) ? model.EmpresaIds.Distinct().ToList() : new List<int> { model.EmpresaId };
             requestedIds = requestedIds.Where(id => id > 0).Distinct().ToList();
             if (!requestedIds.Any()) return BadRequest(new { Message = "Debe especificar al menos una empresa válida" });
+            var isAdminCaller = User.IsInRole("Admin");
+            var isBootstrapCaller = ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User);
+            if (!isAdminCaller && !isBootstrapCaller)
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "No tienes permiso para crear usuarios." });
             if (!IsGeneric)
             {
                 if (GetEmpresaId() == 0) return Unauthorized("Sesión sin empresa.");
@@ -162,6 +185,17 @@ namespace ERP.Api.Controllers
             {
                 var existentes = await _context.Empresas.Where(e => requestedIds.Contains(e.Id) && e.IsActiva).Select(e => e.Id).ToListAsync();
                 if (existentes.Count != requestedIds.Count) return BadRequest(new { Message = "Alguna empresa no existe o no está activa" });
+            }
+            if (isBootstrapCaller && !isAdminCaller)
+            {
+                // El usuario inicial solo puede crear el PRIMER usuario de cada empresa destino (Paso 2 del onboarding)
+                foreach (var eid in requestedIds)
+                {
+                    var tieneUsuarios = await _context.Users.AnyAsync(u => u.EmpresaId == eid)
+                        || await _context.UserEmpresas.AnyAsync(ue => ue.EmpresaId == eid);
+                    if (tieneUsuarios)
+                        return StatusCode(StatusCodes.Status403Forbidden, new { Message = "El usuario inicial solo puede crear el primer usuario de la empresa." });
+                }
             }
             var empresaIdDestino = requestedIds.First();
             var user = new ApplicationUser
@@ -202,6 +236,7 @@ namespace ERP.Api.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateUser(string id, [FromBody] CreateUserDto model)
         {
             if (!ModelState.IsValid)
@@ -266,6 +301,7 @@ namespace ERP.Api.Controllers
         }
 
         [HttpPut("{id}/status")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ToggleStatus(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
@@ -286,11 +322,14 @@ namespace ERP.Api.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user == null) return NotFound(new { Message = "Usuario no encontrado" });
             if (IsGeneric) return Forbid();
+            if (ERP.Domain.Constants.BootstrapUser.IsBootstrap(user.Email) || ERP.Domain.Constants.BootstrapUser.IsBootstrap(user.UserName))
+                return BadRequest(new { Message = "El usuario inicial de onboarding no se puede eliminar." });
             var curForDel = await _userManager.FindByIdAsync(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             if (!await SharesEmpresa(curForDel!, user)) return Forbid();
 
@@ -315,6 +354,7 @@ namespace ERP.Api.Controllers
         // ============================================
 
         [HttpGet("roles")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<RoleDto>>> GetRoles()
         {
             if (IsGeneric) return Ok(new List<RoleDto>());
@@ -336,6 +376,7 @@ namespace ERP.Api.Controllers
         }
 
         [HttpGet("roles/{roleId}/permissions")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<RolePermissionDto>> GetRolePermissions(string roleId)
         {
             var role = await _roleManager.FindByIdAsync(roleId);
@@ -368,6 +409,7 @@ namespace ERP.Api.Controllers
         }
 
         [HttpPost("roles/permissions")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateRolePermissions([FromBody] RolePermissionDto model)
         {
             var role = await _roleManager.FindByIdAsync(model.RoleId);

@@ -49,7 +49,7 @@ namespace ERP.API.Controllers
         public async Task<ActionResult<IEnumerable<DocumentoComercial>>> GetPedidosPendientes()
         {
             var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? User.FindFirst("email")?.Value;
-            if (string.Equals(email, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase) || string.Equals(email, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase))
+            if (ERP.Domain.Constants.BootstrapUser.IsBootstrap(email))
                 return Ok(new List<DocumentoComercial>());
             if (!int.TryParse(User.FindFirst("EmpresaId")?.Value, out var empresaId) || empresaId == 0)
                 return Ok(new List<DocumentoComercial>());

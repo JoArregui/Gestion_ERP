@@ -58,18 +58,19 @@ namespace ERP.Api.Controllers
         }
 
         private static bool IsGenericBootstrap(ApplicationUser u)
-            => string.Equals(u.Email, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(u.Email, "admin@erp.com", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(u.UserName, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(u.UserName, "admin@erp.com", StringComparison.OrdinalIgnoreCase);
+            => ERP.Domain.Constants.BootstrapUser.IsBootstrap(u.Email)
+            || ERP.Domain.Constants.BootstrapUser.IsBootstrap(u.UserName);
 
         /// <summary>
-        /// Crea la primera empresa durante el onboarding inicial
+        /// Crea la primera empresa durante el onboarding inicial.
+        /// Reservado al usuario inicial (admin@erp.local, sin rol): es lo único que puede hacer junto al Paso 2.
         /// </summary>
-        [AllowAnonymous]
+        [Authorize]
         [HttpPost("crear-onboarding")]
         public async Task<ActionResult<Empresa>> CrearParaOnboarding([FromBody] string nombreEmpresa)
         {
+            if (!ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User))
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Solo el usuario inicial puede crear la empresa del primer onboarding." });
             if (string.IsNullOrWhiteSpace(nombreEmpresa))
             {
                 return BadRequest(new { Message = "El nombre de la empresa es obligatorio" });
@@ -105,7 +106,7 @@ namespace ERP.Api.Controllers
             await _context.SaveChangesAsync();
 
             // Vinculación automática deshabilitada para el bootstrap genérico:
-            // admin@erp.local / admin@erp.com es solo para el primer onboarding y NO debe quedar
+            // admin@erp.local es solo para el primer onboarding y NO debe quedar
             // asignado a ninguna empresa (debe permanecer vacío). Solo se vincula si es usuario real.
             try
             {
@@ -178,9 +179,9 @@ namespace ERP.Api.Controllers
 
                 return CreatedAtAction(nameof(GetEmpresa), new { id = empresa.Id }, empresa);
             }
-            catch (Exception ex)
+            catch
             {
-                return BadRequest(new { Message = "Error al crear la entidad", Details = ex.Message });
+                return BadRequest(new { Message = "Error al crear la entidad" });
             }
         }
 

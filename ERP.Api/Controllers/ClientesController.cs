@@ -20,20 +20,28 @@ namespace ERP.Api.Controllers
         }
 
         // Helper para obtener el EmpresaId del Token actual
-        private int GetEmpresaId() => int.Parse(User.FindFirst("EmpresaId")?.Value ?? "0");
+        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var eid) ? eid : 0;
 
-        // GET: api/clientes
+        // GET: api/clientes (search/take opcionales para no descargar miles de filas en móvil)
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Cliente>>> GetClientes()
+        public async Task<ActionResult<IEnumerable<Cliente>>> GetClientes([FromQuery] string? search = null, [FromQuery] int? take = null)
         {
             int empresaId = GetEmpresaId();
-            
-            // Filtramos por empresa. El Global Query Filter (si existe) 
+
+            // Filtramos por empresa. El Global Query Filter (si existe)
             // se encargará de los inactivos, si no, lo añadimos aquí.
-            return await _context.Clientes
-                .Where(c => c.EmpresaId == empresaId)
-                .OrderBy(c => c.RazonSocial)
-                .ToListAsync();
+            var query = _context.Clientes
+                .AsNoTracking()
+                .Where(c => c.EmpresaId == empresaId);
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                query = query.Where(c => c.RazonSocial.ToLower().Contains(s) || c.CIF.ToLower().Contains(s));
+            }
+            query = query.OrderBy(c => c.RazonSocial);
+            if (take.HasValue && take.Value > 0)
+                query = query.Take(Math.Min(take.Value, 500));
+            return await query.ToListAsync();
         }
 
         // GET: api/clientes/5

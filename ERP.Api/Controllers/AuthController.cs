@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +46,7 @@ namespace ERP.Api.Controllers
         /// Procesa el inicio de sesión, actualiza auditoría y genera el Token JWT con contexto de empresa.
         /// </summary>
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -117,6 +119,7 @@ namespace ERP.Api.Controllers
         public class ResetPasswordRequest { public string Email { get; set; } = string.Empty; public string Token { get; set; } = string.Empty; public string NewPassword { get; set; } = string.Empty; public string ConfirmPassword { get; set; } = string.Empty; }
 
         [HttpPost("forgot-password")]
+        [AllowAnonymous]
         [ProducesResponseType(200)]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest model)
         {
@@ -160,6 +163,7 @@ namespace ERP.Api.Controllers
         }
 
         [HttpPost("reset-password")]
+        [AllowAnonymous]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest model)
         {
             if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Token) || string.IsNullOrWhiteSpace(model.NewPassword))

@@ -76,7 +76,7 @@ namespace ERP.Api.Controllers
         public async Task<IActionResult> DescargarPdf(int id)
         {
             var empresaIdClaim = User.FindFirst("EmpresaId")?.Value;
-            if (!int.TryParse(empresaIdClaim, out var empresaId) || empresaId == 0 || string.Equals(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase) || string.Equals(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase)) return Forbid();
+            if (!int.TryParse(empresaIdClaim, out var empresaId) || empresaId == 0 || ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User)) return Forbid();
             var factura = await _context.Documentos
                 .Include(d => d.Lineas)
                 .Include(d => d.Cliente)
@@ -98,7 +98,7 @@ namespace ERP.Api.Controllers
         public async Task<IActionResult> DescargarTicket(int id)
         {
             var empresaIdClaim2 = User.FindFirst("EmpresaId")?.Value;
-            if (!int.TryParse(empresaIdClaim2, out var empresaId2) || empresaId2 == 0 || string.Equals(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase) || string.Equals(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase)) return Forbid();
+            if (!int.TryParse(empresaIdClaim2, out var empresaId2) || empresaId2 == 0 || ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User)) return Forbid();
             var factura = await _context.Documentos
                 .Include(d => d.Lineas)
                 .Include(d => d.Cliente)

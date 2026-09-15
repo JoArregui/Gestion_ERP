@@ -18,10 +18,7 @@ namespace ERP.Api.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IEmailService _emailService;
 
-        private bool IsGeneric => string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase);
+        private bool IsGeneric => ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User);
 
         public SettingsController(ApplicationDbContext context, IEmailService emailService)
         {

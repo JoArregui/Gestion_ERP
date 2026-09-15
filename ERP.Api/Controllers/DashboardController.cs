@@ -4,8 +4,6 @@ using ERP.Data;
 using ERP.Domain.DTOs;
 using ERP.Domain.Entities;
 using System.Globalization;
-using Microsoft.AspNetCore.SignalR;
-using ERP.Api.Hubs;
 using ERP.Api.Services;
 
 namespace ERP.Api.Controllers
@@ -15,16 +13,13 @@ namespace ERP.Api.Controllers
     public class DashboardController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly IHubContext<DashboardHub> _hubContext;
         private readonly IEmailService _emailService;
 
         public DashboardController(
-            ApplicationDbContext context, 
-            IHubContext<DashboardHub> hubContext,
+            ApplicationDbContext context,
             IEmailService emailService)
         {
             _context = context;
-            _hubContext = hubContext;
             _emailService = emailService;
         }
 
@@ -33,7 +28,7 @@ namespace ERP.Api.Controllers
         {
             // Genérico del primer onboarding nunca ve facturación (vacío)
             var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? User.FindFirst("email")?.Value;
-            if (string.Equals(email, "admin@erp.local", StringComparison.OrdinalIgnoreCase) || string.Equals(email, "admin@erp.com", StringComparison.OrdinalIgnoreCase))
+            if (ERP.Domain.Constants.BootstrapUser.IsBootstrap(email))
             {
                 return Ok(new DashboardDTO
                 {
@@ -70,10 +65,13 @@ namespace ERP.Api.Controllers
                 .SumAsync(n => n.SalarioBase + n.Complementos);
 
             var pendientesQuery = _context.Vencimientos
+                .AsNoTracking()
                 .Where(v => v.EmpresaId == empresaId && v.Estado != "Pagado" && v.Documento != null && !v.Documento.EsCompra);
 
-            var pendientes = await pendientesQuery.ToListAsync();
-            
+            // Agregados en BBDD: antes se materializaba toda la lista en memoria
+            var pendientesCount = await pendientesQuery.CountAsync();
+            var pendienteImporte = await pendientesQuery.SumAsync(v => (decimal?)v.Importe ?? 0);
+
             var vencidasCount = await pendientesQuery
                 .CountAsync(v => v.FechaVencimiento < hoy);
 
@@ -102,8 +100,8 @@ namespace ERP.Api.Controllers
                 TotalCompras = comprasTotal,
                 TotalNominas = nominasTotal,
                 BeneficioNeto = ventasTotal - comprasTotal - nominasTotal,
-                FacturasPendientesCobro = pendientes.Count,
-                ImportePendienteCobro = pendientes.Sum(p => p.Importe),
+                FacturasPendientesCobro = pendientesCount,
+                ImportePendienteCobro = pendienteImporte,
                 FacturasVencidas = vencidasCount,
                 ArticulosStockBajo = stockCritico,
                 VentasMensuales = ventasPorMes
@@ -167,15 +165,8 @@ namespace ERP.Api.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Error al enviar email: {ex.Message}");
+                return StatusCode(500, "Error al enviar email.");
             }
-        }
-
-        [HttpPost("notificar-cambio")]
-        public async Task<IActionResult> NotificarCambio()
-        {
-            await _hubContext.Clients.All.SendAsync("ReceiveDashboardUpdate");
-            return Ok(new { Message = "Notificación enviada" });
         }
     }
 }

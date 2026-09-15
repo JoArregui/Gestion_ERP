@@ -76,9 +76,14 @@ builder.Services.AddAuthorization(options =>
 {
     foreach (var permission in AppPermissions.All)
     {
-        options.AddPolicy(permission, policy => 
+        options.AddPolicy(permission, policy =>
             policy.RequireClaim("Permission", permission));
     }
+    // Encapsulación de datos por sesión: todo endpoint exige usuario autenticado
+    // salvo [AllowAnonymous] explícito (login, forgot/reset-password, onboarding-check).
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 
 // --- 5. POLÍTICA DE CORS ---
@@ -111,7 +116,7 @@ builder.Services.AddScoped<ERP.Services.Contabilidad.ContabilidadService>();
 builder.Services.AddScoped<ERP.Services.Trazabilidad.TrazabilidadService>();
 builder.Services.AddScoped<ERP.Services.Fiscal.MotorIVAService>();
 
-builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+builder.Services.AddControllers(o => o.Filters.Add<ERP.Api.Infrastructure.BootstrapOnlyOnboardingFilter>()).AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
 
 // --- 7. SWAGGER ---
@@ -164,13 +169,22 @@ using (var scope = app.Services.CreateScope())
         }
         await SeedService.SeedAsync(context);
 
-        // --- 8b. SEED BOOTSTRAP: credenciales iniciales para BBDD vacía ---
-        // No crea empresa demo. El primer usuario entra con credenciales iniciales
-        // y desde la UI crea la empresa, familias, artículos, etc.
+        // --- 8b. SEED BOOTSTRAP: usuario genérico ÚNICO de primera interacción ---
+        // Un solo usuario (admin@erp.local), SIN rol de administrador y SIN permisos.
+        // Lo único que puede hacer es el primer onboarding: crear la empresa
+        // y el primer usuario asociado a esa empresa.
         if (!await roleManager.RoleExistsAsync("Admin"))
             await roleManager.CreateAsync(new IdentityRole("Admin"));
 
-        var bootstrapEmail = "admin@erp.local";
+        // Limpieza del alias legacy: solo existe admin@erp.local
+        var bootstrapCom = await userManager.FindByEmailAsync("admin@erp.com");
+        if (bootstrapCom != null)
+        {
+            await userManager.DeleteAsync(bootstrapCom);
+            services.GetRequiredService<ILogger<Program>>().LogInformation("Alias legacy admin@erp.com eliminado: el usuario inicial unificado es admin@erp.local.");
+        }
+
+        var bootstrapEmail = ERP.Domain.Constants.BootstrapUser.Email;
         var bootstrap = await userManager.FindByEmailAsync(bootstrapEmail);
         if (bootstrap == null)
         {
@@ -178,19 +192,13 @@ using (var scope = app.Services.CreateScope())
             {
                 UserName = bootstrapEmail,
                 Email = bootstrapEmail,
-                FullName = "Administrador Inicial",
+                FullName = ERP.Domain.Constants.BootstrapUser.DisplayName,
                 EmpresaId = null, // bootstrap sin empresa; la creará tras el primer login
                 IsActivo = true,
                 EmailConfirmed = true
             };
-            var createResult = await userManager.CreateAsync(bootstrap, "Admin123!");
-            if (createResult.Succeeded)
-            {
-                await userManager.AddToRoleAsync(bootstrap, "Admin");
-                foreach (var perm in AppPermissions.All)
-                    await userManager.AddClaimAsync(bootstrap, new System.Security.Claims.Claim("Permission", perm));
-            }
-            else
+            var createResult = await userManager.CreateAsync(bootstrap, ERP.Domain.Constants.BootstrapUser.DefaultPassword);
+            if (!createResult.Succeeded)
             {
                 var loggerSeed = services.GetRequiredService<ILogger<Program>>();
                 loggerSeed.LogError("No se pudo crear usuario bootstrap: {Errors}", string.Join(", ", createResult.Errors.Select(e => e.Description)));
@@ -198,22 +206,22 @@ using (var scope = app.Services.CreateScope())
         }
 
         // Bootstrap genérico nunca debe quedar asignado a una empresa (vacío por diseño, RGPD)
-        // Si por una asignación previa quedó con EmpresaId, lo limpiamos para que no vea datos de ninguna empresa
-        if (bootstrap != null && bootstrap.EmpresaId != null)
+        // Si por una asignación previa quedó con EmpresaId, lo limpiamos para que no vea datos de ninguna empresa.
+        // Tampoco tiene rol Admin ni permisos: solo onboarding.
+        if (bootstrap != null)
         {
-            bootstrap.EmpresaId = null;
-            bootstrap.SetupTutorialVisto = false;
-            bootstrap.SetupTutorialCompletado = false;
-            await userManager.UpdateAsync(bootstrap);
-        }
-        // También limpiar admin@erp.com si existe (alias del genérico usado en pruebas)
-        var bootstrapCom = await userManager.FindByEmailAsync("admin@erp.com");
-        if (bootstrapCom != null && bootstrapCom.EmpresaId != null)
-        {
-            bootstrapCom.EmpresaId = null;
-            bootstrapCom.SetupTutorialVisto = false;
-            bootstrapCom.SetupTutorialCompletado = false;
-            await userManager.UpdateAsync(bootstrapCom);
+            if (bootstrap.EmpresaId != null)
+            {
+                bootstrap.EmpresaId = null;
+                bootstrap.SetupTutorialVisto = false;
+                bootstrap.SetupTutorialCompletado = false;
+                await userManager.UpdateAsync(bootstrap);
+            }
+            if (await userManager.IsInRoleAsync(bootstrap, "Admin"))
+                await userManager.RemoveFromRoleAsync(bootstrap, "Admin");
+            var bootstrapClaims = await userManager.GetClaimsAsync(bootstrap);
+            foreach (var c in bootstrapClaims.Where(c => c.Type == "Permission" || c.Type == System.Security.Claims.ClaimTypes.Role || c.Type == "role").ToList())
+                await userManager.RemoveClaimAsync(bootstrap, c);
         }
 
         // --- 8c. DETECCIÓN DE ONBOARDING NECESARIO ---

@@ -14,10 +14,7 @@ namespace ERP.Api.Controllers
     public class DocumentosController : ControllerBase
     {
         private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
-        private bool IsGeneric => string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.local", System.StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.com", System.StringComparison.OrdinalIgnoreCase);
+        private bool IsGeneric => ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User);
         private readonly ApplicationDbContext _context;
         private readonly CicloFacturacionService _cicloService;
         private readonly PdfService _pdfService;

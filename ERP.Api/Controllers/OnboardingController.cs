@@ -51,10 +51,8 @@ namespace ERP.Api.Controllers
                 });
             }
 
-            var isBootstrap = string.Equals(user.Email, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
-                           || string.Equals(user.Email, "admin@erp.com", StringComparison.OrdinalIgnoreCase)
-                           || string.Equals(user.UserName, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
-                           || string.Equals(user.UserName, "admin@erp.com", StringComparison.OrdinalIgnoreCase);
+            var isBootstrap = ERP.Domain.Constants.BootstrapUser.IsBootstrap(user.Email)
+                           || ERP.Domain.Constants.BootstrapUser.IsBootstrap(user.UserName);
 
             int familias = 0, articulos = 0, proveedores = 0, clientes = 0, empleados = 0;
             if (!isBootstrap)

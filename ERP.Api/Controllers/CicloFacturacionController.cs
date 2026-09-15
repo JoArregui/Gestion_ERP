@@ -14,10 +14,7 @@ namespace ERP.Api.Controllers
     public class CicloFacturacionController : ControllerBase
     {
         private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var id) ? id : 0;
-        private bool IsGeneric => string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst(ClaimTypes.Email)?.Value, "admin@erp.com", StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.local", StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(User.FindFirst("email")?.Value, "admin@erp.com", StringComparison.OrdinalIgnoreCase);
+        private bool IsGeneric => ERP.Domain.Constants.BootstrapUser.IsBootstrapUser(User);
 
         private readonly CicloFacturacionService _cicloService;
         private readonly ApplicationDbContext _context;
@@ -129,9 +126,8 @@ namespace ERP.Api.Controllers
             }
             catch (Exception ex)
             {
-                var inner = ex.InnerException?.Message ?? "";
-                var inner2 = ex.InnerException?.InnerException?.Message ?? "";
-                return BadRequest(new { Message = ex.Message, Inner = inner, Inner2 = inner2 });
+                // No se expone la cadena de InnerExceptions (fuga de detalles técnicos/SQL).
+                return BadRequest(new { Message = ex.Message });
             }
         }
 
