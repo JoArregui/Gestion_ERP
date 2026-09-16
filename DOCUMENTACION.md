@@ -79,7 +79,53 @@ erDiagram
     LoteTrazabilidad ||--o{ MovimientoLote : "1 - *"
 ```
 
-### 2.2 Identity
+### 2.2 Estructura de Carpetas (árbol real `main`)
+```
+ERP .NET/  (raíz, rama única main, 8 proyectos en ERP_Sistema.sln)
+├── .github/              assessment copilot/java-upgrade
+├── ERP.Api/              Program.cs:17, ERP.Api.csproj, appsettings.json:4, erp.db, erp-fresh.db
+│   ├── Controllers/      Acreedores, Articulos, Auth, Bancario/, CicloFacturacion, Clientes, Compras, Contabilidad/, Dashboard, Documentos, Empleados, Empresas, Facturacion, Familias, Fichaje, FirmaDigital/, Fiscal/, Inventario, Llamadas, Nominas, Onboarding, Proveedores, Settings, Stock, Tareas, Tesoreria, Trazabilidad/, Users
+│   ├── Hubs/             DashboardHub.cs
+│   ├── Infrastructure/   BootstrapOnlyOnboardingFilter.cs, HttpTenantContext.cs, TenantDatabasePathResolver.cs, TenantDatabaseProvisioner.cs
+│   ├── Services/         EmailService.cs, IEmailService.cs
+│   └── Properties/       launchSettings.json
+├── ERP.Data/             ApplicationDbContext.cs:15, MasterDbContext.cs:1, ITenantContext.cs, DesignTimeDbContextFactory.cs, Migrations/* (6 + Snapshot)
+│   └── Migrations/       20260903112212_InitialCreate, 20260903115124_Compliance2026, 20260910074813_AddSetupTutorialFlags, 20260910090555_AddEmpresaIdFamiliaProveedorAcreedor, 20260910114225_AddUserEmpresaMultiTenant, 20260911082938_AddPerCompanySetupTutorial
+├── ERP.Domain/           ERP.Domain.csproj, Class1.cs
+│   ├── Constants/        BootstrapUser.cs:1, Permissions.cs:1
+│   ├── DTOs/             AjusteStockDTO.cs, Bancario/, Contabilidad/, Fiscal/, FirmaDigital/, Trazabilidad/, SetupWizardDtos.cs, AuthDtos.cs
+│   └── Entities/         Empresa.cs:8, UserEmpresa.cs:14, Cliente.cs, Proveedor.cs, Acreedor.cs, Articulo.cs, Familia.cs, DocumentoComercial.cs:8, DocumentoLinea.cs, Vencimiento.cs, Empleado.cs, ControlHorario.cs, Nomina.cs, Bancario/, Contabilidad/, Fiscal/IVAEntities.cs, Trazabilidad/, FirmaDigital/, RGPD/
+├── ERP.Services/         ERP.Services.csproj, Tenant/TenantDatabaseService.cs:184
+│   ├── Bancario/         BancarioService.cs, SepaXmlGeneratorService.cs
+│   ├── Contabilidad/     ContabilidadService.cs
+│   ├── Fiscal/           MotorIVAService.cs, FiscalService.cs
+│   ├── Trazabilidad/     TrazabilidadService.cs
+│   ├── FirmaDigital/     FirmaDigitalService.cs
+│   └── *.cs              AcreedorService.cs, CicloFacturacionService.cs, ComprasService.cs, ControlHorarioService.cs, FacturacionService.cs, FacturaeService.cs, NominaService.cs, PdfService.cs, PoliticaControlHorarioService.cs, RegistroTratamientoService.cs, RRHHService.cs, SeedService.cs, StockService.cs, VerifactuService.cs
+├── ERP.Web/              ERP.Web.csproj:1, Program.cs:17, _Imports.razor, App.razor
+│   ├── Components/       ArticuloSelector.razor, ClienteSelector.razor, GastoCajaModal.razor
+│   ├── Layout/           NavMenu.razor:12, NavMenu.razor.css, MainLayout.razor
+│   ├── Pages/            Bancario/, Compras/, Contabilidad/, Facturae.razor, Facturae.razor, FirmaDigital/, Fiscal/, ForgotPassword.razor, Home.razor, IVA.razor, Login.razor, Maestros/, Onboarding.razor, RRHH/, Stock/, Trazabilidad/, Vencimientos.razor, Ventas/, Verifactu.razor
+│   ├── Services/         AuthService.cs:88, CustomAuthenticationProvider.cs, EmpresaService.cs:113, ErrorHandlerHandler.cs, JwtAuthorizationHandler.cs
+│   ├── Shared/           Components/ (OnboardingWizard.razor:124, SetupWizard.razor, DashboardStats.razor), Header.razor:130, MainLayout.razor
+│   └── wwwroot/          index.html, js/dashboard-utils.js, lib/bootstrap/
+├── ERP.Desktop/          ERP.Desktop.csproj (net9.0-windows), App.xaml, MainWindow.xaml(.cs) (276l), AssemblyInfo.cs, ERP.Desktop.json.example
+├── ERP.Movil/            ERP.Movil.csproj (net9.0-android/ios/maccatalyst/windows), MauiProgram.cs, App.xaml, AppShell.xaml, MainPage.xaml, Pages/* (ComprasPage, ConfigPage, DashboardPage, MaestrosPage, RRHHPage, StockPage, VentasPage), Platforms/* (Android, iOS, MacCatalyst, Windows, Tizen), Resources/* (AppIcon, Fonts, Images, Raw, Splash, Styles)
+├── flutter_app/          pubspec.yaml:1, analysis_options.yaml, .metadata, README.md (21l → ahora en DOCUMENTACION.md)
+│   ├── lib/              main.dart:757 (ErpApp, LoginPage, AppShell, HomePage, DashboardPage), core/erp_api.dart (AuthService, ApiClient), core/erp_theme.dart (ErpColors, ErpTheme), core/erp_navigation.dart (NavMenu 1:1), widgets/erp_widgets.dart (ErpLogo, KpiCard)
+│   ├── android/          app/build.gradle.kts, src/main/AndroidManifest.xml (cleartext http), gradle.properties
+│   ├── ios/              Runner.xcodeproj, Runner/Info.plist, Assets.xcassets
+│   ├── macos/            Runner.xcodeproj, Configs/*
+│   ├── windows/          runner/*, flutter/*
+│   └── test/             widget_test.dart
+├── ERP.Services.Tests/   ERP.Services.Tests.csproj, TenantIsolationTests.cs, test_run.txt
+├── MigrateDb/ + TestApiProj/   utilidades
+├── ERP_Sistema.sln       8 proyectos (Api, Data, Domain, Services, Web, Tests, Desktop, Movil)
+├── start-erp.bat         lanza Api (5109) + Web
+└── DOCUMENTACION.md      este fichero único (499l actual, sustituye 8 .md eliminados)
+```
+
+### 2.3 Identity
 `IdentityDbContext<ApplicationUser>` (`ERP.Data/ApplicationDbContext.cs:15`):
 
 | Tabla | Clave | Columnas |
