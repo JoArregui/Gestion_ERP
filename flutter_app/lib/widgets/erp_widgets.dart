@@ -13,8 +13,8 @@ class ErpLogo extends StatelessWidget {
         decoration: BoxDecoration(
           color: ErpColors.blue600,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: ErpColors.blue600.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4))],
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
+          boxShadow: [BoxShadow(color: ErpColors.blue600.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
         ),
         child: Center(child: Text('E', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: fontSize))),
       );
@@ -35,7 +35,7 @@ class KpiCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border(left: BorderSide(color: accent, width: 5)),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [

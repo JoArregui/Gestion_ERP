@@ -89,7 +89,7 @@ class _LoginPageState extends State<LoginPage> {
                   color: ErpColors.slate900,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: const Color(0xFF1E293B)),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 24, offset: const Offset(0, 12))],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 24, offset: const Offset(0, 12))],
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   Center(
@@ -134,7 +134,7 @@ class _LoginPageState extends State<LoginPage> {
                     Container(
                       margin: const EdgeInsets.only(top: 14),
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: ErpColors.rose500.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: ErpColors.rose500.withOpacity(0.2))),
+                      decoration: BoxDecoration(color: ErpColors.rose500.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: ErpColors.rose500.withValues(alpha: 0.2))),
                       child: Row(children: [
                         const Icon(Icons.warning_rounded, size: 16, color: ErpColors.rose500),
                         const SizedBox(width: 8),
@@ -196,15 +196,6 @@ class _AppShellState extends State<AppShell> {
       if (s.route == route) return NavItem(title: s.title, icon: s.icon, route: s.route);
     }
     return null;
-  }
-
-  void _navigate(String route) {
-    if (route == 'more') {
-      scaffoldKey.currentState?.openDrawer();
-      return;
-    }
-    setState(() => currentRoute = route);
-    if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
   }
 
   @override
@@ -340,7 +331,7 @@ class _ErpDrawerState extends State<ErpDrawer> {
                   height: 44,
                   width: double.infinity,
                   child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(foregroundColor: ErpColors.rose500, side: BorderSide(color: ErpColors.rose500.withOpacity(0.2)), backgroundColor: ErpColors.rose500.withOpacity(0.08)),
+                    style: OutlinedButton.styleFrom(foregroundColor: ErpColors.rose500, side: BorderSide(color: ErpColors.rose500.withValues(alpha: 0.2)), backgroundColor: ErpColors.rose500.withValues(alpha: 0.08)),
                     onPressed: widget.onLogout,
                     child: const Text('CERRAR SESIÓN', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 1.2)),
                   ),
@@ -523,7 +514,7 @@ class _HomePageState extends State<HomePage> {
                             Text((t['hora'] ?? t['Hora'] ?? '--:--').toString(), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: ErpColors.blue600, fontFamily: 'JetBrainsMono')),
                             const SizedBox(width: 12),
                             Expanded(child: Text((t['titulo'] ?? t['Titulo'] ?? 'Tarea').toString(), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12))),
-                            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)), child: Text(prio, style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: color))),
+                            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)), child: Text(prio, style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: color))),
                           ]),
                         );
                       }).toList(),
@@ -549,7 +540,7 @@ class _HomePageState extends State<HomePage> {
                               Text((l['empresa'] ?? l['Empresa'] ?? '—').toString(), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
                               Text('${l['motivo'] ?? l['Motivo'] ?? ''} · ${l['telefono'] ?? l['Telefono'] ?? ''}', style: const TextStyle(fontSize: 10, color: ErpColors.slate400)),
                             ])),
-                            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: (l['urgente'] == true) ? ErpColors.rose50 : ErpColors.slate50, borderRadius: BorderRadius.circular(20), border: Border.all(color: (l['urgente'] == true) ? ErpColors.rose500.withOpacity(0.2) : ErpColors.slate200)), child: Text((l['urgente'] == true) ? 'URGENTE' : (l['tiempo'] ?? '').toString(), style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: (l['urgente'] == true) ? ErpColors.rose500 : ErpColors.slate400))),
+                            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: (l['urgente'] == true) ? ErpColors.rose50 : ErpColors.slate50, borderRadius: BorderRadius.circular(20), border: Border.all(color: (l['urgente'] == true) ? ErpColors.rose500.withValues(alpha: 0.2) : ErpColors.slate200)), child: Text((l['urgente'] == true) ? 'URGENTE' : (l['tiempo'] ?? '').toString(), style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: (l['urgente'] == true) ? ErpColors.rose500 : ErpColors.slate400))),
                           ]),
                         );
                       }).toList(),
@@ -689,7 +680,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withOpacity(0.2))),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: 0.2))),
                   child: Row(children: [
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('STOCK BAJO MÍNIMOS', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w900)), Text('$stockBajo', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900))])),
                     const Icon(Icons.chevron_right_rounded, color: Colors.white),
@@ -698,7 +689,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withOpacity(0.2))),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: 0.2))),
                   child: Row(children: [
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('VENCIMIENTOS IMPAGADOS', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w900)), Text('$vencidas', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900))])),
                     const Icon(Icons.chevron_right_rounded, color: Colors.white),

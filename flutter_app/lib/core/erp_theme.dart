@@ -80,7 +80,7 @@ class ErpTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white,
-        indicatorColor: ErpColors.blue600.withOpacity(0.12),
+        indicatorColor: ErpColors.blue600.withValues(alpha: 0.12),
         labelTextStyle: WidgetStateProperty.all(const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
       ),
       navigationRailTheme: const NavigationRailThemeData(
@@ -100,7 +100,7 @@ class ErpDecor {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: borderColor ?? const Color(0xFFE2E8F0)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
       );
 
   static BoxDecoration kpiBlue = BoxDecoration(
