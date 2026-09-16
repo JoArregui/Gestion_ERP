@@ -1,4 +1,4 @@
-## [ Archivos de Compilación y Binarios ]
+## [ Archivos de Compilacion y Binarios ]
 [Bb]in/
 [Oo]bj/
 [Ll]og/
@@ -29,8 +29,8 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 
-## [ Secretos y Configuración Local ]
-# Nunca subas contraseñas o cadenas de conexión reales
+## [ Secretos y Configuracion Local ]
+# Nunca subas contrasenas o cadenas de conexion reales
 appsettings.Development.json
 appsettings.Local.json
 *.pfx
@@ -54,3 +54,13 @@ yarn-error.log*
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+## [ Flutter ]
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+pubspec.lock
+.idea/
+*.iml

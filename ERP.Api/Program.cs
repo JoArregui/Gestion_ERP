@@ -237,17 +237,6 @@ using (var scope = app.Services.CreateScope())
         if (!await roleManager.RoleExistsAsync("Admin"))
             await roleManager.CreateAsync(new IdentityRole("Admin"));
 
-        // Limpieza del alias legacy: solo existe admin@erp.local
-        var bootstrapCom = await userManager.FindByEmailAsync("admin@erp.com");
-        if (bootstrapCom != null)
-        {
-            await userManager.DeleteAsync(bootstrapCom);
-            services.GetRequiredService<ILogger<Program>>().LogInformation("Alias legacy admin@erp.com eliminado: el usuario inicial unificado es admin@erp.local.");
-        }
-
-        var bootstrapEmail = ERP.Domain.Constants.BootstrapUser.Email;
->>>>>>> developer
-
         var bootstrapEmail = ERP.Domain.Constants.BootstrapUser.Email;
         var bootstrap = await userManager.FindByEmailAsync(bootstrapEmail);
         if (bootstrap == null)

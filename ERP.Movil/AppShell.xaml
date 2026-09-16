@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="ERP.Movil.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:ERP.Movil"
+    Title="ERP.Movil"
+    Shell.NavBarIsVisible="False">
+
+    <Shell.Resources>
+        <ResourceDictionary>
+            <DataTemplate x:Key="FlyoutItemTemplate">
+                <Grid Padding="12,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="32" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Text="▶" TextColor="{StaticResource Gray300}" FontSize="14" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="{Binding Title}" TextColor="{StaticResource White}" FontSize="14" VerticalOptions="Center" />
+                </Grid>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Shell.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <StackLayout Grid.Row="0" Grid.Column="0" Padding="10,20,10,0" Spacing="12">
+            <BoxView HeightRequest="44" Color="{StaticResource Primary}" />
+
+            <StackLayout>
+                <Label Text="ERP" TextColor="{StaticResource White}" FontAttributes="Bold" FontSize="12" />
+                <Label Text="SISTEMA" TextColor="{StaticResource Gray200}" FontSize="10" />
+            </StackLayout>
+        </StackLayout>
+
+        <Border Grid.Row="1" Grid.Column="1" />
+
+<StackLayout Grid.Row="1" Grid.Column="1" Padding="12" Spacing="8">
+            <Button Text="Inicio" Clicked="OnMenuClicked" />
+            <Button Text="Dashboard" Clicked="OnMenuClicked" />
+            <Button Text="Ventas" Clicked="OnMenuClicked" />
+            <Button Text="Compras" Clicked="OnMenuClicked" />
+            <Button Text="RR.HH" Clicked="OnMenuClicked" />
+            <Button Text="Stock" Clicked="OnMenuClicked" />
+            <Button Text="Maestros" Clicked="OnMenuClicked" />
+            <Button Text="Configuración" Clicked="OnMenuClicked" />
+</StackLayout>
+    </Grid>
+
+    <ShellContent Route="mainpage" ContentTemplate="{DataTemplate local:MainPage}" />
+    <ShellContent Route="dashboard" ContentTemplate="{DataTemplate local:DashboardPage}" />
+    <ShellContent Route="ventas" ContentTemplate="{DataTemplate local:VentasPage}" />
+    <ShellContent Route="compras" ContentTemplate="{DataTemplate local:ComprasPage}" />
+    <ShellContent Route="rrhh" ContentTemplate="{DataTemplate local:RRHHPage}" />
+    <ShellContent Route="stock" ContentTemplate="{DataTemplate local:StockPage}" />
+    <ShellContent Route="maestros" ContentTemplate="{DataTemplate local:MaestrosPage}" />
+    <ShellContent Route="config" ContentTemplate="{DataTemplate local:ConfigPage}" />
+</Shell>

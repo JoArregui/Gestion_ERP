@@ -138,18 +138,5 @@ namespace ERP.Web.Services
             return EmpresaActual ?? _empresas?.FirstOrDefault(e => e.IsActiva) ?? _empresas?.FirstOrDefault();
         }
 
-        /// <summary>
-        /// Purga total del contexto de empresa — llamada obligatoria en cada cierre de sesión
-        /// para evitar que la siguiente sesión herede la empresa anterior (fuga multi-tenant).
-        /// </summary>
-        public async Task ClearAsync()
-        {
-            _empresas = null;
-            EmpresaActual = null;
-            _empresaId = 0;
-            OnChange?.Invoke();
-            try { await _js.InvokeVoidAsync("localStorage.removeItem", StorageKey); } catch { }
-            await Task.CompletedTask;
-        }
     }
 }

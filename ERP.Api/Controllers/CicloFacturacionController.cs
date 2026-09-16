@@ -49,20 +49,17 @@ namespace ERP.Api.Controllers
                 .ToListAsync();
         }
 
-        private int GetEmpresaId() => int.TryParse(User.FindFirst("EmpresaId")?.Value, out var eid) ? eid : 0;
-
         [HttpGet("{id}")]
         public async Task<ActionResult<DocumentoComercial>> GetDocumento(int id)
         {
-            var empresaIdClaim = User.FindFirst("EmpresaId")?.Value;
-            if (!int.TryParse(empresaIdClaim, out var empresaId) || empresaId == 0)
-                return Forbid();
+            var eid = GetEmpresaId();
+            if (eid == 0) return Forbid();
             var doc = await _context.Documentos
                 .AsNoTracking()
                 .Include(d => d.Empresa)
                 .Include(d => d.Cliente)
                 .Include(d => d.Lineas)
-                .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId);
+                .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == eid);
             if (doc == null) return NotFound();
             return doc;
         }

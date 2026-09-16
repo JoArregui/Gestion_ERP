@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ERP.Movil.MaestrosPage"
+             BackgroundColor="{StaticResource Black}">
+
+    <ScrollView>
+        <VerticalStackLayout
+            Padding="20"
+            Spacing="20">
+
+            <Label Text="Maestros" Style="{StaticResource Headline}" TextColor="{StaticResource White}" />
+
+            <VerticalStackLayout Spacing="10">
+                <Border Stroke="{StaticResource Gray600}" StrokeThickness="1" Padding="12">
+                    <Label x:Name="pickerArticulosMaestro" Text="Artículos" TextColor="{StaticResource White}" />
+                </Border>
+                <Border Stroke="{StaticResource Gray600}" StrokeThickness="1" Padding="12" Margin="0,0,0,8">
+                    <Label x:Name="pickerClientesMaestro" Text="Clientes" TextColor="{StaticResource White}" />
+                </Border>
+                <Border Stroke="{StaticResource Gray600}" StrokeThickness="1" Padding="12">
+                    <Label x:Name="pickerProveedoresMaestro" Text="Proveedores" TextColor="{StaticResource White}" />
+                </Border>
+            </VerticalStackLayout>
+
+            <Button Text="Nuevo Artículo" BackgroundColor="{StaticResource Primary}" TextColor="{StaticResource White}" Padding="12" />
+
+            <Label Text="Listado General" Style="{StaticResource SubHeadline}" TextColor="{StaticResource Gray200}" Margin="0,20,0,10" />
+
+            <VerticalStackLayout Spacing="8">
+                <Border BackgroundColor="{StaticResource Gray900}" Padding="12" HeightRequest="80" />
+                <Border BackgroundColor="{StaticResource Gray900}" Padding="12" HeightRequest="80" Margin="0,0,0,8" />
+                <Border BackgroundColor="{StaticResource Gray900}" Padding="12" HeightRequest="80" Margin="0,0,0,8" />
+            </VerticalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
