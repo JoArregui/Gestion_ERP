@@ -6,11 +6,11 @@
 
 ---
 
-## Índice
+## Índice — ATAJOS: `Ctrl+G 82` Carpetas · `Ctrl+G 141` BBDD · `Ctrl+G 288` Dossier Legal
 1. [Resumen Ejecutivo y Stack](#1-resumen-ejecutivo-y-stack)
-2. [Arquitectura Técnica y Multi-tenant](#2-arquitectura-técnica-y-multi-tenant)
-3. [Modelo de Datos Completo (EF Core)](#3-modelo-de-datos-completo-ef-core)
-4. [Dossier Legal 2026 — Ciclo Completo España](#4-dossier-legal-2026--ciclo-completo-españa)
+2. [Arquitectura Técnica y Multi-tenant](#2-arquitectura-técnica-y-multi-tenant) — 2.2 Carpetas en línea 82
+3. [Modelo de Datos Completo (EF Core)](#3-modelo-de-datos-completo) — TABLAS COMPLETAS línea 141
+4. [Dossier Legal 2026 — Ciclo Completo España](#4-dossier-legal-2026) — LEGAL 10 apartados línea 288
 5. [Implementación Legal — Módulos y Cambios](#5-implementación-legal--módulos-y-cambios)
 6. [Plan de No-Duplicación y Fases](#6-plan-de-no-duplicación-y-fases)
 7. [Manual de Usuario Completo](#7-manual-de-usuario-completo)
@@ -138,7 +138,9 @@ ERP .NET/  (raíz, rama única main, 8 proyectos en ERP_Sistema.sln)
 
 ---
 
-## 3. Modelo de Datos Completo (EF Core)
+## 3. Modelo de Datos Completo
+
+> **ATAJO:** `Ctrl+G 141` — 12 subsecciones (3.1 Empresas → 3.12 Índices) con tablas completas `ERP.Data/ApplicationDbContext.cs:15`
 
 > **DbContext:** `ERP.Data/ApplicationDbContext.cs:15` · **Snapshot:** `ApplicationDbContextModelSnapshot.cs:15` · **Regla:** mantener nombres existentes (`Documentos`, `Familia` singular) y extender, no renombrar.
 
@@ -286,6 +288,8 @@ Empresa amplía Verifactu: `ModalidadVerifactu`, `IdSistemaInformatico`, `Numero
 ---
 
 ## 4. Dossier Legal 2026 — Ciclo Completo España
+
+> **ATAJO:** `Ctrl+G 288` — 10 apartados legales (4.1 Verifactu → 4.10 Síntesis) con bases BOE, modalidades, registros y gaps
 
 > Recopilación normativa vigente a 31-08-2026 (verificar BOE antes de producción). Mapeo previo para no duplicar: `DocumentoComercial` (DocumentoLinea, Vencimiento, CierreCaja), `RegistroVerifactu` (Huella sha256), `Fiscal/IVAEntities.cs` (ConfiguracionIVA, LiquidacionIVA), `Contabilidad` (Asiento/Apunte, LibrosOficiales), `Bancario` (CuentaBancaria, MandatoSEPA, RemesaSEPA, SepaXmlGenerator `pain.001.001.03/008.001.02`), `Empleado`/`ControlHorario`/`Nomina`, `FirmaDigitalEntities` (PAdES/XAdES/CAdES/JAdES), `Trazabilidad`.
 
