@@ -25,7 +25,7 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
     public async Task RegistrarFacturaVentaAsync_crea_un_vencimiento_pendiente()
     {
         var empresa = await CrearEmpresaAsync();
-        var articulo = await CrearArticuloAsync();
+        var articulo = await CrearArticuloAsync(empresa.Id);
         var factura = CrearFactura(empresa.Id, articulo.Id, esCompra: false);
         var service = CrearFacturacionService();
 
@@ -46,7 +46,7 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
     public async Task RegistrarFacturaVentaAsync_no_crea_vencimiento_para_factura_de_compra()
     {
         var empresa = await CrearEmpresaAsync();
-        var articulo = await CrearArticuloAsync();
+        var articulo = await CrearArticuloAsync(empresa.Id);
         var factura = CrearFactura(empresa.Id, articulo.Id, esCompra: true);
         var service = CrearFacturacionService();
 
@@ -61,7 +61,7 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
     public async Task ConvertirDocumento_a_factura_crea_vencimiento_y_confirma_el_stock_reservado()
     {
         var empresa = await CrearEmpresaAsync();
-        var articulo = await CrearArticuloAsync(stock: 10m);
+        var articulo = await CrearArticuloAsync(empresa.Id, stock: 10m);
         var albaran = CrearFactura(empresa.Id, articulo.Id, esCompra: false);
         albaran.Tipo = TipoDocumento.Albaran;
         albaran.NumeroDocumento = "ALB-2026-00001";
@@ -86,8 +86,8 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
     {
         var primeraEmpresa = await CrearEmpresaAsync();
         var segundaEmpresa = await CrearEmpresaAsync();
-        var primerArticulo = await CrearArticuloAsync();
-        var segundoArticulo = await CrearArticuloAsync();
+        var primerArticulo = await CrearArticuloAsync(primeraEmpresa.Id);
+        var segundoArticulo = await CrearArticuloAsync(segundaEmpresa.Id);
         var stock = new StockService(_context);
         var ciclo = new CicloFacturacionService(_context, new FacturacionService(_context, stock, new VerifactuService(_context)), stock);
 
@@ -104,7 +104,7 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
     public async Task ConvertirDocumento_rechaza_retroceder_en_el_ciclo_documental()
     {
         var empresa = await CrearEmpresaAsync();
-        var articulo = await CrearArticuloAsync();
+        var articulo = await CrearArticuloAsync(empresa.Id);
         var factura = CrearFactura(empresa.Id, articulo.Id, esCompra: false);
         _context.Documentos.Add(factura);
         await _context.SaveChangesAsync();
@@ -139,7 +139,7 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
     public async Task AjustarStockAsync_registra_auditoria_y_respeta_el_stock_reservado()
     {
         var empresa = await CrearEmpresaAsync();
-        var articulo = await CrearArticuloAsync(stock: 10m);
+        var articulo = await CrearArticuloAsync(empresa.Id, stock: 10m);
         articulo.EmpresaId = empresa.Id;
         articulo.StockReservado = 4m;
         await _context.SaveChangesAsync();
@@ -183,27 +183,27 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
         return empresa;
     }
 
-    private async Task<Articulo> CrearArticuloAsync(decimal stock = 2m)
+    private async Task<Articulo> CrearArticuloAsync(int empresaId, decimal stock = 2m)
     {
         var articulo = new Articulo
         {
-            EmpresaId = 1,
+            EmpresaId = empresaId,
             Codigo = Guid.NewGuid().ToString("N"),
             Descripcion = "Artículo de pruebas",
             Stock = stock,
             PrecioCompra = 10m,
             PrecioVenta = 20m,
             PorcentajeIva = 21m,
-            FamiliaId = await CrearFamiliaAsync()
+            FamiliaId = await CrearFamiliaAsync(empresaId)
         };
         _context.Articulos.Add(articulo);
         await _context.SaveChangesAsync();
         return articulo;
     }
 
-    private async Task<int> CrearFamiliaAsync()
+    private async Task<int> CrearFamiliaAsync(int empresaId)
     {
-        var familia = new Familia { Nombre = $"Familia-{Guid.NewGuid():N}" };
+        var familia = new Familia { Nombre = $"Familia-{Guid.NewGuid():N}", EmpresaId = empresaId };
         _context.Familia.Add(familia);
         await _context.SaveChangesAsync();
         return familia.Id;
@@ -254,8 +254,10 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
     public async Task Verifactu_Registro_IncluyeSerieYMoneda()
     {
         var empresa = await CrearEmpresaAsync();
-        var articulo = await CrearArticuloAsync();
+        var articulo = await CrearArticuloAsync(empresa.Id);
         var factura = CrearFactura(empresa.Id, articulo.Id, esCompra: false);
+        _context.Documentos.Add(factura);
+        await _context.SaveChangesAsync();
 
         var service = new VerifactuService(_context);
         var registro = await service.GenerarRegistroAltaAsync(factura);
@@ -271,8 +273,10 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
     public async Task Verifactu_Registro_Anulacion_IncluyeFecha()
     {
         var empresa = await CrearEmpresaAsync();
-        var articulo = await CrearArticuloAsync();
+        var articulo = await CrearArticuloAsync(empresa.Id);
         var factura = CrearFactura(empresa.Id, articulo.Id, esCompra: false);
+        _context.Documentos.Add(factura);
+        await _context.SaveChangesAsync();
 
         var service = new VerifactuService(_context);
         var alta = await service.GenerarRegistroAltaAsync(factura);
@@ -287,7 +291,7 @@ public sealed class FacturacionWorkflowTests : IAsyncDisposable
     public async Task FacturaElectronica_ConCamposCompletos()
     {
         var empresa = await CrearEmpresaAsync();
-        var articulo = await CrearArticuloAsync();
+        var articulo = await CrearArticuloAsync(empresa.Id);
         var factura = CrearFactura(empresa.Id, articulo.Id, esCompra: false);
 
         var doc = new DocumentoComercial

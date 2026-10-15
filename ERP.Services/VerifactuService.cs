@@ -156,7 +156,8 @@ public class VerifactuService
             FechaExpedicion = alta.FechaExpedicion,
             FechaHoraHusoGeneracion = fechaGen,
             HuellaAnterior = huellaPrev,
-            EstadoRemision = "Pendiente"
+            EstadoRemision = "Pendiente",
+            FechaAnulacion = fechaGen
         };
         anul.Huella = CalcularHuellaAnulacion(anul);
         anul.DatosRegistroJson = JsonSerializer.Serialize(new

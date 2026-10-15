@@ -1,0 +1,170 @@
+@page "/ventas/pipeline"
+@attribute [Authorize]
+@using ERP.Domain.Entities.CRM
+@using System.Text.Json
+@inject HttpClient Http
+@inject ERP.Web.Services.NotificationService Notify
+
+<div class="p-8 bg-slate-50 min-h-screen">
+    <div class="flex justify-between items-end mb-6">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">Fase B · Embudo comercial</p>
+            <h1 class="text-4xl font-black italic uppercase tracking-tighter">Pipeline <span class="text-blue-600">CRM</span></h1>
+        </div>
+        <div class="flex gap-2">
+            <button @onclick='()=>vista="pipeline"' class="px-4 py-2 rounded-xl text-xs font-black uppercase @(vista=="pipeline"?"bg-slate-900 text-white":"bg-white border")">Embudo</button>
+            <button @onclick='()=>vista="leads"' class="px-4 py-2 rounded-xl text-xs font-black uppercase @(vista=="leads"?"bg-slate-900 text-white":"bg-white border")">Leads</button>
+            <button @onclick="Cargar" class="px-4 py-2 rounded-xl text-xs font-black uppercase bg-blue-600 text-white">Recargar</button>
+        </div>
+    </div>
+
+    @if (vista == "pipeline")
+    {
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-2xl border p-5"><p class="text-[10px] font-black uppercase text-slate-400">Abiertas</p><p class="text-2xl font-black">@ops.Count(o => o.Etapa != EtapaOportunidad.Ganada && o.Etapa != EtapaOportunidad.Perdida)</p></div>
+            <div class="bg-white rounded-2xl border p-5"><p class="text-[10px] font-black uppercase text-slate-400">Importe abierto</p><p class="text-2xl font-black">@ops.Where(o => o.Etapa != EtapaOportunidad.Ganada && o.Etapa != EtapaOportunidad.Perdida).Sum(o => o.ImporteEstimado).ToString("C2")</p></div>
+            <div class="bg-white rounded-2xl border p-5"><p class="text-[10px] font-black uppercase text-slate-400">Ponderado</p><p class="text-2xl font-black text-blue-600">@ops.Where(o => o.Etapa != EtapaOportunidad.Ganada && o.Etapa != EtapaOportunidad.Perdida).Sum(o => o.ImporteEstimado * o.Probabilidad / 100m).ToString("C2")</p></div>
+            <div class="bg-white rounded-2xl border p-5"><p class="text-[10px] font-black uppercase text-slate-400">Ganadas</p><p class="text-2xl font-black text-emerald-600">@ops.Count(o => o.Etapa == EtapaOportunidad.Ganada)</p></div>
+        </div>
+
+        <div class="bg-white rounded-2xl border p-4 mb-6 flex flex-wrap gap-2 items-end">
+            <input @bind="nuevaTitulo" placeholder="Título oportunidad" class="border rounded-xl px-4 py-2 text-sm w-64" />
+            <input @bind="nuevoImporte" type="number" step="0.01" placeholder="Importe" class="border rounded-xl px-4 py-2 text-sm w-36" />
+            <input @bind="nuevoClienteId" type="number" placeholder="ClienteId (opc.)" class="border rounded-xl px-4 py-2 text-sm w-40" />
+            <button @onclick="CrearOportunidad" class="bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase">+ Oportunidad</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            @foreach (var etapa in new[]{ EtapaOportunidad.Prospeccion, EtapaOportunidad.Calificacion, EtapaOportunidad.Propuesta, EtapaOportunidad.Negociacion, EtapaOportunidad.Ganada })
+            {
+                <div class="bg-white rounded-2xl border p-3">
+                    <h3 class="font-black uppercase text-xs mb-1">@etapa</h3>
+                    <p class="text-[11px] text-slate-400 mb-3">@ops.Count(o => o.Etapa == etapa) · @ops.Where(o => o.Etapa == etapa).Sum(o => o.ImporteEstimado).ToString("C0")</p>
+                    @foreach (var o in ops.Where(o => o.Etapa == etapa))
+                    {
+                        <div class="border rounded-xl p-3 mb-2 bg-slate-50">
+                            <p class="font-bold text-sm">@o.Titulo</p>
+                            <p class="text-xs text-slate-500">@o.ImporteEstimado.ToString("C2") · @o.Probabilidad%</p>
+                            @if (o.DocumentoPresupuestoId.HasValue) { <p class="text-[11px] text-emerald-600 font-bold">Presupuesto #@o.DocumentoPresupuestoId</p> }
+                            <div class="flex flex-wrap gap-1 mt-2">
+                                @if (etapa != EtapaOportunidad.Ganada)
+                                {
+                                    <button @onclick="()=>Avanzar(o)" class="bg-slate-900 text-white px-2 py-1 rounded-lg text-[11px]">Avanzar →</button>
+                                    <button @onclick="()=>Perder(o)" class="bg-rose-100 text-rose-700 px-2 py-1 rounded-lg text-[11px]">Perder</button>
+                                }
+                                @if ((etapa == EtapaOportunidad.Negociacion || etapa == EtapaOportunidad.Ganada) && !o.DocumentoPresupuestoId.HasValue)
+                                {
+                                    <button @onclick="()=>APresupuesto(o.Id)" class="bg-emerald-600 text-white px-2 py-1 rounded-lg text-[11px]">Presupuesto</button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        @if (ops.Any(o => o.Etapa == EtapaOportunidad.Perdida))
+        {
+            <p class="text-xs text-slate-400 mt-4">Perdidas: @ops.Count(o => o.Etapa == EtapaOportunidad.Perdida) (@foreach (var o in ops.Where(o => o.Etapa == EtapaOportunidad.Perdida)) { <button @onclick="()=>Reabrir(o.Id)" class="underline">@o.Titulo</button><span> · </span> })</p>
+        }
+    }
+    else
+    {
+        <div class="bg-white rounded-2xl border p-4 mb-6 flex flex-wrap gap-2 items-end">
+            <input @bind="leadNombre" placeholder="Contacto *" class="border rounded-xl px-4 py-2 text-sm w-48" />
+            <input @bind="leadEmpresa" placeholder="Empresa" class="border rounded-xl px-4 py-2 text-sm w-48" />
+            <input @bind="leadEmail" placeholder="Email" class="border rounded-xl px-4 py-2 text-sm w-48" />
+            <input @bind="leadTel" placeholder="Teléfono" class="border rounded-xl px-4 py-2 text-sm w-36" />
+            <button @onclick="CrearLead" class="bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase">+ Lead</button>
+        </div>
+        <div class="bg-white rounded-3xl shadow border overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4 text-left">Contacto</th><th class="p-4 text-left">Empresa</th><th class="p-4">Estado</th><th class="p-4 text-right">Acciones</th></tr></thead>
+                <tbody>
+                    @foreach (var l in leads)
+                    {
+                        <tr class="border-t">
+                            <td class="p-4 font-bold">@l.Nombre <span class="block text-xs font-normal text-slate-400">@l.Email @l.Telefono</span></td>
+                            <td class="p-4">@l.EmpresaNombre</td>
+                            <td class="p-4 text-center">@l.Estado</td>
+                            <td class="p-4 text-right space-x-1">
+                                @if (l.Estado != EstadoLead.Convertido && l.Estado != EstadoLead.Descartado)
+                                {
+                                    <button @onclick="()=>ConvertirLead(l.Id)" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs">Convertir</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!leads.Any()) { <tr><td colspan="4" class="p-12 text-center text-slate-400">Sin leads</td></tr> }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private string vista = "pipeline";
+    private List<Oportunidad> ops = new();
+    private List<Lead> leads = new();
+    private string nuevaTitulo = "", nuevoClienteId = "";
+    private decimal nuevoImporte;
+    private string leadNombre = "", leadEmpresa = "", leadEmail = "", leadTel = "";
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+    private async Task Cargar()
+    {
+        try
+        {
+            ops = await Http.GetFromJsonAsync<List<Oportunidad>>("api/CRM/oportunidades") ?? new();
+            leads = await Http.GetFromJsonAsync<List<Lead>>("api/CRM/leads") ?? new();
+        }
+        catch (Exception ex) { Notify.Error(ex.Message); }
+    }
+    private EtapaOportunidad Siguiente(EtapaOportunidad e) => e switch
+    {
+        EtapaOportunidad.Prospeccion => EtapaOportunidad.Calificacion,
+        EtapaOportunidad.Calificacion => EtapaOportunidad.Propuesta,
+        EtapaOportunidad.Propuesta => EtapaOportunidad.Negociacion,
+        EtapaOportunidad.Negociacion => EtapaOportunidad.Ganada,
+        _ => e
+    };
+    private async Task CrearOportunidad()
+    {
+        int? cli = int.TryParse(nuevoClienteId, out var c) ? c : null;
+        var res = await Http.PostAsJsonAsync("api/CRM/oportunidades", new Oportunidad { Titulo = nuevaTitulo, ImporteEstimado = nuevoImporte, ClienteId = cli, Probabilidad = 10 });
+        if (res.IsSuccessStatusCode) { Notify.Success("Oportunidad creada"); nuevaTitulo = ""; nuevoImporte = 0; nuevoClienteId = ""; await Cargar(); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task Avanzar(Oportunidad o)
+    {
+        var res = await Http.PostAsync($"api/CRM/oportunidades/{o.Id}/etapa?etapa={Siguiente(o.Etapa)}", null);
+        if (res.IsSuccessStatusCode) await Cargar(); else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task Perder(Oportunidad o)
+    {
+        var res = await Http.PostAsync($"api/CRM/oportunidades/{o.Id}/etapa?etapa=Perdida&motivo=Descartada%20desde%20pipeline", null);
+        if (res.IsSuccessStatusCode) await Cargar(); else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task Reabrir(int id)
+    {
+        var res = await Http.PostAsync($"api/CRM/oportunidades/{id}/etapa?etapa=Prospeccion", null);
+        if (res.IsSuccessStatusCode) await Cargar(); else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task APresupuesto(int id)
+    {
+        var res = await Http.PostAsync($"api/CRM/oportunidades/{id}/convertir-presupuesto", null);
+        if (res.IsSuccessStatusCode) { Notify.Success("Presupuesto generado"); await Cargar(); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task CrearLead()
+    {
+        var res = await Http.PostAsJsonAsync("api/CRM/leads", new Lead { Nombre = leadNombre, EmpresaNombre = leadEmpresa, Email = leadEmail, Telefono = leadTel });
+        if (res.IsSuccessStatusCode) { Notify.Success("Lead creado"); leadNombre = leadEmpresa = leadEmail = leadTel = ""; await Cargar(); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task ConvertirLead(int id)
+    {
+        var res = await Http.PostAsync($"api/CRM/leads/{id}/convertir", null);
+        if (res.IsSuccessStatusCode) { Notify.Success("Lead convertido en cliente + oportunidad"); await Cargar(); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+}

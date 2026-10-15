@@ -842,6 +842,138 @@ namespace ERP.Data.Migrations
                     b.ToTable("RemesasSEPA");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.CRM.Lead", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CIF")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ClienteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EmpresaNombre")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaContacto")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaConversion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Origen")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Telefono")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioAsignado")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("Leads");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CRM.Oportunidad", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ClienteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("DocumentoPresupuestoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Etapa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaCierre")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaCierrePrevista")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ImporteEstimado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("LeadId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MotivoPerdida")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Probabilidad")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("DocumentoPresupuestoId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("LeadId");
+
+                    b.ToTable("Oportunidades");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.CierreCaja", b =>
                 {
                     b.Property<int>("Id")
@@ -4727,6 +4859,56 @@ namespace ERP.Data.Migrations
                     b.Navigation("CuentaBancariaOrdenante");
 
                     b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CRM.Lead", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CRM.Oportunidad", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.DocumentoComercial", "DocumentoPresupuesto")
+                        .WithMany()
+                        .HasForeignKey("DocumentoPresupuestoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.CRM.Lead", "Lead")
+                        .WithMany()
+                        .HasForeignKey("LeadId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("DocumentoPresupuesto");
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("Lead");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.CierreCaja", b =>

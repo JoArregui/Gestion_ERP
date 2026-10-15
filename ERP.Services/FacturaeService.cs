@@ -18,7 +18,7 @@ namespace ERP.Services
 
         public async Task<FacturaElectronica> GenerarFacturaeAsync(int documentoId, FormatoFacturaElectronica formato = FormatoFacturaElectronica.Facturae32, string? dir3OC = null, string? dir3OG = null, string? dir3UT = null)
         {
-            var doc = await _context.Documentos.Include(d => d.Lineas).Include(d => d.Empresa).FirstOrDefaultAsync(d => d.Id == documentoId)
+            var doc = await _context.Documentos.Include(d => d.Lineas).Include(d => d.Empresa).Include(d => d.Cliente).FirstOrDefaultAsync(d => d.Id == documentoId)
                 ?? throw new InvalidOperationException("Documento no existe");
             if (doc.Tipo != TipoDocumento.Factura && doc.Tipo != TipoDocumento.FacturaRectificativa)
                 throw new InvalidOperationException("Solo facturas");
@@ -35,6 +35,11 @@ namespace ERP.Services
                 EmpresaId = doc.EmpresaId,
                 Formato = formato,
                 Version = formato == FormatoFacturaElectronica.Facturae32 ? "3.2.2" : "2.1",
+                Serie = string.IsNullOrWhiteSpace(empresa.SerieFacturacion) ? DateTime.Now.Year.ToString() : empresa.SerieFacturacion,
+                NumeroExpedicion = doc.NumeroDocumento,
+                CodMoneda = "EUR",
+                NIFCliente = doc.Cliente?.CIF ?? "99999999R",
+                NombreCliente = doc.Cliente?.RazonSocial ?? "Consumidor final",
                 XmlBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(xml)),
                 HashSha256 = hash,
                 DIR3_OficinaContable = dir3OC,
@@ -90,9 +95,10 @@ namespace ERP.Services
         {
             if (formato == FormatoFacturaElectronica.Facturae32)
             {
+                XNamespace fe = "http://www.facturae.es/Facturae/2014/v3.2.2/Facturae";
                 var xdoc = new XDocument(
-                    new XElement("fe:Facturae",
-                        new XAttribute(XNamespace.Xmlns + "fe", "http://www.facturae.es/Facturae/2014/v3.2.2/Facturae"),
+                    new XDeclaration("1.0", "UTF-8", null),
+                    new XElement(fe + "Facturae",
                         new XElement("FileHeader",
                             new XElement("SchemaVersion", "3.2.2"),
                             new XElement("Modality", "I"),

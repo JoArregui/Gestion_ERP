@@ -101,6 +101,9 @@ namespace ERP.Data
         // RGPD + Seguridad Social
         public DbSet<RegistroTratamiento> RegistrosTratamiento { get; set; }
         public DbSet<LiquidacionSeguridadSocial> LiquidacionesSeguridadSocial { get; set; }
+        // Fase B CRM
+        public DbSet<ERP.Domain.Entities.CRM.Lead> Leads { get; set; }
+        public DbSet<ERP.Domain.Entities.CRM.Oportunidad> Oportunidades { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -239,6 +242,42 @@ namespace ERP.Data
                 .HasOne(a => a.Empresa)
                 .WithMany()
                 .HasForeignKey(a => a.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Fase B CRM: Lead / Oportunidad (aislamiento empresa + Restrict)
+            modelBuilder.Entity<ERP.Domain.Entities.CRM.Lead>()
+                .HasOne(l => l.Empresa)
+                .WithMany()
+                .HasForeignKey(l => l.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.CRM.Lead>()
+                .HasOne(l => l.Cliente)
+                .WithMany()
+                .HasForeignKey(l => l.ClienteId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.CRM.Oportunidad>()
+                .HasOne(o => o.Empresa)
+                .WithMany()
+                .HasForeignKey(o => o.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.CRM.Oportunidad>()
+                .HasOne(o => o.Lead)
+                .WithMany()
+                .HasForeignKey(o => o.LeadId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.CRM.Oportunidad>()
+                .HasOne(o => o.Cliente)
+                .WithMany()
+                .HasForeignKey(o => o.ClienteId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.CRM.Oportunidad>()
+                .HasOne(o => o.DocumentoPresupuesto)
+                .WithMany()
+                .HasForeignKey(o => o.DocumentoPresupuestoId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Articulo>()
