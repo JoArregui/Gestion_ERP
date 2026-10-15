@@ -113,6 +113,13 @@ namespace ERP.Data
         public DbSet<ERP.Domain.Entities.Almacen.Almacen> Almacenes { get; set; }
         public DbSet<ERP.Domain.Entities.Almacen.Ubicacion> Ubicaciones { get; set; }
         public DbSet<ERP.Domain.Entities.Almacen.StockUbicacion> StockUbicaciones { get; set; }
+        // Fase E Producción
+        public DbSet<ERP.Domain.Entities.Produccion.BOM> BOMLineas { get; set; }
+        public DbSet<ERP.Domain.Entities.Produccion.CentroTrabajo> CentrosTrabajo { get; set; }
+        public DbSet<ERP.Domain.Entities.Produccion.HojaRuta> HojasRuta { get; set; }
+        public DbSet<ERP.Domain.Entities.Produccion.OrdenFabricacion> OrdenesFabricacion { get; set; }
+        public DbSet<ERP.Domain.Entities.Produccion.OFMaterial> OFMateriales { get; set; }
+        public DbSet<ERP.Domain.Entities.Produccion.OFOperacion> OFOperaciones { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -512,6 +519,89 @@ namespace ERP.Data
                 .HasOne(e => e.CertificadoVerifactu)
                 .WithMany()
                 .HasForeignKey(e => e.CertificadoVerifactuId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Fase E Producción
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.BOM>()
+                .HasOne(b => b.Empresa)
+                .WithMany()
+                .HasForeignKey(b => b.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.BOM>()
+                .HasOne(b => b.ArticuloPadre)
+                .WithMany()
+                .HasForeignKey(b => b.ArticuloPadreId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.BOM>()
+                .HasOne(b => b.Componente)
+                .WithMany()
+                .HasForeignKey(b => b.ComponenteId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.BOM>()
+                .HasIndex(b => new { b.ArticuloPadreId, b.ComponenteId, b.Version })
+                .IsUnique();
+
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.CentroTrabajo>()
+                .HasOne(c => c.Empresa)
+                .WithMany()
+                .HasForeignKey(c => c.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.HojaRuta>()
+                .HasOne(h => h.Empresa)
+                .WithMany()
+                .HasForeignKey(h => h.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.HojaRuta>()
+                .HasOne(h => h.Articulo)
+                .WithMany()
+                .HasForeignKey(h => h.ArticuloId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.HojaRuta>()
+                .HasOne(h => h.CentroTrabajo)
+                .WithMany()
+                .HasForeignKey(h => h.CentroTrabajoId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.HojaRuta>()
+                .HasIndex(h => new { h.ArticuloId, h.NumeroOperacion, h.Version })
+                .IsUnique();
+
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.OrdenFabricacion>()
+                .HasOne(o => o.Empresa)
+                .WithMany()
+                .HasForeignKey(o => o.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.OrdenFabricacion>()
+                .HasOne(o => o.Articulo)
+                .WithMany()
+                .HasForeignKey(o => o.ArticuloId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.OFMaterial>()
+                .HasOne(m => m.OrdenFabricacion)
+                .WithMany(o => o.Materiales)
+                .HasForeignKey(m => m.OrdenFabricacionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.OFMaterial>()
+                .HasOne(m => m.Articulo)
+                .WithMany()
+                .HasForeignKey(m => m.ArticuloId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.OFOperacion>()
+                .HasOne(o => o.OrdenFabricacion)
+                .WithMany(f => f.Operaciones)
+                .HasForeignKey(o => o.OrdenFabricacionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.OFOperacion>()
+                .HasOne(o => o.HojaRuta)
+                .WithMany()
+                .HasForeignKey(o => o.HojaRutaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Produccion.OFOperacion>()
+                .HasOne(o => o.CentroTrabajo)
+                .WithMany()
+                .HasForeignKey(o => o.CentroTrabajoId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

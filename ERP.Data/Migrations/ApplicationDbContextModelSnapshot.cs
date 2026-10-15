@@ -3967,6 +3967,331 @@ namespace ERP.Data.Migrations
                     b.ToTable("PoliticasControlHorario");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.BOM", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ArticuloPadreId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Cantidad")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("ComponenteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SustitutoComponenteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ComponenteId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("SustitutoComponenteId");
+
+                    b.HasIndex("ArticuloPadreId", "ComponenteId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("BOMLineas");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.CentroTrabajo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CapacidadDiariaMinutos")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("CosteHoraManoObra")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CosteHoraMaquina")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("CentrosTrabajo");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.HojaRuta", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ArticuloId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CentroCosteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CentroTrabajoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DescripcionOperacion")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("NumeroOperacion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("TiempoPorUnidadMin")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TiempoPreparacionMin")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CentroTrabajoId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("ArticuloId", "NumeroOperacion", "Version")
+                        .IsUnique();
+
+                    b.ToTable("HojasRuta");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.OFMaterial", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ArticuloId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("CantidadReal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CantidadTeorica")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("LoteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("OrdenFabricacionId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticuloId");
+
+                    b.HasIndex("OrdenFabricacionId");
+
+                    b.ToTable("OFMateriales");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.OFOperacion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CentroTrabajoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("CosteManoObra")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CosteMaquina")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime?>("FechaFin")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaInicio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HojaRutaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("NumeroOperacion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OperarioId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("OrdenFabricacionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("TiempoPreparacionRealMin")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TiempoUnidadRealMin")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("UnidadesProducidas")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CentroTrabajoId");
+
+                    b.HasIndex("HojaRutaId");
+
+                    b.HasIndex("OrdenFabricacionId");
+
+                    b.ToTable("OFOperaciones");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.OrdenFabricacion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ArticuloId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("CantidadPlanificada")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CantidadRechazada")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CantidadTerminada")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CosteIndirectoReal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CosteManoObraReal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CosteMaquinaReal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CosteMaterialReal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CosteMaterialTeorico")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaPlanificadaFin")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaPlanificadaInicio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaRealFin")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaRealInicio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroOF")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticuloId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("OrdenesFabricacion");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Proveedor", b =>
                 {
                     b.Property<int>("Id")
@@ -5832,6 +6157,142 @@ namespace ERP.Data.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.BOM", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Articulo", "ArticuloPadre")
+                        .WithMany()
+                        .HasForeignKey("ArticuloPadreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Articulo", "Componente")
+                        .WithMany()
+                        .HasForeignKey("ComponenteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Articulo", "SustitutoComponente")
+                        .WithMany()
+                        .HasForeignKey("SustitutoComponenteId");
+
+                    b.Navigation("ArticuloPadre");
+
+                    b.Navigation("Componente");
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("SustitutoComponente");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.CentroTrabajo", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.HojaRuta", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Articulo", "Articulo")
+                        .WithMany()
+                        .HasForeignKey("ArticuloId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Produccion.CentroTrabajo", "CentroTrabajo")
+                        .WithMany()
+                        .HasForeignKey("CentroTrabajoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Articulo");
+
+                    b.Navigation("CentroTrabajo");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.OFMaterial", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Articulo", "Articulo")
+                        .WithMany()
+                        .HasForeignKey("ArticuloId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Produccion.OrdenFabricacion", "OrdenFabricacion")
+                        .WithMany("Materiales")
+                        .HasForeignKey("OrdenFabricacionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Articulo");
+
+                    b.Navigation("OrdenFabricacion");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.OFOperacion", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Produccion.CentroTrabajo", "CentroTrabajo")
+                        .WithMany()
+                        .HasForeignKey("CentroTrabajoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Produccion.HojaRuta", "HojaRuta")
+                        .WithMany()
+                        .HasForeignKey("HojaRutaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Produccion.OrdenFabricacion", "OrdenFabricacion")
+                        .WithMany("Operaciones")
+                        .HasForeignKey("OrdenFabricacionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CentroTrabajo");
+
+                    b.Navigation("HojaRuta");
+
+                    b.Navigation("OrdenFabricacion");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.OrdenFabricacion", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Articulo", "Articulo")
+                        .WithMany()
+                        .HasForeignKey("ArticuloId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Articulo");
+
+                    b.Navigation("Empresa");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Proveedor", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
@@ -6184,6 +6645,13 @@ namespace ERP.Data.Migrations
             modelBuilder.Entity("ERP.Domain.Entities.Fiscal.SectorDiferenciadoIVA", b =>
                 {
                     b.Navigation("DetallesLiquidacion");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Produccion.OrdenFabricacion", b =>
+                {
+                    b.Navigation("Materiales");
+
+                    b.Navigation("Operaciones");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.LoteTrazabilidad", b =>
