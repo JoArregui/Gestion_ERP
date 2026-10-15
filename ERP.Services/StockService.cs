@@ -8,10 +8,12 @@ namespace ERP.Services
     public class StockService
     {
         private readonly ApplicationDbContext _context;
+        private readonly ERP.Services.Almacen.AlmacenService? _almacenes;
 
-        public StockService(ApplicationDbContext context)
+        public StockService(ApplicationDbContext context, ERP.Services.Almacen.AlmacenService? almacenes = null)
         {
             _context = context;
+            _almacenes = almacenes;
         }
 
         /// <summary>
@@ -75,6 +77,8 @@ namespace ERP.Services
 
                             tipoMov = "RESERVA_ALBARAN";
                             articulo.StockReservado += linea.Cantidad;
+                            if (_almacenes != null)
+                                await _almacenes.ReservarEnUbicacionesAsync(doc.EmpresaId, articulo.Id, linea.Cantidad);
                         }
                         else if (doc.Tipo == TipoDocumento.Factura)
                         {
@@ -93,6 +97,8 @@ namespace ERP.Services
                             }
 
                             articulo.Stock -= linea.Cantidad;
+                            if (_almacenes != null)
+                                await _almacenes.ConsumirEnUbicacionesAsync(doc.EmpresaId, articulo.Id, linea.Cantidad);
                         }
                     }
 
@@ -141,6 +147,8 @@ namespace ERP.Services
                 if (articulo != null)
                 {
                     articulo.StockReservado -= linea.Cantidad;
+                    if (_almacenes != null && linea.ArticuloId.HasValue)
+                        await _almacenes.LiberarReservaAsync(albaran.EmpresaId, linea.ArticuloId.Value, linea.Cantidad);
 
                     // Registro de la liberación en el histórico
                     _context.MovimientosStock.Add(new MovimientoStock
@@ -163,7 +171,7 @@ namespace ERP.Services
         {
             var articulo = ajuste.ArticuloId > 0
                 ? await _context.Articulos.FindAsync(ajuste.ArticuloId)
-                : await _context.Articulos.FirstOrDefaultAsync(a => a.Codigo == ajuste.CodigoBarras);
+                : await _context.Articulos.FirstOrDefaultAsync(a => a.Codigo == ajuste.CodigoBarras || a.CodigoBarras == ajuste.CodigoBarras);
 
             if (articulo is null) throw new InvalidOperationException("Artículo no encontrado.");
 

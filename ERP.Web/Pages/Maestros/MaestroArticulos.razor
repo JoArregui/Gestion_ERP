@@ -192,6 +192,28 @@
                                 </div>
                             </div>
 
+                            <div class="grid grid-cols-4 gap-4 mt-4">
+                                <div>
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">EAN / Código Barras</label>
+                                    <InputText @bind-Value="articuloActual.CodigoBarras" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono uppercase" placeholder="8412345678905" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">Unidad Medida</label>
+                                    <InputText @bind-Value="articuloActual.UnidadMedida" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-center text-sm" placeholder="UDS / KG / L / M" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">Peso Neto (kg)</label>
+                                    <InputNumber @bind-Value="articuloActual.PesoNeto" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block">Lotes Obligatorios</label>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <InputCheckbox @bind-Value="articuloActual.LotesObligatorios" class="h-5 w-5 rounded text-blue-600" />
+                                        <span class="text-[10px] font-black text-slate-600">Exige lote en salidas</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100">
                                     <label class="text-[10px] font-black uppercase text-slate-400 mb-2 block text-center">Existencias Reales</label>

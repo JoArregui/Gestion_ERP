@@ -128,7 +128,7 @@ namespace ERP.API.Controllers
             }
             else
             {
-                articulo = await _context.Articulos.FirstOrDefaultAsync(a => a.Codigo == ajuste.CodigoBarras && a.EmpresaId == empresaIdAjuste);
+                articulo = await _context.Articulos.FirstOrDefaultAsync(a => (a.Codigo == ajuste.CodigoBarras || a.CodigoBarras == ajuste.CodigoBarras) && a.EmpresaId == empresaIdAjuste);
             }
             if (articulo == null) return NotFound("Artículo no encontrado en su empresa");
 
@@ -209,7 +209,7 @@ namespace ERP.API.Controllers
                     Codigo = a.Codigo,
                     Descripcion = a.Descripcion,
                     Precio = a.PrecioVenta, // Asumimos que queremos imprimir el PVP en la etiqueta
-                    CodigoBarras = a.Codigo, // Usamos el código como identificador de barras
+                    CodigoBarras = a.CodigoBarras ?? a.Codigo, // EAN propio si existe (Fase D)
                     CantidadAImprimir = 1
                 })
                 .ToListAsync();

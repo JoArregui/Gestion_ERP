@@ -1,0 +1,58 @@
+@using ERP.Domain.Entities.Almacen
+@using ERP.Domain.DTOs.Almacen
+
+<div class="bg-white rounded-2xl border p-4 mb-6">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h3 class="font-bold text-lg">@Almacen.Codigo — @Almacen.Nombre</h3>
+            <span class="text-xs text-slate-400">@(Almacen.EsPrincipal ? "★ Principal" : "") @(Almacen.Activo ? "· Activo" : "· Inactivo")</span>
+        </div>
+        <div class="flex gap-2">
+            <input @bind="NuevaUb[Almacen.Id]" placeholder="Pasillo-Estantería-Nivel (ej: A-01-02)" class="border rounded-xl px-3 py-2 text-sm w-56" />
+            <button @onclick="()=>OnCrearUbicacion(Almacen.Id)" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs">+ Ubicación</button>
+        </div>
+    </div>
+
+    @* UBICACIONES *@
+    <div class="bg-slate-50/50 rounded-xl p-3 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+            <span class="font-bold text-xs text-slate-400">Pasillo</span>
+            <span class="font-bold text-xs text-slate-400">Estantería</span>
+            <span class="font-bold text-xs text-slate-400">Nivel</span>
+            <span class="font-bold text-xs text-slate-400">Código</span>
+            <span></span>
+        </div>
+        @if (Ubicaciones.Any())
+        {
+            @foreach (var u in Ubicaciones)
+            {
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
+                    <span class="text-sm">@u.Pasillo</span>
+                    <span class="text-sm">@u.Estanteria</span>
+                    <span class="text-sm">@u.Nivel</span>
+                    <span class="text-sm font-mono">@u.Codigo</span>
+                    <span class="text-right"></span>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="text-xs text-slate-400">Sin ubicaciones definidas</p>
+        }
+    </div>
+
+    @* PICKING / REPOSICIÓN *@
+    <div class="flex gap-2 pt-2 border-t border-slate-100">
+        <button @onclick="()=>OnVerPicking(Almacen.Id)" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase">Ver Picking</button>
+        <button @onclick="()=>OnVerReposicion(Almacen.Id)" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase">Reposición</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Almacen Almacen { get; set; } = null!;
+    [Parameter] public List<Ubicacion> Ubicaciones { get; set; } = new();
+    [Parameter] public Action<int> OnCrearUbicacion { get; set; } = null!;
+    [Parameter] public Action<int> OnVerPicking { get; set; } = null!;
+    [Parameter] public Action<int> OnVerReposicion { get; set; } = null!;
+    [Parameter] public Dictionary<int, string> NuevaUb { get; set; } = new();
+}

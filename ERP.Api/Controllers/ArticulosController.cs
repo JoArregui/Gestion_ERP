@@ -56,7 +56,7 @@ namespace ERP.API.Controllers
                 
                 // Lógica Upsert: Buscar por Código y Empresa
                 var articuloExistente = await _context.Articulos
-                    .FirstOrDefaultAsync(a => a.Codigo == codigo && a.EmpresaId == empresaId);
+                .FirstOrDefaultAsync(a => (a.Codigo == codigo || a.CodigoBarras == codigo) && a.EmpresaId == empresaId);
 
                 if (articuloExistente != null)
                 {

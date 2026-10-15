@@ -1,0 +1,212 @@
+@page "/stock/almacenes"
+@attribute [Authorize]
+@using ERP.Domain.Entities.Almacen
+@using ERP.Domain.DTOs.Almacen
+@using ERP.Domain.DTOs
+@inject HttpClient Http
+@inject ERP.Web.Services.NotificationService Notify
+
+<div class="p-8 bg-slate-50 min-h-screen">
+    <div class="flex justify-between items-end mb-6">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">Fase D · WMS</p>
+            <h1 class="text-4xl font-black italic uppercase tracking-tighter">Almacenes <span class="text-blue-600">Picking</span></h1>
+        </div>
+        <button @onclick="Cargar" class="px-4 py-2 rounded-xl text-xs font-black uppercase bg-blue-600 text-white">Recargar</button>
+    </div>
+
+    <div class="bg-white rounded-2xl border p-4 mb-6 flex flex-wrap gap-4 items-end">
+        <input @bind="nuevoNombre" placeholder="Nombre almacén" class="border rounded-xl px-4 py-2 text-sm w-64" />
+        <button @onclick="CrearAlmacen" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase">+ Almacén</button>
+    </div>
+
+    @if (almacenes.Count == 0)
+    {
+        <div class="bg-white rounded-2xl border p-12 text-center text-slate-400 mb-6">
+            <p>No hay almacenes. Cree uno arriba.</p>
+        </div>
+    }
+
+    @foreach (var alm in almacenes)
+    {
+        <AlmacenCard Almacen="alm" Ubicaciones="@(ubicaciones.GetValueOrDefault(alm.Id, new()))" 
+                      OnCrearUbicacion="CrearUbicacion" OnVerPicking="VerPicking" OnVerReposicion="VerReposicion"
+                      NuevaUb="@nuevaUb" />
+    }
+
+    <PickingModal Show="@(pickingDoc != null)" OnClose="()=>pickingDoc=null">
+        <ChildContent>
+            @GetPickingModalContent()
+        </ChildContent>
+    </PickingModal>
+    <ReposicionModal Show="@repoAlmId.HasValue" OnClose="()=>repoAlmId=null">
+        <ChildContent>
+            @GetReposicionModalContent()
+        </ChildContent>
+    </ReposicionModal>
+</div>
+
+@code {
+    private List<Almacen> almacenes = new();
+    private Dictionary<int, List<Ubicacion>> ubicaciones = new();
+    private string nuevoNombre = "";
+    private Dictionary<int, string> nuevaUb = new();
+    private PickingDocumento? pickingDoc;
+    private int? repoAlmId;
+    private List<AlertaStockDTO>? reposicion;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+    private async Task Cargar()
+    {
+        try
+        {
+            almacenes = await Http.GetFromJsonAsync<List<Almacen>>("api/Almacenes") ?? new();
+            ubicaciones.Clear();
+            foreach (var a in almacenes)
+            {
+                var us = await Http.GetFromJsonAsync<List<Ubicacion>>($"api/Almacenes/{a.Id}/ubicaciones") ?? new();
+                ubicaciones[a.Id] = us;
+            }
+        }
+        catch (Exception ex) { Notify.Error(ex.Message); }
+    }
+    private async Task CrearAlmacen()
+    {
+        if (string.IsNullOrWhiteSpace(nuevoNombre)) return;
+        var res = await Http.PostAsJsonAsync("api/Almacenes", new Almacen { Nombre = nuevoNombre });
+        if (res.IsSuccessStatusCode) { Notify.Success("Almacén creado"); nuevoNombre = ""; await Cargar(); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task CrearUbicacion(int almacenId)
+    {
+        var cod = nuevaUb.GetValueOrDefault(almacenId, "");
+        if (string.IsNullOrWhiteSpace(cod)) { Notify.Error("Código vacío"); return; }
+        var parts = cod.Split('-');
+        if (parts.Length != 3) { Notify.Error("Formato Pasillo-Estantería-Nivel"); return; }
+        var res = await Http.PostAsJsonAsync($"api/Almacenes/{almacenId}/ubicaciones",
+            new Ubicacion { Pasillo = parts[0], Estanteria = parts[1], Nivel = parts[2] });
+        if (res.IsSuccessStatusCode) { Notify.Success("Ubicación creada"); nuevaUb[almacenId] = ""; await Cargar(); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task VerPicking(int almacenId)
+    {
+        try { pickingDoc = await Http.GetFromJsonAsync<PickingDocumento>($"api/Almacenes/picking/{almacenId}"); }
+        catch (Exception ex) { Notify.Error(ex.Message); }
+    }
+    private async Task VerReposicion(int almacenId)
+    {
+        repoAlmId = almacenId;
+        try { reposicion = await Http.GetFromJsonAsync<List<AlertaStockDTO>>($"api/Almacenes/reposicion"); }
+        catch (Exception ex) { Notify.Error(ex.Message); }
+    }
+
+    private RenderFragment GetPickingModalContent() => builder =>
+    {
+        if (pickingDoc == null) return;
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center");
+        builder.OpenElement(2, "div");
+        builder.AddAttribute(3, "class", "bg-white w-full max-w-3xl rounded-3xl p-6 max-h-[80vh] overflow-auto");
+        builder.OpenElement(4, "div");
+        builder.AddAttribute(5, "class", "flex justify-between items-center mb-4");
+        builder.OpenElement(6, "h3");
+        builder.AddAttribute(7, "class", "font-black");
+        builder.AddContent(8, "Picking " + pickingDoc.NumeroDocumento);
+        builder.CloseElement(); // h3
+        builder.OpenElement(9, "button");
+        builder.AddAttribute(10, "onclick", EventCallback.Factory.Create(this, () => pickingDoc = null));
+        builder.AddAttribute(11, "class", "text-slate-400 hover:text-white");
+        builder.AddContent(12, "✕");
+        builder.CloseElement(); // button
+        builder.CloseElement(); // div header
+        builder.OpenElement(13, "p");
+        builder.AddAttribute(14, "class", "text-sm " + (pickingDoc.Completo ? "text-emerald-600" : "text-rose-600") + " font-bold mb-4");
+        builder.AddContent(15, pickingDoc.Completo ? "Completo - todo disponible" : "Incompleto - falta stock");
+        builder.CloseElement(); // p
+        foreach (var l in pickingDoc.Lineas)
+        {
+            builder.OpenElement(16, "div");
+            builder.AddAttribute(17, "class", "border rounded-xl p-3 mb-3");
+            builder.OpenElement(17, "p");
+            builder.AddAttribute(18, "class", "font-bold");
+            builder.AddContent(18, l.Codigo + " — " + l.Descripcion + " × " + l.CantidadPedida);
+            builder.CloseElement(); // p
+            foreach (var o in l.Origen)
+            {
+                builder.OpenElement(19, "p");
+                builder.AddAttribute(19, "class", "text-xs text-slate-500 ml-4");
+                builder.AddContent(20, o.Origen + ": " + o.Cantidad);
+                builder.CloseElement(); // p
+            }
+            if (l.Origen.Sum(o => o.Cantidad) < l.CantidadPedida)
+            {
+                builder.OpenElement(21, "p");
+                builder.AddAttribute(21, "class", "text-xs text-rose-600 ml-4 font-bold");
+                builder.AddContent(22, "FALTA " + (l.CantidadPedida - l.Origen.Sum(o => o.Cantidad)));
+                builder.CloseElement(); // p
+            }
+            builder.CloseElement(); // div linea
+        }
+        builder.CloseElement(); // div content
+        builder.CloseElement(); // div modal
+        builder.CloseElement(); // div overlay
+    };
+
+    private RenderFragment GetReposicionModalContent() => builder =>
+    {
+        if (!repoAlmId.HasValue) return;
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center");
+        builder.OpenElement(2, "div");
+        builder.AddAttribute(3, "class", "bg-white w-full max-w-2xl rounded-3xl p-6 max-h-[80vh] overflow-auto");
+        builder.OpenElement(4, "div");
+        builder.AddAttribute(5, "class", "flex justify-between items-center mb-4");
+        builder.OpenElement(6, "h3");
+        builder.AddAttribute(7, "class", "font-black");
+        builder.AddContent(8, "Reposición sugerida");
+        builder.CloseElement(); // h3
+        builder.OpenElement(9, "button");
+        builder.AddAttribute(10, "onclick", EventCallback.Factory.Create(this, () => repoAlmId = null));
+        builder.AddAttribute(11, "class", "text-slate-400 hover:text-white");
+        builder.AddContent(11, "✕");
+        builder.CloseElement(); // button
+        builder.CloseElement(); // div header
+        if (reposicion == null || !reposicion.Any())
+        {
+            builder.OpenElement(12, "p");
+            builder.AddAttribute(13, "class", "text-slate-400 text-center py-8");
+            builder.AddContent(14, "Todo cubierto ✓");
+            builder.CloseElement();
+        }
+        else
+        {
+            builder.OpenElement(15, "table");
+            builder.AddAttribute(16, "class", "w-full text-sm");
+            builder.OpenElement(17, "thead");
+            builder.AddAttribute(18, "class", "text-[10px] uppercase font-black text-slate-400");
+            builder.OpenElement(19, "tr");
+            builder.OpenElement(20, "th"); builder.AddAttribute(21, "class", "text-left p-2"); builder.AddContent(22, "Artículo"); builder.CloseElement();
+            builder.OpenElement(23, "th"); builder.AddAttribute(24, "class", "text-right p-2"); builder.AddContent(25, "Stock disp."); builder.CloseElement();
+            builder.OpenElement(26, "th"); builder.AddAttribute(27, "class", "text-right p-2"); builder.AddContent(28, "Mínimo"); builder.CloseElement();
+            builder.OpenElement(29, "th"); builder.AddAttribute(30, "class", "text-right p-2"); builder.AddContent(31, "A reponer"); builder.CloseElement();
+            builder.CloseElement(); // tr
+            builder.CloseElement(); // thead
+            builder.OpenElement(32, "tbody");
+            foreach (var r in reposicion)
+            {
+                builder.OpenElement(33, "tr");
+                builder.AddAttribute(34, "class", "border-t");
+                builder.OpenElement(35, "td"); builder.AddAttribute(36, "class", "p-2 font-bold"); builder.AddContent(37, r.Codigo + " — " + r.Descripcion); builder.CloseElement();
+                builder.OpenElement(38, "td"); builder.AddAttribute(39, "class", "p-2 text-right"); builder.AddContent(40, r.StockActual.ToString("N2")); builder.CloseElement();
+                builder.OpenElement(41, "td"); builder.AddAttribute(42, "class", "p-2 text-right"); builder.AddContent(43, r.StockMinimo.ToString("N2")); builder.CloseElement();
+                builder.OpenElement(44, "td"); builder.AddAttribute(45, "class", "p-2 text-right font-bold text-rose-600"); builder.AddContent(46, r.CantidadAReponer.ToString("N2")); builder.CloseElement();
+                builder.CloseElement(); // tr
+            }
+            builder.CloseElement(); // tbody
+            builder.CloseElement(); // table
+        }
+        builder.CloseElement(); // div content
+        builder.CloseElement(); // div modal
+        builder.CloseElement(); // div overlay
+    };
+}

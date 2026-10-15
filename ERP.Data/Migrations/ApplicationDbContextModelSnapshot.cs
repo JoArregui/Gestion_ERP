@@ -64,6 +64,126 @@ namespace ERP.Data.Migrations
                     b.ToTable("Acreedores");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Almacen.Almacen", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Direccion")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsPrincipal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("Almacenes");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Almacen.StockUbicacion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AlmacenId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ArticuloId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Cantidad")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Reservado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("UbicacionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UltimoMovimiento")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AlmacenId");
+
+                    b.HasIndex("ArticuloId");
+
+                    b.HasIndex("UbicacionId", "ArticuloId")
+                        .IsUnique();
+
+                    b.ToTable("StockUbicaciones");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Almacen.Ubicacion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AlmacenId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Estanteria")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nivel")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Pasillo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AlmacenId", "Codigo")
+                        .IsUnique();
+
+                    b.ToTable("Ubicaciones");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -160,6 +280,10 @@ namespace ERP.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CodigoBarras")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Descripcion")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -176,6 +300,13 @@ namespace ERP.Data.Migrations
 
                     b.Property<bool>("IsDescatalogado")
                         .HasColumnType("INTEGER");
+
+                    b.Property<bool>("LotesObligatorios")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("PesoNeto")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<decimal>("PorcentajeIva")
                         .HasPrecision(18, 4)
@@ -204,11 +335,18 @@ namespace ERP.Data.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("UnidadMedida")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FamiliaId");
 
                     b.HasIndex("ProveedorHabitualId");
+
+                    b.HasIndex("EmpresaId", "CodigoBarras");
 
                     b.ToTable("Articulos");
                 });
@@ -4894,6 +5032,55 @@ namespace ERP.Data.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Almacen.Almacen", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Almacen.StockUbicacion", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Almacen.Almacen", "Almacen")
+                        .WithMany()
+                        .HasForeignKey("AlmacenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Articulo", "Articulo")
+                        .WithMany()
+                        .HasForeignKey("ArticuloId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Almacen.Ubicacion", "Ubicacion")
+                        .WithMany()
+                        .HasForeignKey("UbicacionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Almacen");
+
+                    b.Navigation("Articulo");
+
+                    b.Navigation("Ubicacion");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Almacen.Ubicacion", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Almacen.Almacen", "Almacen")
+                        .WithMany("Ubicaciones")
+                        .HasForeignKey("AlmacenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Almacen");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.ApplicationUser", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
@@ -5902,6 +6089,11 @@ namespace ERP.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Almacen.Almacen", b =>
+                {
+                    b.Navigation("Ubicaciones");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.ApplicationUser", b =>

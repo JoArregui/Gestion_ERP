@@ -50,6 +50,21 @@ namespace ERP.Domain.Entities
 
         public string? ImagenUrl { get; set; }
 
+        // --- FASE D WMS (ERP.txt §4) ---
+        /// <summary>Código de barras EAN13/EAN128 para PDA y etiquetas.</summary>
+        [StringLength(30)]
+        public string? CodigoBarras { get; set; }
+
+        /// <summary>Unidad de medida: UDS, KG, L, M...</summary>
+        [StringLength(10)]
+        public string UnidadMedida { get; set; } = "UDS";
+
+        [Column(TypeName = "decimal(18,4)")]
+        public decimal PesoNeto { get; set; } = 0;
+
+        /// <summary>Si true, las salidas exigen lote de trazabilidad.</summary>
+        public bool LotesObligatorios { get; set; } = false;
+
         [Required(ErrorMessage = "Debe asignar una familia al artículo")]
         public int FamiliaId { get; set; }
 

@@ -1,0 +1,10 @@
+<div class="@(Show ? "fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center" : "hidden")">
+    <div class="bg-white w-full max-w-2xl rounded-3xl p-6 max-h-[80vh] overflow-auto">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

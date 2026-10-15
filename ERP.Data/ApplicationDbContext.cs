@@ -109,6 +109,10 @@ namespace ERP.Data
         public DbSet<ERP.Domain.Entities.Compras.LineaSolicitudOferta> LineasSolicitudOferta { get; set; }
         public DbSet<ERP.Domain.Entities.Compras.OfertaProveedor> OfertasProveedor { get; set; }
         public DbSet<ERP.Domain.Entities.Compras.LineaOferta> LineasOferta { get; set; }
+        // Fase D WMS
+        public DbSet<ERP.Domain.Entities.Almacen.Almacen> Almacenes { get; set; }
+        public DbSet<ERP.Domain.Entities.Almacen.Ubicacion> Ubicaciones { get; set; }
+        public DbSet<ERP.Domain.Entities.Almacen.StockUbicacion> StockUbicaciones { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -327,6 +331,36 @@ namespace ERP.Data
                 .WithMany()
                 .HasForeignKey(l => l.ArticuloId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Fase D WMS
+            modelBuilder.Entity<ERP.Domain.Entities.Almacen.Almacen>()
+                .HasOne(a => a.Empresa)
+                .WithMany()
+                .HasForeignKey(a => a.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Almacen.Ubicacion>()
+                .HasOne(u => u.Almacen)
+                .WithMany(a => a.Ubicaciones)
+                .HasForeignKey(u => u.AlmacenId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ERP.Domain.Entities.Almacen.Ubicacion>()
+                .HasIndex(u => new { u.AlmacenId, u.Codigo })
+                .IsUnique();
+            modelBuilder.Entity<ERP.Domain.Entities.Almacen.StockUbicacion>()
+                .HasOne(s => s.Ubicacion)
+                .WithMany()
+                .HasForeignKey(s => s.UbicacionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ERP.Domain.Entities.Almacen.StockUbicacion>()
+                .HasOne(s => s.Articulo)
+                .WithMany()
+                .HasForeignKey(s => s.ArticuloId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Almacen.StockUbicacion>()
+                .HasIndex(s => new { s.UbicacionId, s.ArticuloId })
+                .IsUnique();
+            modelBuilder.Entity<Articulo>()
+                .HasIndex(a => new { a.EmpresaId, a.CodigoBarras });
 
             modelBuilder.Entity<Articulo>()
                 .HasOne(a => a.Familia)
