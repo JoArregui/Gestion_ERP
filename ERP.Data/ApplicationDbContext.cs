@@ -146,6 +146,16 @@ namespace ERP.Data
         // Reportes
         public DbSet<ERP.Domain.Entities.Transversal.ReportDefinicion> ReportDefiniciones { get; set; }
         public DbSet<ERP.Domain.Entities.Transversal.ReportEjecucion> ReportEjecuciones { get; set; }
+        // Canal Ético (Ley 2/2023)
+        public DbSet<ERP.Domain.Entities.CanalEtico.DenunciaCanalEtico> DenunciasCanalEtico { get; set; }
+        public DbSet<ERP.Domain.Entities.CanalEtico.ComentarioDenuncia> ComentariosDenuncia { get; set; }
+        public DbSet<ERP.Domain.Entities.CanalEtico.DocumentoDenuncia> DocumentosDenuncia { get; set; }
+        public DbSet<ERP.Domain.Entities.CanalEtico.HistoricoEstadoDenuncia> HistorialEstadosDenuncia { get; set; }
+        public DbSet<ERP.Domain.Entities.CanalEtico.ConfiguracionCanalEtico> ConfiguracionesCanalEtico { get; set; }
+        // TicketBAI (País Vasco)
+        public DbSet<ERP.Domain.Entities.TicketBai.TicketBaiRegistro> TicketBaiRegistros { get; set; }
+        public DbSet<ERP.Domain.Entities.TicketBai.TicketBaiAnulacion> TicketBaiAnulaciones { get; set; }
+        public DbSet<ERP.Domain.Entities.TicketBai.ConfiguracionTicketBai> ConfiguracionesTicketBai { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -817,6 +827,77 @@ namespace ERP.Data
                 .OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<ERP.Domain.Entities.Transversal.ReportEjecucion>()
                 .HasIndex(e => new { e.EmpresaId, e.FechaEjecucion });
+
+            // Canal Ético (Ley 2/2023)
+            modelBuilder.Entity<ERP.Domain.Entities.CanalEtico.DenunciaCanalEtico>()
+                .HasOne(d => d.Empresa)
+                .WithMany()
+                .HasForeignKey(d => d.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.CanalEtico.DenunciaCanalEtico>()
+                .HasIndex(d => new { d.EmpresaId, d.Codigo })
+                .IsUnique();
+            modelBuilder.Entity<ERP.Domain.Entities.CanalEtico.DenunciaCanalEtico>()
+                .HasIndex(d => new { d.EmpresaId, d.Estado, d.FechaRecepcion });
+
+            modelBuilder.Entity<ERP.Domain.Entities.CanalEtico.ComentarioDenuncia>()
+                .HasOne(c => c.Denuncia)
+                .WithMany(d => d.Comentarios)
+                .HasForeignKey(c => c.DenunciaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ERP.Domain.Entities.CanalEtico.DocumentoDenuncia>()
+                .HasOne(d => d.Denuncia)
+                .WithMany(d => d.Documentos)
+                .HasForeignKey(d => d.DenunciaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ERP.Domain.Entities.CanalEtico.HistoricoEstadoDenuncia>()
+                .HasOne(h => h.Denuncia)
+                .WithMany(d => d.HistorialEstados)
+                .HasForeignKey(h => h.DenunciaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ERP.Domain.Entities.CanalEtico.ConfiguracionCanalEtico>()
+                .HasOne(c => c.Empresa)
+                .WithMany()
+                .HasForeignKey(c => c.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.CanalEtico.ConfiguracionCanalEtico>()
+                .HasIndex(c => new { c.EmpresaId })
+                .IsUnique();
+
+            // TicketBAI (País Vasco)
+            modelBuilder.Entity<ERP.Domain.Entities.TicketBai.TicketBaiRegistro>()
+                .HasOne(t => t.Empresa)
+                .WithMany()
+                .HasForeignKey(t => t.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.TicketBai.TicketBaiRegistro>()
+                .HasIndex(t => new { t.EmpresaId, t.Codigo })
+                .IsUnique();
+            modelBuilder.Entity<ERP.Domain.Entities.TicketBai.TicketBaiRegistro>()
+                .HasIndex(t => new { t.EmpresaId, t.EstadoEnvio, t.FechaCreacion });
+
+            modelBuilder.Entity<ERP.Domain.Entities.TicketBai.TicketBaiAnulacion>()
+                .HasOne(a => a.Empresa)
+                .WithMany()
+                .HasForeignKey(a => a.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.TicketBai.TicketBaiAnulacion>()
+                .HasOne(a => a.RegistroAlta)
+                .WithMany()
+                .HasForeignKey(a => a.RegistroAltaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ERP.Domain.Entities.TicketBai.ConfiguracionTicketBai>()
+                .HasOne(c => c.Empresa)
+                .WithMany()
+                .HasForeignKey(c => c.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.TicketBai.ConfiguracionTicketBai>()
+                .HasIndex(c => new { c.EmpresaId, c.HaciendaForal })
+                .IsUnique();
         }
     }
 }

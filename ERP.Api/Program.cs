@@ -12,7 +12,7 @@ using ERP.Domain.Entities;
 using ERP.Services;
 using ERP.Api.Hubs;
 using ERP.Api.Infrastructure;
-using ERP.Api.Services; // IEmailService / EmailService siguen aquí (Api-specific infra)
+using ERP.Api.Services;
 using ERP.Domain.Constants;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -159,6 +159,7 @@ builder.Services.AddScoped<ERP.Services.Transversal.LocalizacionService>();
 builder.Services.AddScoped<ERP.Services.Transversal.DivisaService>();
 builder.Services.AddScoped<ERP.Services.Trazabilidad.TrazabilidadService>();
 builder.Services.AddScoped<ERP.Services.Fiscal.MotorIVAService>();
+builder.Services.AddScoped<ERP.Services.CanalEtico.CanalEticoService>();
 
 builder.Services.AddControllers(o => o.Filters.Add<ERP.Api.Infrastructure.BootstrapOnlyOnboardingFilter>()).AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
@@ -371,6 +372,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+// TLS 1.3 enforcement + Security Headers (Privacy by Design - RGPD Art.25)
+app.UseMiddleware<ERP.Api.Infrastructure.TlsEnforcementMiddleware>();
 app.UseStaticFiles();
 app.UseCors("AllowBlazorClient");
 app.UseAuthentication();

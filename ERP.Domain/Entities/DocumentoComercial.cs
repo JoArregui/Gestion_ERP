@@ -64,6 +64,17 @@ namespace ERP.Domain.Entities
         [StringLength(2)]
         public string? TipoRectificativa { get; set; } // I,S
         public string? FacturasRectificadasJson { get; set; }
+        public string? FacturasSustituidasJson { get; set; }
+
+        // --- TICKETBAI (País Vasco) ---
+        [StringLength(2)]
+        public string? HaciendaForal { get; set; } // BI, GI, AV
+
+        [StringLength(2)]
+        public string? RechazoPrevio { get; set; } // S/N
+
+        [StringLength(60)]
+        public string? RefExterna { get; set; }
 
         // --- TRAZABILIDAD FISCAL: emisión formal ---
         public bool EnviadaCliente { get; set; } = false;

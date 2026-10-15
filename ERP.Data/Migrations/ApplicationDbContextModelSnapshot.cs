@@ -1112,6 +1112,365 @@ namespace ERP.Data.Migrations
                     b.ToTable("Oportunidades");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.CanalEtico.ComentarioDenuncia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AutorId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AutorNombre")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DenunciaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsInterno")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Texto")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DenunciaId");
+
+                    b.ToTable("ComentariosDenuncia");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CanalEtico.ConfiguracionCanalEtico", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CanalAppMovilActivo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CanalEmailActivo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CanalPresencialActivo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CanalTelefonoActivo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CanalWebActivo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ComiteEticoIds")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DiasMaximosEvaluacion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DiasMaximosInvestigacion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EmailCanalEtico")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaUltimaActualizacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("MedidasProteccionAutomaticas")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("NotificarInformanteCambios")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("PermiteAnonimas")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ProhibicionRepresaliasExplicita")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RequiereConfirmacionRecepcion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ResponsableCanalId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResponsableProteccionDatosId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TelefonoCanalEtico")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TextoAcuseRecibo")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TextoConfirmacionAnonimato")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioUltimaActualizacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId")
+                        .IsUnique();
+
+                    b.ToTable("ConfiguracionesCanalEtico");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CanalEtico.DenunciaCanalEtico", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ComunicacionesInternasJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DepartamentoArea")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DescripcionHechos")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetalleRepresalias")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EmailInformante")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsAnonima")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaAdmision")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaHechos")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaInvestigacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaRecepcion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaResolucion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaUltimaActualizacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Gravedad")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("HaSidoRepresaliado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("InstructorId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LugarHechos")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MedidasCorrectoras")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MedidasProteccion")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreInformante")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("NotificarInformante")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PersonasImplicadas")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PruebasAportadas")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelacionEmpresa")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Resolucion")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResponsableResolucionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("SolicitaProteccion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TelefonoInformante")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoInfraccion")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoResolucion")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioUltimaActualizacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId", "Estado", "FechaRecepcion");
+
+                    b.ToTable("DenunciasCanalEtico");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CanalEtico.DocumentoDenuncia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DenunciaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaSubida")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HashSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreOriginal")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("TamanoBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TipoMime")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioSubida")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DenunciaId");
+
+                    b.ToTable("DocumentosDenuncia");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CanalEtico.HistoricoEstadoDenuncia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DenunciaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EstadoAnterior")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EstadoNuevo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Motivo")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DenunciaId");
+
+                    b.ToTable("HistorialEstadosDenuncia");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.CierreCaja", b =>
                 {
                     b.Property<int>("Id")
@@ -2169,6 +2528,9 @@ namespace ERP.Data.Migrations
                     b.Property<string>("FacturasRectificadasJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("FacturasSustituidasJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("TEXT");
 
@@ -2179,6 +2541,10 @@ namespace ERP.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("FechaRecepcion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HaciendaForal")
+                        .HasMaxLength(2)
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IncidenciaVerifactu")
@@ -2214,6 +2580,14 @@ namespace ERP.Data.Migrations
 
                     b.Property<int?>("ProveedorId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("RechazoPrevio")
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RefExterna")
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Tipo")
                         .HasColumnType("INTEGER");
@@ -5273,6 +5647,357 @@ namespace ERP.Data.Migrations
                     b.ToTable("Tareas");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.TicketBai.ConfiguracionTicketBai", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CertificadoSoftwareHuella")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CertificadoSoftwareNombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EndpointAnulacion")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndpointConsulta")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndpointEnvio")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("EnvioAutomatico")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaUltimaActualizacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HaciendaForal")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IdCertificadoSoftware")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IdSistemaInformatico")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("IntentosMaximosEnvio")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("IntervaloReintentoMinutos")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NombreSistemaInformatico")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroInstalacion")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioUltimaActualizacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VersionSistemaInformatico")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "HaciendaForal")
+                        .IsUnique();
+
+                    b.ToTable("ConfiguracionesTicketBai");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.TicketBai.TicketBaiAnulacion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DatosRegistroJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EstadoEnvio")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("FechaAnulacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("FechaEnvio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaExpedicion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("FechaHoraHusoGeneracion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Huella")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HuellaAnterior")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("IntentosEnvio")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MotivoAnulacion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NifEmisor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroFactura")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RegistroAltaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RespuestaHacienda")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("RegistroAltaId");
+
+                    b.ToTable("TicketBaiAnulaciones");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.TicketBai.TicketBaiRegistro", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AnulacionPreviaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("BaseImponible")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CertificadoSoftware")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CertificadoSoftwareHuella")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CodMoneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CodigoErrorHacienda")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("CuotaRecargoEquivalencia")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CuotaTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("DatosRegistroJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DescripcionOperacion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DocumentoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsPrimerRegistro")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EstadoEnvio")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FacturasRectificadasJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("FechaAnulacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("FechaEnvio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaExpedicion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("FechaHoraHusoGeneracion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FirmaRegistroBase64")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HaciendaForal")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Huella")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HuellaAnterior")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IdCertificadoSoftware")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IdSistemaInformatico")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ImporteTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("Incidencia")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("IntentosEnvio")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NifEmisor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreRazonEmisor")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NombreSistemaInformatico")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroFactura")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NumeroInstalacion")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RechazoPrevio")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RefExterna")
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RespuestaHacienda")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Serie")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoFactura")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoHuella")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoRectificativa")
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UrlQrTicketBai")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VersionSistemaInformatico")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentoId");
+
+                    b.HasIndex("EmpresaId", "Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId", "EstadoEnvio", "FechaCreacion");
+
+                    b.ToTable("TicketBaiRegistros");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Transversal.AuditConfig", b =>
                 {
                     b.Property<int>("Id")
@@ -6459,6 +7184,61 @@ namespace ERP.Data.Migrations
                     b.Navigation("Lead");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.CanalEtico.ComentarioDenuncia", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.CanalEtico.DenunciaCanalEtico", "Denuncia")
+                        .WithMany("Comentarios")
+                        .HasForeignKey("DenunciaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Denuncia");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CanalEtico.ConfiguracionCanalEtico", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CanalEtico.DenunciaCanalEtico", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CanalEtico.DocumentoDenuncia", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.CanalEtico.DenunciaCanalEtico", "Denuncia")
+                        .WithMany("Documentos")
+                        .HasForeignKey("DenunciaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Denuncia");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CanalEtico.HistoricoEstadoDenuncia", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.CanalEtico.DenunciaCanalEtico", "Denuncia")
+                        .WithMany("HistorialEstados")
+                        .HasForeignKey("DenunciaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Denuncia");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.CierreCaja", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
@@ -7390,6 +8170,55 @@ namespace ERP.Data.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.TicketBai.ConfiguracionTicketBai", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.TicketBai.TicketBaiAnulacion", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.TicketBai.TicketBaiRegistro", "RegistroAlta")
+                        .WithMany()
+                        .HasForeignKey("RegistroAltaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("RegistroAlta");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.TicketBai.TicketBaiRegistro", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.DocumentoComercial", "Documento")
+                        .WithMany()
+                        .HasForeignKey("DocumentoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Documento");
+
+                    b.Navigation("Empresa");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Transversal.AuditLog", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
@@ -7712,6 +8541,15 @@ namespace ERP.Data.Migrations
             modelBuilder.Entity("ERP.Domain.Entities.Bancario.RemesaSEPA", b =>
                 {
                     b.Navigation("Operaciones");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.CanalEtico.DenunciaCanalEtico", b =>
+                {
+                    b.Navigation("Comentarios");
+
+                    b.Navigation("Documentos");
+
+                    b.Navigation("HistorialEstados");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Compras.OfertaProveedor", b =>

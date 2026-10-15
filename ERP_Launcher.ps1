@@ -1,4 +1,4 @@
-# ERP.NET Launcher PowerShell (mejor que .bat)
+﻿# ERP.NET Launcher PowerShell (mejor que .bat)
 # Uso: .\ERP_Launcher.ps1
 
 $ErrorActionPreference = "Stop"
