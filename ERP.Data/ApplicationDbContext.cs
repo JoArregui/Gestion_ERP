@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Linq.Expressions;
+using ERP.Data.Interceptors;
 
 namespace ERP.Data
 {
@@ -19,10 +20,15 @@ namespace ERP.Data
 
         public ApplicationDbContext(
             DbContextOptions<ApplicationDbContext> options,
-            ITenantContext? tenantContext = null)
+            ITenantContext? tenantContext = null,
+            AuditInterceptor? auditInterceptor = null)
             : base(options)
         {
             _tenantContext = tenantContext;
+            if (auditInterceptor != null)
+            {
+                // El interceptor se registra via AddInterceptors en Program.cs
+            }
         }
 
         /// <summary>
@@ -129,6 +135,17 @@ namespace ERP.Data
         public DbSet<ERP.Domain.Entities.Proyectos.ContratoMantenimiento> ContratosMantenimiento { get; set; }
         public DbSet<ERP.Domain.Entities.Proyectos.TicketSAT> TicketsSAT { get; set; }
         public DbSet<ERP.Domain.Entities.Proyectos.TicketComentario> TicketComentarios { get; set; }
+        // Fase G Transversal
+        public DbSet<ERP.Domain.Entities.Transversal.AuditLog> AuditLogs { get; set; }
+        public DbSet<ERP.Domain.Entities.Transversal.AuditConfig> AuditConfigs { get; set; }
+        // Workflow
+        public DbSet<ERP.Domain.Entities.Transversal.WorkflowDefinicion> WorkflowDefiniciones { get; set; }
+        public DbSet<ERP.Domain.Entities.Transversal.WorkflowInstancia> WorkflowInstancias { get; set; }
+        public DbSet<ERP.Domain.Entities.Transversal.WorkflowPaso> WorkflowPasos { get; set; }
+        public DbSet<ERP.Domain.Entities.Transversal.NotificacionPlantilla> NotificacionPlantillas { get; set; }
+        // Reportes
+        public DbSet<ERP.Domain.Entities.Transversal.ReportDefinicion> ReportDefiniciones { get; set; }
+        public DbSet<ERP.Domain.Entities.Transversal.ReportEjecucion> ReportEjecuciones { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -724,6 +741,82 @@ namespace ERP.Data
                 .WithMany()
                 .HasForeignKey(c => c.EmpleadoId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Fase G Transversal - AuditLog
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.AuditLog>()
+                .HasOne(a => a.Empresa)
+                .WithMany()
+                .HasForeignKey(a => a.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.AuditLog>()
+                .HasIndex(a => new { a.EmpresaId, a.Entidad, a.EntidadId });
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.AuditLog>()
+                .HasIndex(a => a.Fecha);
+
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.AuditConfig>()
+                .HasIndex(c => new { c.EmpresaId, c.Entidad })
+                .IsUnique();
+
+            // Fase G Transversal - Workflows
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.WorkflowDefinicion>()
+                .HasOne(w => w.Empresa)
+                .WithMany()
+                .HasForeignKey(w => w.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.WorkflowDefinicion>()
+                .HasIndex(w => new { w.EmpresaId, w.Codigo })
+                .IsUnique();
+
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.WorkflowInstancia>()
+                .HasOne(w => w.Empresa)
+                .WithMany()
+                .HasForeignKey(w => w.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.WorkflowInstancia>()
+                .HasOne(w => w.Definicion)
+                .WithMany()
+                .HasForeignKey(w => w.WorkflowDefinicionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.WorkflowInstancia>()
+                .HasIndex(w => new { w.EntidadObjetivo, w.EntidadObjetivoId, w.Estado });
+
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.WorkflowPaso>()
+                .HasOne(p => p.Instancia)
+                .WithMany(i => i.Pasos)
+                .HasForeignKey(p => p.InstanciaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.NotificacionPlantilla>()
+                .HasOne(n => n.Empresa)
+                .WithMany()
+                .HasForeignKey(n => n.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.NotificacionPlantilla>()
+                .HasIndex(n => new { n.EmpresaId, n.Codigo })
+                .IsUnique();
+
+            // Fase G3 - Reportes
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.ReportDefinicion>()
+                .HasOne(r => r.Empresa)
+                .WithMany()
+                .HasForeignKey(r => r.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.ReportDefinicion>()
+                .HasIndex(r => new { r.EmpresaId, r.Codigo })
+                .IsUnique();
+
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.ReportEjecucion>()
+                .HasOne(e => e.Empresa)
+                .WithMany()
+                .HasForeignKey(e => e.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.ReportEjecucion>()
+                .HasOne(e => e.Definicion)
+                .WithMany()
+                .HasForeignKey(e => e.ReportDefinicionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Transversal.ReportEjecucion>()
+                .HasIndex(e => new { e.EmpresaId, e.FechaEjecucion });
         }
     }
 }

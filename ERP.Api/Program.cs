@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using ERP.Data;
+using ERP.Data.Interceptors;
 using ERP.Domain.Entities;
 using ERP.Services;
 using ERP.Api.Hubs;
@@ -26,6 +27,10 @@ builder.Services.AddSingleton<TenantDatabaseProvisioner>();
 // --- 1. CONFIGURACIÓN DE BASE DE DATOS ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var useSqlite = builder.Configuration.GetValue<bool>("Database:UseSqlite");
+
+// Registrar interceptor de auditoría
+builder.Services.AddScoped<AuditInterceptor>();
+
 builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
 {
     var tenantId = sp.GetRequiredService<ITenantContext>().EmpresaId;
@@ -43,6 +48,10 @@ builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
         options.UseSqlite(effectiveConnection);
     else
         options.UseSqlServer(effectiveConnection);
+
+    // Añadir interceptor de auditoría
+    var auditInterceptor = sp.GetRequiredService<AuditInterceptor>();
+    options.AddInterceptors(auditInterceptor);
 });
 builder.Services.AddDbContext<MasterDbContext>(options =>
 {
@@ -143,6 +152,11 @@ builder.Services.AddScoped<ERP.Services.CRM.CrmService>();
 builder.Services.AddScoped<ERP.Services.Almacen.AlmacenService>();
 builder.Services.AddScoped<ERP.Services.Produccion.ProduccionService>();
 builder.Services.AddScoped<ERP.Services.Proyectos.ProyectosService>();
+builder.Services.AddScoped<ERP.Services.Transversal.AuditService>();
+builder.Services.AddScoped<ERP.Services.Transversal.WorkflowService>();
+builder.Services.AddScoped<ERP.Services.Transversal.ReportService>();
+builder.Services.AddScoped<ERP.Services.Transversal.LocalizacionService>();
+builder.Services.AddScoped<ERP.Services.Transversal.DivisaService>();
 builder.Services.AddScoped<ERP.Services.Trazabilidad.TrazabilidadService>();
 builder.Services.AddScoped<ERP.Services.Fiscal.MotorIVAService>();
 

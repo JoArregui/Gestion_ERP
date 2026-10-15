@@ -5273,6 +5273,403 @@ namespace ERP.Data.Migrations
                     b.ToTable("Tareas");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.AuditConfig", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AuditarDelete")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AuditarInsert")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AuditarUpdate")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Entidad")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PropsIgnoradas")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PropsIncluidas")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "Entidad")
+                        .IsUnique();
+
+                    b.ToTable("AuditConfigs");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.AuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Accion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Diferencia")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Entidad")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EntidadId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Ip")
+                        .HasMaxLength(45)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioNombre")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ValoresAntes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ValoresDespues")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Fecha");
+
+                    b.HasIndex("EmpresaId", "Entidad", "EntidadId");
+
+                    b.ToTable("AuditLogs");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.NotificacionPlantilla", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Asunto")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Canal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CuerpoHtml")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "Codigo")
+                        .IsUnique();
+
+                    b.ToTable("NotificacionPlantillas");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.ReportDefinicion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ColumnasJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConsultaSql")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OpcionesJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParametrosJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Publico")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "Codigo")
+                        .IsUnique();
+
+                    b.ToTable("ReportDefiniciones");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.ReportEjecucion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaEjecucion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParametrosJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ReportDefinicionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ResultadoRuta")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("TamanoBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReportDefinicionId");
+
+                    b.HasIndex("EmpresaId", "FechaEjecucion");
+
+                    b.ToTable("ReportEjecuciones");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.WorkflowDefinicion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AccionDisparadora")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AccionesJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CondicionJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EntidadObjetivo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Prioridad")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "Codigo")
+                        .IsUnique();
+
+                    b.ToTable("WorkflowDefiniciones");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.WorkflowInstancia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EntidadObjetivo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EntidadObjetivoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaFin")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaInicio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioAsignado")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WorkflowDefinicionId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("WorkflowDefinicionId");
+
+                    b.HasIndex("EntidadObjetivo", "EntidadObjetivoId", "Estado");
+
+                    b.ToTable("WorkflowInstancias");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.WorkflowPaso", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EjecutadoPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ErrorJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FechaEjecucion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("InstanciaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ParametrosJson")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResultadoJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoAccion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InstanciaId");
+
+                    b.ToTable("WorkflowPasos");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.AlertaTrazabilidad", b =>
                 {
                     b.Property<int>("Id")
@@ -6993,6 +7390,99 @@ namespace ERP.Data.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.AuditLog", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.NotificacionPlantilla", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.ReportDefinicion", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.ReportEjecucion", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Transversal.ReportDefinicion", "Definicion")
+                        .WithMany()
+                        .HasForeignKey("ReportDefinicionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Definicion");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.WorkflowDefinicion", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.WorkflowInstancia", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Transversal.WorkflowDefinicion", "Definicion")
+                        .WithMany()
+                        .HasForeignKey("WorkflowDefinicionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Definicion");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.WorkflowPaso", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Transversal.WorkflowInstancia", "Instancia")
+                        .WithMany("Pasos")
+                        .HasForeignKey("InstanciaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Instancia");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.AlertaTrazabilidad", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
@@ -7309,6 +7799,11 @@ namespace ERP.Data.Migrations
             modelBuilder.Entity("ERP.Domain.Entities.Proyectos.TicketSAT", b =>
                 {
                     b.Navigation("Comentarios");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Transversal.WorkflowInstancia", b =>
+                {
+                    b.Navigation("Pasos");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.LoteTrazabilidad", b =>
