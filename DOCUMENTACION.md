@@ -1,8 +1,8 @@
 # ERP.NET — Documentación Única
 
-> **Versión:** 1.0 · Septiembre 2026 · Rama única `main` (8c93a2d) · .NET 9 + Blazor WASM + WPF WebView2 + MAUI + Flutter
+> **Versión:** 2.0 · Octubre 2026 · Rama `develop` (6b8c0bf) · .NET 9 + Blazor WASM + WPF WebView2 + MAUI + Flutter
 > **Objetivo:** ERP completo para PYMES/autónomos en España con cumplimiento legal 2026 (Verifactu/antifraude, FACe/B2B, IVA/IGIC/IPSI, PGC, SEPA, nóminas SLD, control horario digital, RGPD/eIDAS).
-> **Consolidado de:** `docs/DOSSIER_LEGAL_ERP_2026.md` (283l), `docs/ERP_2026_Legal_Implementation_Documentation.md` (166l), `docs/ESTRUCTURA_BBDD.md` (263l), `docs/Manual_Usuario_ERP.NET.md` (252l), `ERP.Desktop/README.md` (44l), `flutter_app/README.md` (21l), `flutter_app/ios/.../README.md` (5l), `.agent/plans/erp-legal-completo-2026-08-31.md` (138l) — total 1172l → 1 fichero.
+> **Consolidado de:** Documentación técnica completa implementada en 7 fases (A-G) + auditoría vs flujo ERP.txt.
 
 ---
 
@@ -16,6 +16,24 @@
 7. [Manual de Usuario Completo](#7-manual-de-usuario-completo)
 8. [Apps: Web, Desktop, MAUI y Flutter](#8-apps-web-desktop-maui-y-flutter)
 9. [Convenciones, Build y Fuentes](#9-convenciones-build-y-fuentes)
+
+---
+
+## 0. Estado del Proyecto — Fases Implementadas (Rama `develop`)
+
+| Fase | Bloque ERP.txt | Estado | Commit | Descripción |
+|------|----------------|--------|--------|-------------|
+| **A** | Financiera: Activos fijos, Conciliación bancaria 3-niveles, Cash-flow previsional | ✅ | 11b6af4 | `ActivoFijo`, `LineaAmortizacion`, conciliación automática, `api/Tesoreria/prevision` |
+| **B** | CRM: Leads, Oportunidades, Pipeline Kanban, Conversión a Presupuesto | ✅ | b4e7044 | `Lead`, `Oportunidad`, `CrmService`, `/ventas/pipeline` |
+| **C** | Compras: RFQ/Comparativa, Homologación proveedor, 3-way matching | ✅ | 4e5be0f | `SolicitudOferta`, `OfertaProveedor`, homologación, recepción con factura |
+| **D** | WMS: Multialmacén, Ubicaciones, Picking por ruta, Reposición auto, EAN/UM/Peso | ✅ | d2a941a | `Almacen`, `Ubicacion`, `StockUbicacion`, picking/reposición, `Articulo` extendido |
+| **E** | Producción: BOM, Centros trabajo, Hoja ruta, Órdenes Fabricación (coste/imputación) | ✅ | 57fb2b6 | `BOM`, `CentroTrabajo`, `HojaRuta`, `OrdenFabricacion`, coste unitario real |
+| **F** | Proyectos/SAT: WBS/Gantt, Timesheets, Rentabilidad, Tickets SLA, Contratos | ✅ | a52eebc | `Proyecto`, `Hito/Tarea`, `Timesheet`, `TicketSAT`, contratos mantenimiento |
+| **G** | Transversal: AuditLog, Workflows, Informes custom (Excel/CSV), Multidioma, Multidivisa | ✅ | 6b8c0bf | `AuditLog` interceptor, `WorkflowService`, `ReportService` Excel/CSV, i18n, divisas |
+
+**Build verificado:** `dotnet build ERP_Sistema.sln -c Release` → **0 errores, 25/25 tests pasan**.
+
+**Ejecutable .exe:** `publish/ERP.Desktop/ERP.Desktop.exe` (135 MB, single-file) + `ERP_Launcher.ps1` arranca API + Desktop.
 
 ---
 
@@ -42,7 +60,7 @@
 | Aspecto | Detalle |
 |---|---|
 | **ORM** | EF Core 9.0.19 · Snapshot `ERP.Data/Migrations/ApplicationDbContextModelSnapshot.cs:15` |
-| **Migraciones** | `20260903112212_InitialCreate`, `20260903115124_Compliance2026`, `20260910074813_AddSetupTutorialFlags`, `20260910090555_AddEmpresaIdFamiliaProveedorAcreedor`, `20260910114225_AddUserEmpresaMultiTenant`, `20260911082938_AddPerCompanySetupTutorial` |
+| **Migraciones** | `20260903112212_InitialCreate`, `20260903115124_Compliance2026`, `20260910074813_AddSetupTutorialFlags`, `20260910090555_AddEmpresaIdFamiliaProveedorAcreedor`, `20260910114225_AddUserEmpresaMultiTenant`, `20260911082938_AddPerCompanySetupTutorial`, `20261015094643_AddFaseA_ActivosFijos`, `20261015100028_AddFaseB_CRM`, `20261015100935_AddFaseC_Compras`, `20261015101958_AddFaseD_WMS`, `20261015111933_AddFaseE_Produccion`, `20261015114359_AddFaseF_ProyectosSAT`, `20261015120053_AddFaseG_AuditLog`, `20261015131153_AddFaseG_Workflows`, `20261015132415_AddFaseG3_ReportesI18nDivisa` |
 | **Proveedor ppal** | SQLite `Data Source=erp.db` (`ERP.Api/appsettings.json:4`, `erp-fresh.db` en Development `appsettings.Development.json:10`) |
 | **Alternativo** | SQL Server toggle `Database:UseSqlite` (`ERP.Api/Program.cs:22,51`) |
 | **Multi-tenant** | `erp.db` maestro (todos los `AspNetUsers` duplicados) + clon `Gestion{Empresa}.db` por empresa. Resolución por claim `Tenant` en `ERP.Api/Program.cs:25-41` vía `ERP.Services/Tenant/TenantDatabaseService.cs`. `TenantDatabaseService.cs:184` duplica usuarios en cada `GestionX.db` |
@@ -516,7 +534,7 @@ Cliente Flutter/Dart que sustituye progresivamente a MAUI (conserva `ERP.Movil` 
 |---|---|---|---|---|---|
 | 0 | **API** (obligatoria) | `ERP.Api` — sirve REST + Blazor WASM estático, crea `erp.db`/`Gestion*.db` al arrancar (`Program.cs:180` `MigrateAsync`) | `dotnet run --project ERP.Api --urls http://localhost:5109`  · Alternativa: `start-erp.bat` (lanza Api+Web) · `dotnet watch run --project ERP.Api --urls http://localhost:5109` para hot-reload | `http://localhost:5109/swagger` (Swagger) y `http://localhost:5109/health` si existe · Log `ERP.Api:startup.log` · Swagger muestra `Bearer` | No login previo; seed `admin@erp.local`/`Admin123!` (`ERP.Api/Program.cs:197`) |
 | 1 | **Web** (Blazor WASM) | `ERP.Web` — SPA que consume API | **Opción A (recomendada):** solo arranca API (arriba) → abre `http://localhost:5109` en navegador (el propio API sirve `wwwroot` de Web). **Opción B (dev separado):** `dotnet run --project ERP.Web --urls http://localhost:5109` *después* de API | `http://localhost:5109` → Login → `Home.razor`/`Dashboard.razor`. Ver `ERP.Web/Services/AuthService.cs:88` (logout virgen) y `OnboardingWizard.razor:124` | `admin@erp.local` / `Admin123!` → onboarding virgen crea primera Empresa |
-| 2 | **Desktop** (WPF WebView2) | `ERP.Desktop` `net9.0-windows` — ventana nativa con WebView2 a `http://localhost:5109` (`MainWindow.xaml.cs:1`) | `dotnet run --project ERP.Desktop` (lanza API hijo si `GET http://localhost:5109` falla, busca `ERP.Api.dll` junto al exe o `ERP.Api/bin/Release/net9.0`) <br> *Release:* `dotnet build ERP.Desktop -c Release` → `.\ERP.Desktop\bin\Release\net9.0-windows\ERP.Desktop.exe` <br> *URL alternativa:* copiar `ERP.Desktop/ERP.Desktop.json.example` → `ERP.Desktop.json` junto al exe y poner `{"ApiUrl":"http://localhost:5109"}` | Ventana WPF abre WebView2 en `http://localhost:5109` · Al cerrar mata proceso hijo `ERP.Api` · Publicar instalador: `dotnet publish ERP.Desktop -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true` → `.../win-x64/publish/ERP.Desktop.exe` | Mismas que Web (comparte JWT) |
+| 2 | **Desktop** (WPF WebView2) | `ERP.Desktop` `net9.0-windows` — ventana nativa con WebView2 a `http://localhost:5109` (`MainWindow.xaml.cs:1`) | `dotnet run --project ERP.Desktop` (lanza API hijo si `GET http://localhost:5109` falla, busca `ERP.Api.dll` junto al exe o `ERP.Api/bin/Release/net9.0`) <br> *Release:* `dotnet build ERP.Desktop -c Release` → `.\ERP.Desktop\bin\Release\net9.0-windows\ERP.Desktop.exe` <br> **Single-file exe (135 MB):** `dotnet publish ERP.Desktop -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/ERP.Desktop` → `publish/ERP.Desktop/ERP.Desktop.exe` <br> *URL alternativa:* copiar `ERP.Desktop/ERP.Desktop.json.example` → `ERP.Desktop.json` junto al exe y poner `{"ApiUrl":"http://localhost:5109"}` | Ventana WPF abre WebView2 en `http://localhost:5109` · Al cerrar mata proceso hijo `ERP.Api` · Publicar instalador: `dotnet publish ERP.Desktop -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true` → `.../win-x64/publish/ERP.Desktop.exe` | Mismas que Web (comparte JWT) |
 | 3 | **Móvil MAUI** | `ERP.Movil` `net9.0-android/ios/maccatalyst/windows` (`ERP.Movil.csproj:1` `UseMaui`, `SingleProject`) | **Windows (sin workload extra si OS Windows):** `dotnet build ERP.Movil -c Release -f net9.0-windows10.0.19041.0` → `dotnet run --project ERP.Movil -f net9.0-windows10.0.19041.0` <br> **Android:** `dotnet build ERP.Movil -c Release -f net9.0-android` (requiere `dotnet workload install maui` + Android SDK) <br> **iOS/macOS:** `dotnet build ERP.Movil -c Release -f net9.0-ios` / `net9.0-maccatalyst` (requiere Xcode) | App MAUI `AppShell.xaml` (Shell) → `MainPage.xaml` botones Dashboard/Ventas/Compras/RRHH/Stock/Maestros · Ver `MauiProgram.cs:1` | Requiere API en `http://10.0.2.2:5109` (emulador) o `https://localhost` según `Platforms/` |
 | 4 | **Móvil Flutter** | `flutter_app` `erp_flutter` `sdk >=3.5.0` (`pubspec.yaml:1`) | `cd flutter_app` <br> `flutter pub get` (62 deps) <br> `flutter run`  — Android emulado usa `http://10.0.2.2:5109/` por defecto (`lib/core/erp_api.dart:9`) <br> *Windows/iOS/macOS:* `flutter run -d windows` (usa `https://localhost:5109/`) <br> *URL custom:* `flutter run --dart-define=ERP_API_BASE_URL=https://servidor/` <br> *Analizar:* `flutter analyze` → `No issues found!` | Emulador Android: `http://10.0.2.2:5109/api/auth/login` · Log `adb logcat` · `flutter logs` · Ver `lib/main.dart:1` `ErpApp(auth:AuthService())` restore token `flutter_secure_storage` | Mismas que Web/API (`POST api/auth/login`) |
 
@@ -547,6 +565,20 @@ flutter analyze  # 0 issues
 dotnet build ERP_Sistema.sln -c Release  # 0 errores, 2 warnings sqlite wasm
 dotnet ef database update --project ERP.Data --startup-project ERP.Api
 ```
+
+### 9.2.1 Publicación Single-File (.exe)
+```powershell
+# API (160 MB)
+dotnet publish ERP.Api\ERP.Api.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/ERP.Api
+
+# Desktop (135 MB) — requiere WebView2 Runtime (Win11+ incluido)
+dotnet publish ERP.Desktop\ERP.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/ERP.Desktop
+
+# Copiar BBDD para arranque inmediato
+copy erp.db publish\ERP.Api\erp.db
+```
+
+**Lanzador unificado:** `ERP_Launcher.ps1` (PowerShell) o `ERP_Launcher.bat` — arranca API en background + abre Desktop automáticamente.
 
 ### 9.3 Mantenimiento
 Backups `erp.db.bak_*`, logs `Logs/`, seed `admin@erp.local`/`Admin123!` siempre virgen, actualizar tipos IVA legislativos, auditar stock, firmar con certificado cualificado FNMT. Logs útiles: `build.log`, `domain_build.log`, `web_build.log`, `current_build.log`.
