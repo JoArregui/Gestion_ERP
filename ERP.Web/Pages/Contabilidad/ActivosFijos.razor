@@ -1,0 +1,99 @@
+@page "/contabilidad/activos"
+@attribute [Authorize]
+@using ERP.Domain.Entities.Contabilidad
+@inject HttpClient Http
+@inject ERP.Web.Services.NotificationService Notify
+
+<div class="p-8 bg-slate-50 min-h-screen">
+    <div class="flex justify-between items-end mb-6">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">Fase A1 · PGC grupos 20-23</p>
+            <h1 class="text-4xl font-black italic uppercase tracking-tighter">Activos <span class="text-blue-600">Fijos</span></h1>
+            <p class="text-slate-500 text-sm">Alta, plan lineal, dotación 681 → 281 y baja.</p>
+        </div>
+        <button @onclick="CrearDemo" class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase">+ Activo demo</button>
+    </div>
+
+    <div class="bg-white rounded-3xl shadow border overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4 text-left">Código</th><th class="p-4 text-left">Descripción</th><th class="p-4 text-right">Precio</th><th class="p-4">Vida</th><th class="p-4">Estado</th><th class="p-4 text-right">Acciones</th></tr></thead>
+            <tbody>
+                @foreach (var a in activos)
+                {
+                    <tr class="border-t">
+                        <td class="p-4 font-mono font-bold">@a.Codigo</td>
+                        <td class="p-4">@a.Descripcion <span class="text-slate-400 text-xs">(@a.CuentaActivoCodigo)</span></td>
+                        <td class="p-4 text-right font-mono">@a.PrecioAdquisicion.ToString("N2")</td>
+                        <td class="p-4 text-center">@a.VidaUtilAnios años</td>
+                        <td class="p-4 text-center">@a.Estado</td>
+                        <td class="p-4 text-right space-x-1">
+                            <button @onclick="()=>Ver(a.Id)" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs">Plan</button>
+                            <button @onclick="()=>ContabilizarSiguiente(a)" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs">Dotar siguiente</button>
+                        </td>
+                    </tr>
+                }
+                @if (!activos.Any()) { <tr><td colspan="6" class="p-12 text-center text-slate-400">Sin activos fijos</td></tr> }
+            </tbody>
+        </table>
+    </div>
+
+    @if (seleccionado != null)
+    {
+        <div class="bg-white rounded-3xl shadow border p-6 mt-6">
+            <h3 class="font-black uppercase text-sm mb-4">Plan @seleccionado.Codigo — @seleccionado.Descripcion</h3>
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-3">Ejercicio</th><th class="p-3 text-right">Dotación</th><th class="p-3 text-right">Acumulado</th><th class="p-3 text-right">VNC</th><th class="p-3">Estado</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var l in seleccionado.PlanAmortizacion.OrderBy(x => x.Ejercicio))
+                    {
+                        <tr class="border-t">
+                            <td class="p-3 font-mono">@l.Ejercicio</td>
+                            <td class="p-3 text-right font-mono">@l.Dotacion.ToString("N2")</td>
+                            <td class="p-3 text-right font-mono">@l.AmortizadoAcumulado.ToString("N2")</td>
+                            <td class="p-3 text-right font-mono">@l.ValorNetoContable.ToString("N2")</td>
+                            <td class="p-3">@(l.Contabilizado ? $"Contabilizado #{l.AsientoContableId}" : "Pendiente")</td>
+                            <td class="p-3 text-right">@if (!l.Contabilizado) { <button @onclick="()=>Contabilizar(seleccionado.Id, l.Ejercicio)" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs">Contabilizar</button> }</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<ActivoFijo> activos = new();
+    private ActivoFijo? seleccionado;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+    private async Task Cargar()
+    {
+        try { activos = await Http.GetFromJsonAsync<List<ActivoFijo>>("api/ActivosFijos") ?? new(); }
+        catch (Exception ex) { Notify.Error(ex.Message); }
+    }
+    private async Task CrearDemo()
+    {
+        var dto = new ActivoFijo { Descripcion = "Portátil demo", CuentaActivoCodigo = "21600", CuentaAmortizacionCodigo = "28100", CuentaDotacionCodigo = "68100", PrecioAdquisicion = 1200, VidaUtilAnios = 4, FechaAdquisicion = DateTime.Today, FechaPuestaMarcha = DateTime.Today };
+        var res = await Http.PostAsJsonAsync("api/ActivosFijos", dto);
+        if (res.IsSuccessStatusCode) { Notify.Success("Activo creado"); await Cargar(); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task Ver(int id)
+    {
+        try { seleccionado = await Http.GetFromJsonAsync<ActivoFijo>($"api/ActivosFijos/{id}"); }
+        catch (Exception ex) { Notify.Error(ex.Message); }
+    }
+    private async Task Contabilizar(int id, int ejercicio)
+    {
+        var res = await Http.PostAsync($"api/ActivosFijos/{id}/contabilizar/{ejercicio}", null);
+        if (res.IsSuccessStatusCode) { Notify.Success($"Dotación {ejercicio} contabilizada"); await Cargar(); await Ver(id); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task ContabilizarSiguiente(ActivoFijo a)
+    {
+        await Ver(a.Id);
+        var pend = seleccionado?.PlanAmortizacion.OrderBy(x => x.Ejercicio).FirstOrDefault(x => !x.Contabilizado);
+        if (pend == null) { Notify.Error("Sin dotaciones pendientes"); return; }
+        await Contabilizar(a.Id, pend.Ejercicio);
+    }
+}

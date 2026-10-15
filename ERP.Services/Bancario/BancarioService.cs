@@ -440,34 +440,46 @@ namespace ERP.Services.Bancario
 
         public async Task<int> ConciliarAutomaticoAsync(int cuentaBancariaId, DateTime fechaDesde, DateTime fechaHasta)
         {
-            // LÃ³gica de conciliaciÃ³n automÃ¡tica:
-            // 1. Obtener movimientos sin conciliar del extracto
-            // 2. Obtener operaciones de remesas enviadas/ejecutadas
-            // 3. Obtener asientos contables pendientes
-            // 4. Matching por: importe, fecha (+/- 2 dÃ­as), concepto, IBAN contrapartida, EndToEndId, RUM
-
+            // Fase A2: conciliación en 3 niveles.
+            // N1: referencia exacta EndToEndId/RUM + importe (tolerancia 0.01) + fecha ±3 días.
+            // N2: vencimiento pendiente por importe + fecha ±3 días (marca vencimiento como pagado).
+            // N3: remesas totalmente conciliadas pasan a estado Conciliada.
             var movimientos = await _context.MovimientosExtracto
+                .Include(m => m.Extracto)
                 .Where(m => m.Extracto.CuentaBancariaId == cuentaBancariaId
                     && m.FechaValor >= fechaDesde && m.FechaValor <= fechaHasta
                     && !m.Conciliado)
                 .ToListAsync();
 
             var operacionesRemesa = await _context.OperacionesRemesaSEPA
+                .Include(o => o.Remesa)
                 .Where(o => o.Remesa.CuentaBancariaOrdenanteId == cuentaBancariaId
                     || o.Remesa.CuentaBancariaAcreedoraId == cuentaBancariaId)
-                .Where(o => (o.Estado == EstadoOperacionRemesa.Ejecutada || o.Estado == EstadoOperacionRemesa.Aceptada)
-                    && o.FechaCreacion >= fechaDesde && o.FechaCreacion <= fechaHasta)
+                .Where(o => o.Estado == EstadoOperacionRemesa.Ejecutada || o.Estado == EstadoOperacionRemesa.Aceptada || o.Estado == EstadoOperacionRemesa.Enviada)
+                .ToListAsync();
+
+            var empresaId = (await _context.CuentasBancarias.Where(c => c.Id == cuentaBancariaId).Select(c => c.EmpresaId).FirstOrDefaultAsync());
+            var vencimientos = await _context.Vencimientos
+                .Where(v => v.EmpresaId == empresaId && v.Estado == "Pendiente"
+                    && v.FechaVencimiento >= fechaDesde.AddDays(-5) && v.FechaVencimiento <= fechaHasta.AddDays(5))
                 .ToListAsync();
 
             int conciliados = 0;
             foreach (var mov in movimientos)
             {
+                // N1: match por referencia
                 var match = operacionesRemesa.FirstOrDefault(o =>
                     Math.Abs(o.Importe - mov.Importe) < 0.01m &&
-                    (o.Remesa?.FechaEjecucion ?? o.FechaCreacion).Date == mov.FechaValor.Date &&
-                    (!string.IsNullOrEmpty(o.ReferenciaPropia) && mov.EndToEndId == o.ReferenciaPropia ||
-                     !string.IsNullOrEmpty(o.ReferenciaUnicaMandato) && mov.MandateId == o.ReferenciaUnicaMandato)
-                );
+                    Math.Abs(((o.Remesa != null ? o.Remesa.FechaEjecucion : o.FechaCreacion).Date - mov.FechaValor.Date).TotalDays) <= 3 &&
+                    ((!string.IsNullOrEmpty(o.ReferenciaPropia) && !string.IsNullOrEmpty(mov.EndToEndId) && mov.EndToEndId == o.ReferenciaPropia) ||
+                     (!string.IsNullOrEmpty(o.ReferenciaUnicaMandato) && !string.IsNullOrEmpty(mov.MandateId) && mov.MandateId == o.ReferenciaUnicaMandato)));
+
+                // N1b: fallback por importe + fecha ±2 días + IBAN contrapartida (cuando no hay referencia)
+                match ??= operacionesRemesa.FirstOrDefault(o =>
+                    Math.Abs(o.Importe - mov.Importe) < 0.01m &&
+                    Math.Abs(((o.Remesa != null ? o.Remesa.FechaEjecucion : o.FechaCreacion).Date - mov.FechaValor.Date).TotalDays) <= 2 &&
+                    (!string.IsNullOrEmpty(o.BeneficiarioIBAN) && o.BeneficiarioIBAN == mov.ContrapartidaIBAN ||
+                     !string.IsNullOrEmpty(o.DeudorIBAN) && o.DeudorIBAN == mov.ContrapartidaIBAN));
 
                 if (match != null)
                 {
@@ -475,11 +487,68 @@ namespace ERP.Services.Bancario
                     mov.OperacionRemesaId = match.Id;
                     mov.FechaConciliacion = DateTime.Now;
                     conciliados++;
+                    continue;
+                }
+
+                // N2: match contra vencimiento pendiente (misma empresa, mismo importe, fecha ±3 días)
+                var venc = vencimientos.FirstOrDefault(v =>
+                    Math.Abs(v.Importe - mov.Importe) < 0.01m &&
+                    Math.Abs((v.FechaVencimiento.Date - mov.FechaValor.Date).TotalDays) <= 3);
+                if (venc != null)
+                {
+                    mov.Conciliado = true;
+                    mov.FacturaId = venc.DocumentoId;
+                    mov.FechaConciliacion = DateTime.Now;
+                    venc.Estado = "Pagado";
+                    venc.FechaPago = mov.FechaValor;
+                    venc.MetodoPago = "Banco/Conciliación auto";
+                    vencimientos.Remove(venc);
+                    conciliados++;
                 }
             }
 
             await _context.SaveChangesAsync();
+
+            // N3: cerrar remesas cuyas operaciones ya están todas conciliadas en extracto
+            var remesaIds = operacionesRemesa.Select(o => o.RemesaId).Distinct().ToList();
+            foreach (var rid in remesaIds)
+            {
+                var ops = await _context.OperacionesRemesaSEPA.Where(o => o.RemesaId == rid).Select(o => o.Id).ToListAsync();
+                if (ops.Count == 0) continue;
+                var nConc = await _context.MovimientosExtracto.CountAsync(m => m.OperacionRemesaId != null && ops.Contains(m.OperacionRemesaId.Value) && m.Conciliado);
+                if (nConc >= ops.Count)
+                {
+                    var rem = await _context.RemesasSEPA.FindAsync(rid);
+                    if (rem != null && rem.Estado != EstadoRemesaSEPA.Conciliada)
+                    {
+                        rem.Estado = EstadoRemesaSEPA.Conciliada;
+                        rem.Conciliada = true;
+                        rem.FechaConciliacion = DateTime.Now;
+                    }
+                }
+            }
+            await _context.SaveChangesAsync();
             return conciliados;
+        }
+
+        public async Task<bool> ConciliarManualAsync(int movimientoId, int? vencimientoId = null, int? operacionRemesaId = null, int? asientoId = null, string? usuario = null)
+        {
+            var mov = await _context.MovimientosExtracto.FindAsync(movimientoId) ?? throw new KeyNotFoundException("Movimiento no encontrado");
+            if (mov.Conciliado) throw new InvalidOperationException("Ya conciliado");
+            if (vencimientoId.HasValue)
+            {
+                var v = await _context.Vencimientos.FindAsync(vencimientoId.Value) ?? throw new KeyNotFoundException("Vencimiento no encontrado");
+                mov.FacturaId = v.DocumentoId;
+                v.Estado = "Pagado";
+                v.FechaPago = mov.FechaValor;
+                v.MetodoPago = $"Banco/Manual{(usuario == null ? "" : $" por {usuario}")}";
+            }
+            if (operacionRemesaId.HasValue) mov.OperacionRemesaId = operacionRemesaId;
+            if (asientoId.HasValue) mov.AsientoContableId = asientoId;
+            mov.Conciliado = true;
+            mov.FechaConciliacion = DateTime.Now;
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         #endregion

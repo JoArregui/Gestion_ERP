@@ -294,6 +294,30 @@ namespace ERP.Api.Controllers.Bancario
             return Ok(new { Conciliados = n });
         }
 
+        [HttpGet("conciliacion/pendientes")]
+        public async Task<ActionResult> MovimientosPendientes([FromQuery] int cuentaId, [FromQuery] DateTime? desde = null, [FromQuery] DateTime? hasta = null)
+        {
+            var empresaId = GetEmpresaId();
+            var cuenta = await _context.CuentasBancarias.FirstOrDefaultAsync(c => c.Id == cuentaId && c.EmpresaId == empresaId);
+            if (cuenta == null) return BadRequest(new { Message = "Cuenta no válida" });
+            var q = _context.MovimientosExtracto.Include(m => m.Extracto)
+                .Where(m => m.Extracto.CuentaBancariaId == cuentaId && !m.Conciliado);
+            if (desde.HasValue) q = q.Where(m => m.FechaValor >= desde.Value);
+            if (hasta.HasValue) q = q.Where(m => m.FechaValor <= hasta.Value);
+            return Ok(await q.OrderBy(m => m.FechaValor).Take(200).ToListAsync());
+        }
+
+        [HttpPost("conciliacion/manual/{movimientoId}")]
+        public async Task<ActionResult> ConciliacionManual(int movimientoId, [FromQuery] int? vencimientoId = null, [FromQuery] int? operacionRemesaId = null, [FromQuery] int? asientoId = null)
+        {
+            try
+            {
+                await _bancario.ConciliarManualAsync(movimientoId, vencimientoId, operacionRemesaId, asientoId, User.Identity?.Name);
+                return Ok(new { Message = "Movimiento conciliado" });
+            }
+            catch (Exception ex) { return BadRequest(new { Message = ex.Message }); }
+        }
+
         public class CrearRemesaDto
         {
             public int CuentaOrdenanteId { get; set; }

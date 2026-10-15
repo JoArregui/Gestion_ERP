@@ -15,7 +15,7 @@ namespace ERP.Data.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.20");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.21");
 
             modelBuilder.Entity("ERP.Domain.Entities.Acreedor", b =>
                 {
@@ -1039,6 +1039,90 @@ namespace ERP.Data.Migrations
                     b.ToTable("ConfiguracionesGenerales");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.ActivoFijo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CuentaActivoCodigo")
+                        .IsRequired()
+                        .HasMaxLength(9)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CuentaAmortizacionCodigo")
+                        .IsRequired()
+                        .HasMaxLength(9)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CuentaDotacionCodigo")
+                        .IsRequired()
+                        .HasMaxLength(9)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaAdquisicion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaBaja")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaPuestaMarcha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Metodo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MotivoBaja")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OrigenId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OrigenTipo")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("PrecioAdquisicion")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ValorResidual")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("VidaUtilAnios")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("ActivosFijos");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.ApunteContable", b =>
                 {
                     b.Property<int>("Id")
@@ -1497,6 +1581,51 @@ namespace ERP.Data.Migrations
                     b.HasIndex("EmpresaId");
 
                     b.ToTable("LibrosMayor");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.LineaAmortizacion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ActivoFijoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("AmortizadoAcumulado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("AsientoContableId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Contabilizado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Dotacion")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("Ejercicio")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaDotacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ValorNetoContable")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActivoFijoId");
+
+                    b.HasIndex("AsientoContableId");
+
+                    b.ToTable("LineasAmortizacion");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.ControlHorario", b =>
@@ -4277,6 +4406,12 @@ namespace ERP.Data.Migrations
                     b.Property<int>("EmpresaId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("SetupTutorialCompletado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("SetupTutorialVisto")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("UserId", "EmpresaId");
 
                     b.HasIndex("EmpresaId");
@@ -4616,6 +4751,17 @@ namespace ERP.Data.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.ActivoFijo", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.ApunteContable", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.Contabilidad.AsientoContable", "Asiento")
@@ -4741,6 +4887,23 @@ namespace ERP.Data.Migrations
                     b.Navigation("Ejercicio");
 
                     b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.LineaAmortizacion", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.ActivoFijo", "ActivoFijo")
+                        .WithMany("PlanAmortizacion")
+                        .HasForeignKey("ActivoFijoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Contabilidad.AsientoContable", "Asiento")
+                        .WithMany()
+                        .HasForeignKey("AsientoContableId");
+
+                    b.Navigation("ActivoFijo");
+
+                    b.Navigation("Asiento");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.ControlHorario", b =>
@@ -5348,6 +5511,11 @@ namespace ERP.Data.Migrations
             modelBuilder.Entity("ERP.Domain.Entities.Bancario.RemesaSEPA", b =>
                 {
                     b.Navigation("Operaciones");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.ActivoFijo", b =>
+                {
+                    b.Navigation("PlanAmortizacion");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.AsientoContable", b =>

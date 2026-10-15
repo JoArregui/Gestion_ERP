@@ -1,0 +1,94 @@
+@page "/tesoreria/prevision"
+@attribute [Authorize]
+@using System.Text.Json
+@inject HttpClient Http
+@inject ERP.Web.Services.NotificationService Notify
+
+<div class="p-8 bg-slate-50 min-h-screen">
+    <div class="flex justify-between items-end mb-6">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">Fase A3 · Cash-flow</p>
+            <h1 class="text-4xl font-black italic uppercase tracking-tighter">Previsión <span class="text-blue-600">Tesorería</span></h1>
+            <p class="text-slate-500 text-sm">Vencimientos pendientes + remesas SCT en borrador. Horizontes 30/60/90 días.</p>
+        </div>
+        <div class="flex gap-2">
+            @foreach (var d in new[]{30,60,90})
+            {
+                <button @onclick="()=>CambiarDias(d)" class="px-4 py-2 rounded-xl text-xs font-black uppercase @(dias==d?"bg-slate-900 text-white":"bg-white border")">@d días</button>
+            }
+            <button @onclick="Cargar" class="px-4 py-2 rounded-xl text-xs font-black uppercase bg-blue-600 text-white">Recargar</button>
+        </div>
+    </div>
+
+    @if (cargando)
+    {
+        <p class="text-slate-400">Cargando previsión...</p>
+    }
+    else if (doc == null)
+    {
+        <p class="text-rose-500">Sin datos. Verifica token con EmpresaId.</p>
+    }
+    else
+    {
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-2xl border p-5"><p class="text-[10px] font-black uppercase text-slate-400">Cobros pendientes</p><p class="text-2xl font-black text-emerald-600">@Fmt(GetDec("totalCobrosPendientes"))</p></div>
+            <div class="bg-white rounded-2xl border p-5"><p class="text-[10px] font-black uppercase text-slate-400">Pagos pendientes</p><p class="text-2xl font-black text-rose-600">@Fmt(GetDec("totalPagosPendientes"))</p></div>
+            <div class="bg-white rounded-2xl border p-5"><p class="text-[10px] font-black uppercase text-slate-400">Saldo previsto</p><p class="text-2xl font-black @(GetDec("saldoPrevisto")>=0?"text-slate-900":"text-rose-600")">@Fmt(GetDec("saldoPrevisto"))</p></div>
+            <div class="bg-white rounded-2xl border p-5"><p class="text-[10px] font-black uppercase text-slate-400">Vencido cobrar / pagar</p><p class="text-lg font-black">@Fmt(GetDec("vencidoCobro")) <span class="text-slate-400">/</span> @Fmt(GetDec("vencidoPago"))</p></div>
+        </div>
+        <div class="bg-white rounded-3xl shadow border overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4 text-left">Semana</th><th class="p-4 text-right">Cobros</th><th class="p-4 text-right">Pagos</th><th class="p-4 text-right">Neto</th><th class="p-4 text-right">Acumulado</th></tr></thead>
+                <tbody>
+                    @foreach (var s in Semanas())
+                    {
+                        <tr class="border-t">
+                            <td class="p-4 font-mono">@s.GetProperty("semana").GetString()</td>
+                            <td class="p-4 text-right text-emerald-700">@Fmt(s.GetProperty("cobros").GetDecimal())</td>
+                            <td class="p-4 text-right text-rose-700">@Fmt(s.GetProperty("pagos").GetDecimal())</td>
+                            <td class="p-4 text-right font-bold">@Fmt(s.GetProperty("neto").GetDecimal())</td>
+                            <td class="p-4 text-right font-mono">@Fmt(s.GetProperty("acumulado").GetDecimal())</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private int dias = 90;
+    private bool cargando = true;
+    private JsonElement? doc;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+    private async Task CambiarDias(int d) { dias = d; await Cargar(); }
+    private async Task Cargar()
+    {
+        cargando = true;
+        try
+        {
+            var el = await Http.GetFromJsonAsync<JsonElement>($"api/Tesoreria/prevision?dias={dias}");
+            doc = el;
+        }
+        catch (Exception ex) { Notify.Error($"Previsión: {ex.Message}"); doc = null; }
+        cargando = false;
+    }
+    private decimal GetDec(string name)
+    {
+        if (doc == null) return 0;
+        var el = doc.Value;
+        foreach (var p in el.EnumerateObject())
+            if (string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase) && p.Value.ValueKind == JsonValueKind.Number)
+                return p.Value.GetDecimal();
+        return 0;
+    }
+    private IEnumerable<JsonElement> Semanas()
+    {
+        if (doc == null) yield break;
+        foreach (var p in doc.Value.EnumerateObject())
+            if (string.Equals(p.Name, "semanas", StringComparison.OrdinalIgnoreCase) && p.Value.ValueKind == JsonValueKind.Array)
+                foreach (var s in p.Value.EnumerateArray()) yield return s;
+    }
+    private static string Fmt(decimal v) => v.ToString("C2");
+}

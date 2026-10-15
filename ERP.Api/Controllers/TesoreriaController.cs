@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ERP.Data;
 using ERP.Domain.Entities;
+using ERP.Domain.Entities.Bancario;
 using ERP.Services;
 using System;
 using System.Collections.Generic;
@@ -149,6 +150,61 @@ namespace ERP.Api.Controllers
             venc.FechaPago = null;
             await _context.SaveChangesAsync();
             return Ok(new { Message = "Vencimiento anulado correctamente" });
+        }
+
+        // Fase A3: previsión cash-flow desde vencimientos pendientes + remesas validadas no enviadas.
+        [HttpGet("prevision")]
+        public async Task<IActionResult> GetPrevision([FromQuery] int dias = 90)
+        {
+            int empresaId = GetEmpresaId();
+            if (empresaId == 0) return BadRequest(new { Message = "EmpresaId requerido" });
+            if (dias <= 0 || dias > 365) dias = 90;
+            var hoy = DateTime.Today;
+            var hasta = hoy.AddDays(dias);
+
+            var vencs = await _context.Vencimientos
+                .Include(v => v.Documento)
+                .Where(v => v.EmpresaId == empresaId && v.Estado == "Pendiente"
+                    && v.FechaVencimiento <= hasta)
+                .ToListAsync();
+
+            var remesasPend = await _context.RemesasSEPA
+                .Where(r => r.EmpresaId == empresaId
+                    && (r.Estado == EstadoRemesaSEPA.Borrador || r.Estado == EstadoRemesaSEPA.Validada)
+                    && r.FechaEjecucion <= hasta)
+                .Select(r => new { r.FechaEjecucion, r.ImporteTotal, r.Tipo })
+                .ToListAsync();
+
+            decimal vencidoCobro = vencs.Where(v => v.Documento != null && !v.Documento.EsCompra && v.FechaVencimiento < hoy).Sum(v => v.Importe);
+            decimal vencidoPago = vencs.Where(v => (v.Documento == null || v.Documento.EsCompra) && v.FechaVencimiento < hoy).Sum(v => v.Importe);
+            decimal totalCobros = vencs.Where(v => v.Documento != null && !v.Documento.EsCompra).Sum(v => v.Importe);
+            decimal totalPagos = vencs.Where(v => v.Documento == null || v.Documento.EsCompra).Sum(v => v.Importe)
+                + remesasPend.Where(r => r.Tipo == ERP.Domain.Entities.Bancario.TipoRemesaSEPA.Transferencia).Sum(r => r.ImporteTotal);
+
+            // Buckets semanales
+            var buckets = new List<object>();
+            decimal acumulado = 0;
+            for (var ini = hoy.AddDays(-(int)hoy.DayOfWeek + 1); ini <= hasta; ini = ini.AddDays(7))
+            {
+                var fin = ini.AddDays(6);
+                var cob = vencs.Where(v => v.Documento != null && !v.Documento.EsCompra && v.FechaVencimiento >= ini && v.FechaVencimiento <= fin).Sum(v => v.Importe);
+                var pag = vencs.Where(v => (v.Documento == null || v.Documento.EsCompra) && v.FechaVencimiento >= ini && v.FechaVencimiento <= fin).Sum(v => v.Importe)
+                    + remesasPend.Where(r => r.Tipo == ERP.Domain.Entities.Bancario.TipoRemesaSEPA.Transferencia && r.FechaEjecucion >= ini && r.FechaEjecucion <= fin).Sum(r => r.ImporteTotal);
+                acumulado += cob - pag;
+                buckets.Add(new { Semana = ini.ToString("yyyy-MM-dd"), Cobros = cob, Pagos = pag, Neto = cob - pag, Acumulado = acumulado });
+            }
+
+            return Ok(new
+            {
+                Desde = hoy,
+                Hasta = hasta,
+                VencidoCobro = vencidoCobro,
+                VencidoPago = vencidoPago,
+                TotalCobrosPendientes = totalCobros,
+                TotalPagosPendientes = totalPagos,
+                SaldoPrevisto = totalCobros - totalPagos,
+                Semanas = buckets
+            });
         }
     }
 }

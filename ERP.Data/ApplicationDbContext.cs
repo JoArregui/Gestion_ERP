@@ -71,6 +71,8 @@ namespace ERP.Data
         public DbSet<LibroMayor> LibrosMayor { get; set; }
         public DbSet<LibroInventariosCuentasAnuales> LibrosInventariosCuentasAnuales { get; set; }
         public DbSet<EjercicioContable> EjerciciosContables { get; set; }
+        public DbSet<ActivoFijo> ActivosFijos { get; set; }
+        public DbSet<LineaAmortizacion> LineasAmortizacion { get; set; }
         // Entidades Bancario
         public DbSet<CuentaBancaria> CuentasBancarias { get; set; }
         public DbSet<MandatoSEPA> MandatosSEPA { get; set; }
