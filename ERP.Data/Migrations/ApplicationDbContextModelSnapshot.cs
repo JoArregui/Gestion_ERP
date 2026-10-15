@@ -4373,6 +4373,480 @@ namespace ERP.Data.Migrations
                     b.ToTable("Proveedores");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.ContratoMantenimiento", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ClienteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("CuotaAnual")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("DescripcionCobertura")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaFin")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaInicio")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SLA")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("ContratosMantenimiento");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.DocumentoProyecto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaSubida")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProyectoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TareaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Tipo")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProyectoId");
+
+                    b.ToTable("DocumentosProyecto");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.HitoProyecto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaFinPlanificada")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaFinReal")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaInicioPlanificada")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaInicioReal")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("PorcentajeAvance")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProyectoId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProyectoId");
+
+                    b.ToTable("HitosProyecto");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.Proyecto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ClienteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("CosteRealAcumulado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("FacturadoAcumulado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaFinPlanificada")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaFinReal")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaInicioPlanificada")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaInicioReal")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("PresupuestoCosteTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("PresupuestoVentaTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("ResponsableId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("EmpresaId", "Codigo")
+                        .IsUnique();
+
+                    b.ToTable("Proyectos");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.TareaProyecto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("CosteHoraEstimado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CosteMaterialEstimado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CosteRealHoras")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CosteRealMaterial")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaFinPlanificada")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaFinReal")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaInicioPlanificada")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaInicioReal")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("HitoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("HorasEstimadas")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("HorasReales")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("PorcentajeAvance")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProyectoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ResponsableId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("TareaPredecesoraId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HitoId");
+
+                    b.HasIndex("ProyectoId");
+
+                    b.HasIndex("TareaPredecesoraId");
+
+                    b.ToTable("TareasProyecto");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.TicketComentario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Comentario")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EsInterno")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TicketId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpleadoId");
+
+                    b.HasIndex("TicketId");
+
+                    b.ToTable("TicketComentarios");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.TicketSAT", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Asunto")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ClienteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ContratoMantenimientoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("CosteDesplazamiento")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("CosteMateriales")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FechaApertura")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaAsignacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaCierre")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaInicioTrabajo")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaResolucion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("HorasTrabajadas")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("NumeroTicket")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Prioridad")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ProyectoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("SLAFechaLimiteResolucion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("SLAFechaLimiteRespuesta")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("SLAIncumplido")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Solucion")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TecnicoAsignadoId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("ContratoMantenimientoId");
+
+                    b.HasIndex("ProyectoId");
+
+                    b.HasIndex("EmpresaId", "NumeroTicket")
+                        .IsUnique();
+
+                    b.ToTable("TicketsSAT");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.TimesheetProyecto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("CosteHora")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Facturable")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Horas")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("ProyectoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TareaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpleadoId");
+
+                    b.HasIndex("ProyectoId");
+
+                    b.HasIndex("TareaId");
+
+                    b.ToTable("TimesheetsProyecto");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.RGPD.LiquidacionSeguridadSocial", b =>
                 {
                     b.Property<int>("Id")
@@ -6304,6 +6778,168 @@ namespace ERP.Data.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.ContratoMantenimiento", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.DocumentoProyecto", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Proyectos.Proyecto", "Proyecto")
+                        .WithMany("Documentos")
+                        .HasForeignKey("ProyectoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Proyecto");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.HitoProyecto", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Proyectos.Proyecto", "Proyecto")
+                        .WithMany("Hitos")
+                        .HasForeignKey("ProyectoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Proyecto");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.Proyecto", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.TareaProyecto", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Proyectos.HitoProyecto", "Hito")
+                        .WithMany()
+                        .HasForeignKey("HitoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ERP.Domain.Entities.Proyectos.Proyecto", "Proyecto")
+                        .WithMany("Tareas")
+                        .HasForeignKey("ProyectoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Proyectos.TareaProyecto", "TareaPredecesora")
+                        .WithMany()
+                        .HasForeignKey("TareaPredecesoraId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Hito");
+
+                    b.Navigation("Proyecto");
+
+                    b.Navigation("TareaPredecesora");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.TicketComentario", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("EmpleadoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Proyectos.TicketSAT", "Ticket")
+                        .WithMany("Comentarios")
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empleado");
+
+                    b.Navigation("Ticket");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.TicketSAT", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Proyectos.ContratoMantenimiento", "Contrato")
+                        .WithMany("Tickets")
+                        .HasForeignKey("ContratoMantenimientoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Proyectos.Proyecto", "Proyecto")
+                        .WithMany()
+                        .HasForeignKey("ProyectoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("Contrato");
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("Proyecto");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.TimesheetProyecto", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("EmpleadoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Proyectos.Proyecto", "Proyecto")
+                        .WithMany("Timesheets")
+                        .HasForeignKey("ProyectoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Proyectos.TareaProyecto", "Tarea")
+                        .WithMany()
+                        .HasForeignKey("TareaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Empleado");
+
+                    b.Navigation("Proyecto");
+
+                    b.Navigation("Tarea");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.RGPD.LiquidacionSeguridadSocial", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
@@ -6652,6 +7288,27 @@ namespace ERP.Data.Migrations
                     b.Navigation("Materiales");
 
                     b.Navigation("Operaciones");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.ContratoMantenimiento", b =>
+                {
+                    b.Navigation("Tickets");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.Proyecto", b =>
+                {
+                    b.Navigation("Documentos");
+
+                    b.Navigation("Hitos");
+
+                    b.Navigation("Tareas");
+
+                    b.Navigation("Timesheets");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Proyectos.TicketSAT", b =>
+                {
+                    b.Navigation("Comentarios");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Trazabilidad.LoteTrazabilidad", b =>

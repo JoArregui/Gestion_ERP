@@ -120,6 +120,15 @@ namespace ERP.Data
         public DbSet<ERP.Domain.Entities.Produccion.OrdenFabricacion> OrdenesFabricacion { get; set; }
         public DbSet<ERP.Domain.Entities.Produccion.OFMaterial> OFMateriales { get; set; }
         public DbSet<ERP.Domain.Entities.Produccion.OFOperacion> OFOperaciones { get; set; }
+        // Fase F Proyectos / SAT
+        public DbSet<ERP.Domain.Entities.Proyectos.Proyecto> Proyectos { get; set; }
+        public DbSet<ERP.Domain.Entities.Proyectos.HitoProyecto> HitosProyecto { get; set; }
+        public DbSet<ERP.Domain.Entities.Proyectos.TareaProyecto> TareasProyecto { get; set; }
+        public DbSet<ERP.Domain.Entities.Proyectos.TimesheetProyecto> TimesheetsProyecto { get; set; }
+        public DbSet<ERP.Domain.Entities.Proyectos.DocumentoProyecto> DocumentosProyecto { get; set; }
+        public DbSet<ERP.Domain.Entities.Proyectos.ContratoMantenimiento> ContratosMantenimiento { get; set; }
+        public DbSet<ERP.Domain.Entities.Proyectos.TicketSAT> TicketsSAT { get; set; }
+        public DbSet<ERP.Domain.Entities.Proyectos.TicketComentario> TicketComentarios { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -602,6 +611,118 @@ namespace ERP.Data
                 .HasOne(o => o.CentroTrabajo)
                 .WithMany()
                 .HasForeignKey(o => o.CentroTrabajoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Fase F Proyectos / SAT
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.Proyecto>()
+                .HasOne(p => p.Empresa)
+                .WithMany()
+                .HasForeignKey(p => p.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.Proyecto>()
+                .HasOne(p => p.Cliente)
+                .WithMany()
+                .HasForeignKey(p => p.ClienteId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.Proyecto>()
+                .HasIndex(p => new { p.EmpresaId, p.Codigo })
+                .IsUnique();
+
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.HitoProyecto>()
+                .HasOne(h => h.Proyecto)
+                .WithMany(p => p.Hitos)
+                .HasForeignKey(h => h.ProyectoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TareaProyecto>()
+                .HasOne(t => t.Proyecto)
+                .WithMany(p => p.Tareas)
+                .HasForeignKey(t => t.ProyectoId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TareaProyecto>()
+                .HasOne(t => t.Hito)
+                .WithMany()
+                .HasForeignKey(t => t.HitoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TareaProyecto>()
+                .HasOne(t => t.TareaPredecesora)
+                .WithMany()
+                .HasForeignKey(t => t.TareaPredecesoraId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TimesheetProyecto>()
+                .HasOne(t => t.Proyecto)
+                .WithMany(p => p.Timesheets)
+                .HasForeignKey(t => t.ProyectoId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TimesheetProyecto>()
+                .HasOne(t => t.Tarea)
+                .WithMany()
+                .HasForeignKey(t => t.TareaId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TimesheetProyecto>()
+                .HasOne(t => t.Empleado)
+                .WithMany()
+                .HasForeignKey(t => t.EmpleadoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.DocumentoProyecto>()
+                .HasOne(d => d.Proyecto)
+                .WithMany(p => p.Documentos)
+                .HasForeignKey(d => d.ProyectoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // SAT
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.ContratoMantenimiento>()
+                .HasOne(c => c.Empresa)
+                .WithMany()
+                .HasForeignKey(c => c.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.ContratoMantenimiento>()
+                .HasOne(c => c.Cliente)
+                .WithMany()
+                .HasForeignKey(c => c.ClienteId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TicketSAT>()
+                .HasOne(t => t.Empresa)
+                .WithMany()
+                .HasForeignKey(t => t.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TicketSAT>()
+                .HasOne(t => t.Proyecto)
+                .WithMany()
+                .HasForeignKey(t => t.ProyectoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TicketSAT>()
+                .HasOne(t => t.Contrato)
+                .WithMany(c => c.Tickets)
+                .HasForeignKey(t => t.ContratoMantenimientoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TicketSAT>()
+                .HasOne(t => t.Cliente)
+                .WithMany()
+                .HasForeignKey(t => t.ClienteId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TicketSAT>()
+                .HasIndex(t => new { t.EmpresaId, t.NumeroTicket })
+                .IsUnique();
+
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TicketComentario>()
+                .HasOne(c => c.Ticket)
+                .WithMany(t => t.Comentarios)
+                .HasForeignKey(c => c.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ERP.Domain.Entities.Proyectos.TicketComentario>()
+                .HasOne(c => c.Empleado)
+                .WithMany()
+                .HasForeignKey(c => c.EmpleadoId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

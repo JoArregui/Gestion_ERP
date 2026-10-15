@@ -142,6 +142,7 @@ builder.Services.AddScoped<ERP.Services.Contabilidad.ActivoFijoService>();
 builder.Services.AddScoped<ERP.Services.CRM.CrmService>();
 builder.Services.AddScoped<ERP.Services.Almacen.AlmacenService>();
 builder.Services.AddScoped<ERP.Services.Produccion.ProduccionService>();
+builder.Services.AddScoped<ERP.Services.Proyectos.ProyectosService>();
 builder.Services.AddScoped<ERP.Services.Trazabilidad.TrazabilidadService>();
 builder.Services.AddScoped<ERP.Services.Fiscal.MotorIVAService>();
 
