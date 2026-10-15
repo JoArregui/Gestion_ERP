@@ -1,0 +1,186 @@
+@page "/compras/rfq"
+@attribute [Authorize]
+@using ERP.Domain.Entities.Compras
+@using ERP.Domain.DTOs.Compras
+@inject HttpClient Http
+@inject ERP.Web.Services.NotificationService Notify
+
+<div class="p-8 bg-slate-50 min-h-screen">
+    <div class="flex justify-between items-end mb-6">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">Fase C1 · Solicitudes de oferta</p>
+            <h1 class="text-4xl font-black italic uppercase tracking-tighter">RFQ <span class="text-blue-600">Comparativas</span></h1>
+        </div>
+        <button @onclick="Cargar" class="px-4 py-2 rounded-xl text-xs font-black uppercase bg-blue-600 text-white">Recargar</button>
+    </div>
+
+    <div class="bg-white rounded-2xl border p-4 mb-6">
+        <h3 class="font-black uppercase text-xs mb-3">Nueva solicitud (artículoId × cantidad)</h3>
+        @foreach (var (idx, l) in lineasNueva.Select((l, i) => (i, l)))
+        {
+            <div class="flex gap-2 mb-2">
+                <input type="number" @bind="l.ArticuloId" placeholder="ArtículoId" class="border rounded-xl px-3 py-2 text-sm w-32" />
+                <input type="number" step="0.01" @bind="l.Cantidad" placeholder="Cantidad" class="border rounded-xl px-3 py-2 text-sm w-32" />
+                <button @onclick="() => lineasNueva.Remove(l)" class="text-rose-600 text-xs">Quitar</button>
+            </div>
+        }
+        <div class="flex gap-2 mt-2">
+            <button @onclick="() => lineasNueva.Add(new LineaForm())" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100">+ Línea</button>
+            <button @onclick="CrearRfq" class="px-4 py-2 rounded-xl text-xs font-black uppercase bg-slate-900 text-white">Crear RFQ</button>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-3xl shadow border overflow-hidden mb-6">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400"><tr><th class="p-4 text-left">Código</th><th class="p-4">Líneas</th><th class="p-4">Ofertas</th><th class="p-4">Estado</th><th class="p-4 text-right">Acciones</th></tr></thead>
+            <tbody>
+                @foreach (var r in rfqs)
+                {
+                    <tr class="border-t @(rfqSel?.Id == r.Id ? "bg-blue-50/50" : "")">
+                        <td class="p-4 font-mono font-bold">@r.Codigo</td>
+                        <td class="p-4 text-center">@r.Lineas.Count</td>
+                        <td class="p-4 text-center">@r.Ofertas.Count</td>
+                        <td class="p-4 text-center">@r.Estado</td>
+                        <td class="p-4 text-right space-x-1">
+                            <button @onclick="() => Seleccionar(r.Id)" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs">Abrir</button>
+                            @if (r.Estado == EstadoRFQ.Borrador)
+                            {
+                                <button @onclick="() => Enviar(r.Id)" class="bg-blue-600 text-white px-3 py-2 rounded-xl text-xs">Enviar</button>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!rfqs.Any()) { <tr><td colspan="5" class="p-12 text-center text-slate-400">Sin solicitudes</td></tr> }
+            </tbody>
+        </table>
+    </div>
+
+    @if (rfqSel != null)
+    {
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl border p-4">
+                <h3 class="font-black uppercase text-xs mb-2">Enviar a proveedores (Ids separados por coma)</h3>
+                <div class="flex gap-2">
+                    <input @bind="invitados" placeholder="Ej: 1,2" class="border rounded-xl px-3 py-2 text-sm flex-1" />
+                    <button @onclick="() => Enviar(rfqSel.Id)" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase">Enviar</button>
+                </div>
+                <h3 class="font-black uppercase text-xs mt-6 mb-2">Registrar oferta</h3>
+                <input type="number" @bind="ofertaProv" placeholder="ProveedorId" class="border rounded-xl px-3 py-2 text-sm w-full mb-2" />
+                @foreach (var l in lineasOferta)
+                {
+                    <div class="flex gap-2 mb-2">
+                        <input type="number" @bind="l.ArticuloId" placeholder="Art." class="border rounded-xl px-2 py-1 text-sm w-20" />
+                        <input type="number" step="0.01" @bind="l.Cantidad" placeholder="Cant." class="border rounded-xl px-2 py-1 text-sm w-20" />
+                        <input type="number" step="0.01" @bind="l.Precio" placeholder="Precio" class="border rounded-xl px-2 py-1 text-sm w-24" />
+                    </div>
+                }
+                <div class="flex gap-2 mt-2">
+                    <button @onclick="() => lineasOferta.Add(new LineaOfertaForm())" class="px-3 py-2 rounded-xl text-xs bg-slate-100">+ Línea</button>
+                    <button @onclick="RegistrarOferta" class="px-4 py-2 rounded-xl text-xs font-black uppercase bg-emerald-600 text-white">Guardar oferta</button>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl border p-4">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-black uppercase text-xs">Comparativa @rfqSel.Codigo</h3>
+                    <button @onclick="CargarComparativa" class="text-xs underline">Actualizar</button>
+                </div>
+                @if (comp != null)
+                {
+                    <table class="w-full text-xs mb-4">
+                        <thead class="text-slate-400 uppercase"><tr><th class="text-left">Proveedor</th><th class="text-right">Total</th><th class="text-right">Plazo</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var t in comp.Totales)
+                            {
+                                <tr class="border-t">
+                                    <td class="py-2 font-bold">@t.Proveedor <span class="text-slate-400">(@t.Estado)</span></td>
+                                    <td class="text-right font-mono">@t.Total.ToString("C2")</td>
+                                    <td class="text-right">@(t.PlazoDias?.ToString() + "d" ?? "-")</td>
+                                    <td class="text-right"><button @onclick="() => Adjudicar(t.OfertaId)" class="bg-slate-900 text-white px-2 py-1 rounded-lg text-[11px]">Adjudicar</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    @foreach (var l in comp.Lineas)
+                    {
+                        <p class="text-xs font-bold mt-2">@l.Descripcion × @l.CantidadPedida</p>
+                        @foreach (var p in l.Precios)
+                        {
+                            <p class="text-xs text-slate-500">@p.Proveedor: @p.Precio.ToString("C2")</p>
+                        }
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<SolicitudOferta> rfqs = new();
+    private SolicitudOferta? rfqSel;
+    private ComparativaRFQ? comp;
+    private List<LineaForm> lineasNueva = new() { new() };
+    private string invitados = "";
+    private int ofertaProv;
+    private List<LineaOfertaForm> lineasOferta = new() { new() };
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+    private async Task Cargar()
+    {
+        try
+        {
+            rfqs = await Http.GetFromJsonAsync<List<SolicitudOferta>>("api/compras/rfq") ?? new();
+            if (rfqSel != null) await Seleccionar(rfqSel.Id);
+        }
+        catch (Exception ex) { Notify.Error(ex.Message); }
+    }
+    private async Task CrearRfq()
+    {
+        var res = await Http.PostAsJsonAsync("api/compras/rfq", new { lineas = lineasNueva.Where(l => l.ArticuloId > 0 && l.Cantidad > 0).Select(l => new { l.ArticuloId, l.Cantidad }), fechaLimite = (DateTime?)null, notas = (string?)null });
+        if (res.IsSuccessStatusCode) { Notify.Success("RFQ creada"); lineasNueva = new() { new() }; await Cargar(); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task Enviar(int id)
+    {
+        var ids = invitados.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => int.TryParse(s.Trim(), out var v) ? v : -1).Where(v => v > 0).ToList();
+        if (!ids.Any()) { Notify.Error("Indique proveedorIds invitados"); return; }
+        var res = await Http.PostAsJsonAsync($"api/compras/rfq/{id}/enviar", ids);
+        if (res.IsSuccessStatusCode) { Notify.Success("RFQ enviada"); await Cargar(); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task Seleccionar(int id)
+    {
+        await CargarLista();
+        rfqSel = rfqs.FirstOrDefault(r => r.Id == id);
+        comp = null;
+        if (rfqSel != null) await CargarComparativa();
+    }
+    private async Task CargarLista()
+    {
+        try { rfqs = await Http.GetFromJsonAsync<List<SolicitudOferta>>("api/compras/rfq") ?? new(); }
+        catch (Exception ex) { Notify.Error(ex.Message); }
+    }
+    private async Task RegistrarOferta()
+    {
+        if (rfqSel == null || ofertaProv <= 0) { Notify.Error("Proveedor obligatorio"); return; }
+        var res = await Http.PostAsJsonAsync($"api/compras/rfq/{rfqSel.Id}/ofertas",
+            new { proveedorId = ofertaProv, lineas = lineasOferta.Where(l => l.ArticuloId > 0).Select(l => new { l.ArticuloId, l.Cantidad, l.Precio }), plazoDias = (int?)null, notas = (string?)null });
+        if (res.IsSuccessStatusCode) { Notify.Success("Oferta registrada"); lineasOferta = new() { new() }; await Cargar(); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+    private async Task CargarComparativa()
+    {
+        if (rfqSel == null) return;
+        try { comp = await Http.GetFromJsonAsync<ComparativaRFQ>($"api/compras/rfq/{rfqSel.Id}/comparativa"); }
+        catch (Exception ex) { Notify.Error(ex.Message); }
+    }
+    private async Task Adjudicar(int ofertaId)
+    {
+        if (rfqSel == null) return;
+        var res = await Http.PostAsync($"api/compras/rfq/{rfqSel.Id}/adjudicar?ofertaId={ofertaId}", null);
+        if (res.IsSuccessStatusCode) { Notify.Success("Pedido generado desde la oferta"); await Cargar(); }
+        else Notify.Error(await res.Content.ReadAsStringAsync());
+    }
+
+    private sealed class LineaForm { public int ArticuloId { get; set; } public decimal Cantidad { get; set; } }
+    private sealed class LineaOfertaForm { public int ArticuloId { get; set; } public decimal Cantidad { get; set; } public decimal Precio { get; set; } }
+}

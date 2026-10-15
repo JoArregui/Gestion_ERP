@@ -1151,6 +1151,148 @@ namespace ERP.Data.Migrations
                     b.ToTable("Clientes");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Compras.LineaOferta", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ArticuloId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Cantidad")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("OfertaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("PrecioUnitario")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticuloId");
+
+                    b.HasIndex("OfertaId");
+
+                    b.ToTable("LineasOferta");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Compras.LineaSolicitudOferta", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ArticuloId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Cantidad")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SolicitudId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticuloId");
+
+                    b.HasIndex("SolicitudId");
+
+                    b.ToTable("LineasSolicitudOferta");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Compras.OfertaProveedor", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PlazoEntregaDias")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ProveedorId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SolicitudId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProveedorId");
+
+                    b.HasIndex("SolicitudId");
+
+                    b.ToTable("OfertasProveedor");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Compras.SolicitudOferta", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FechaLimite")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notas")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PedidoAdjudicadoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProveedoresInvitadosJson")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsuarioCreacion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("PedidoAdjudicadoId");
+
+                    b.ToTable("SolicitudesOferta");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.ConfiguracionGeneral", b =>
                 {
                     b.Property<string>("Clave")
@@ -3693,9 +3835,16 @@ namespace ERP.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("BloqueadoCompras")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("CIF")
                         .IsRequired()
                         .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CertificadoCalidad")
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Email")
@@ -3711,11 +3860,27 @@ namespace ERP.Data.Migrations
                     b.Property<bool>("EsAdministracionPublica")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("EvaluacionCalidad")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("EvaluacionPlazo")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("FechaAlta")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("FechaHomologacion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Homologado")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsActivo")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("MotivoBloqueo")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("NIF_UE")
                         .HasMaxLength(20)
@@ -4933,6 +5098,81 @@ namespace ERP.Data.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.Compras.LineaOferta", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Articulo", "Articulo")
+                        .WithMany()
+                        .HasForeignKey("ArticuloId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Compras.OfertaProveedor", "Oferta")
+                        .WithMany("Lineas")
+                        .HasForeignKey("OfertaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Articulo");
+
+                    b.Navigation("Oferta");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Compras.LineaSolicitudOferta", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Articulo", "Articulo")
+                        .WithMany()
+                        .HasForeignKey("ArticuloId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Compras.SolicitudOferta", "Solicitud")
+                        .WithMany("Lineas")
+                        .HasForeignKey("SolicitudId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Articulo");
+
+                    b.Navigation("Solicitud");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Compras.OfertaProveedor", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Proveedor", "Proveedor")
+                        .WithMany()
+                        .HasForeignKey("ProveedorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Compras.SolicitudOferta", "Solicitud")
+                        .WithMany("Ofertas")
+                        .HasForeignKey("SolicitudId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Proveedor");
+
+                    b.Navigation("Solicitud");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Compras.SolicitudOferta", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.DocumentoComercial", "PedidoAdjudicado")
+                        .WithMany()
+                        .HasForeignKey("PedidoAdjudicadoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("PedidoAdjudicado");
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.ActivoFijo", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.Empresa", "Empresa")
@@ -5693,6 +5933,18 @@ namespace ERP.Data.Migrations
             modelBuilder.Entity("ERP.Domain.Entities.Bancario.RemesaSEPA", b =>
                 {
                     b.Navigation("Operaciones");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Compras.OfertaProveedor", b =>
+                {
+                    b.Navigation("Lineas");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.Compras.SolicitudOferta", b =>
+                {
+                    b.Navigation("Lineas");
+
+                    b.Navigation("Ofertas");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Contabilidad.ActivoFijo", b =>

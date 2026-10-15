@@ -35,6 +35,21 @@ namespace ERP.Domain.Entities
 
         public bool IsActivo { get; set; } = true;
 
+        // --- HOMOLOGACIÓN (Fase C flujo ERP.txt §3) ---
+        /// <summary>Solo homologados pueden recibir pedidos (C2). Los preexistentes se homologan en migración.</summary>
+        public bool Homologado { get; set; } = false;
+        [StringLength(50)]
+        public string? CertificadoCalidad { get; set; } // ISO9001, ISO22000, BRC, IFS...
+        public DateTime? FechaHomologacion { get; set; }
+        [Range(0, 5)]
+        public int? EvaluacionCalidad { get; set; } // 0-5
+        [Range(0, 5)]
+        public int? EvaluacionPlazo { get; set; } // 0-5 puntualidad
+        /// <summary>Bloqueo cautelar de compras (impagos, litigio, calidad).</summary>
+        public bool BloqueadoCompras { get; set; } = false;
+        [StringLength(500)]
+        public string? MotivoBloqueo { get; set; }
+
         // Multi-tenant: aislamiento por empresa (RGPD) — existente sin EmpresaId era fuga entre inquilinos
         public int EmpresaId { get; set; }
         [ForeignKey(nameof(EmpresaId))]

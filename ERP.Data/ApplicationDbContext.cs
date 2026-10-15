@@ -104,6 +104,11 @@ namespace ERP.Data
         // Fase B CRM
         public DbSet<ERP.Domain.Entities.CRM.Lead> Leads { get; set; }
         public DbSet<ERP.Domain.Entities.CRM.Oportunidad> Oportunidades { get; set; }
+        // Fase C Compras RFQ
+        public DbSet<ERP.Domain.Entities.Compras.SolicitudOferta> SolicitudesOferta { get; set; }
+        public DbSet<ERP.Domain.Entities.Compras.LineaSolicitudOferta> LineasSolicitudOferta { get; set; }
+        public DbSet<ERP.Domain.Entities.Compras.OfertaProveedor> OfertasProveedor { get; set; }
+        public DbSet<ERP.Domain.Entities.Compras.LineaOferta> LineasOferta { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -278,6 +283,49 @@ namespace ERP.Data
                 .WithMany()
                 .HasForeignKey(o => o.DocumentoPresupuestoId)
                 .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Fase C RFQ (Restrict; DocumentoOrigen opcional)
+            modelBuilder.Entity<ERP.Domain.Entities.Compras.SolicitudOferta>()
+                .HasOne(s => s.Empresa)
+                .WithMany()
+                .HasForeignKey(s => s.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Compras.SolicitudOferta>()
+                .HasOne(s => s.PedidoAdjudicado)
+                .WithMany()
+                .HasForeignKey(s => s.PedidoAdjudicadoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Compras.LineaSolicitudOferta>()
+                .HasOne(l => l.Solicitud)
+                .WithMany(s => s.Lineas)
+                .HasForeignKey(l => l.SolicitudId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ERP.Domain.Entities.Compras.LineaSolicitudOferta>()
+                .HasOne(l => l.Articulo)
+                .WithMany()
+                .HasForeignKey(l => l.ArticuloId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Compras.OfertaProveedor>()
+                .HasOne(o => o.Solicitud)
+                .WithMany(s => s.Ofertas)
+                .HasForeignKey(o => o.SolicitudId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ERP.Domain.Entities.Compras.OfertaProveedor>()
+                .HasOne(o => o.Proveedor)
+                .WithMany()
+                .HasForeignKey(o => o.ProveedorId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ERP.Domain.Entities.Compras.LineaOferta>()
+                .HasOne(l => l.Oferta)
+                .WithMany(o => o.Lineas)
+                .HasForeignKey(l => l.OfertaId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ERP.Domain.Entities.Compras.LineaOferta>()
+                .HasOne(l => l.Articulo)
+                .WithMany()
+                .HasForeignKey(l => l.ArticuloId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Articulo>()

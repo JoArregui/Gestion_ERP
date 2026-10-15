@@ -83,9 +83,29 @@
                                 {
                                     <span class="bg-slate-100 text-slate-400 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">✕ Inactivo</span>
                                 }
+                                @if (prov.BloqueadoCompras)
+                                {
+                                    <span class="bg-red-50 text-red-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-red-100 block mt-1">🚫 Bloq. compras</span>
+                                }
+                                else if (prov.Homologado)
+                                {
+                                    <span class="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-blue-100 block mt-1">★ Homologado</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-100 block mt-1">◷ Sin homologar</span>
+                                }
                             </td>
                             <td class="p-5 text-right">
                                 <div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    @if (!prov.Homologado && !prov.BloqueadoCompras)
+                                    {
+                                        <button @onclick="() => Homologar(prov.Id)" title="Homologar" class="p-2 hover:bg-blue-600 hover:text-white rounded-lg transition-all">★</button>
+                                    }
+                                    @if (!prov.BloqueadoCompras)
+                                    {
+                                        <button @onclick="() => Bloquear(prov.Id)" title="Bloquear compras" class="p-2 hover:bg-red-600 hover:text-white rounded-lg transition-all">🚫</button>
+                                    }
                                     <button @onclick="() => Editar(prov.Id)" class="p-2 hover:bg-slate-900 hover:text-white rounded-lg transition-all">✏️</button>
                                     <button @onclick="() => Eliminar(prov.Id)" class="p-2 hover:bg-red-600 hover:text-white rounded-lg transition-all">🗑️</button>
                                 </div>
@@ -155,6 +175,18 @@
                             <div class="p-4 bg-slate-50 rounded-2xl flex items-center gap-3 border border-slate-200/50">
                                 <InputCheckbox @bind-Value="proveedorActual.IsActivo" class="h-5 w-5 rounded text-rose-600 focus:ring-rose-500" />
                                 <span class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Proveedor Homologado y Activo</span>
+                            </div>
+
+                            <div class="p-4 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-4">
+                                <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest">Homologación (Fase C2)</p>
+                                <div class="flex items-center gap-3">
+                                    <InputCheckbox @bind-Value="proveedorActual.Homologado" class="h-5 w-5 rounded text-blue-600" />
+                                    <span class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Homologado para pedidos</span>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Certificado calidad (ISO9001 / ISO22000 / BRC...)</label>
+                                    <InputText @bind-Value="proveedorActual.CertificadoCalidad" class="w-full p-4 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none transition" />
+                                </div>
                             </div>
 
                             <div class="flex gap-4 pt-6">
@@ -274,6 +306,30 @@
             } else {
                 await Notificar("Error al procesar la baja", "error");
             }
+        }
+    }
+
+    private async Task Homologar(int id)
+    {
+        var response = await Http.PostAsync($"api/compras/proveedores/{id}/homologar", null);
+        if (response.IsSuccessStatusCode) {
+            await Notificar("Proveedor homologado", "success");
+            await CargarProveedores();
+        } else {
+            await Notificar(await response.Content.ReadAsStringAsync(), "error");
+        }
+    }
+
+    private async Task Bloquear(int id)
+    {
+        var motivo = await JS.InvokeAsync<string>("prompt", "Motivo del bloqueo de compras:");
+        if (string.IsNullOrWhiteSpace(motivo)) return;
+        var response = await Http.PostAsync($"api/compras/proveedores/{id}/bloquear?motivo={Uri.EscapeDataString(motivo)}", null);
+        if (response.IsSuccessStatusCode) {
+            await Notificar("Proveedor bloqueado para compras", "success");
+            await CargarProveedores();
+        } else {
+            await Notificar(await response.Content.ReadAsStringAsync(), "error");
         }
     }
 

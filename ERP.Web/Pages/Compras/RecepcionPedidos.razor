@@ -163,6 +163,17 @@
                                @bind="numeroAlbaran" placeholder="Ej: ALB-2024-001" />
                         </div>
                     </div>
+
+                    <div class="form-group mt-3 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2 d-block px-1">3-way matching (opcional): factura del proveedor</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" class="form-control rounded-xl border-slate-200 text-sm font-bold p-3"
+                               @bind="numeroFactura" placeholder="Nº factura prov." />
+                            <input type="number" step="0.01" class="form-control rounded-xl border-slate-200 text-sm font-bold p-3"
+                               @bind="totalFactura" placeholder="Total factura €" />
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1 px-1">Si se informa, se valida pedido → albarán → factura (tolerancia 2%).</p>
+                    </div>
                 </div>
 
                 <div class="modal-footer border-0 p-5 bg-slate-50/50 flex justify-between">
@@ -184,6 +195,8 @@
     private bool mostrarModal = false;
     private DocumentoComercial? pedidoSeleccionado;
     private string numeroAlbaran = string.Empty;
+    private string numeroFactura = string.Empty;
+    private decimal? totalFactura;
     private bool mostrarToast = false;
 
     protected override async Task OnInitializedAsync() => await CargarDatos();
@@ -208,6 +221,8 @@
     {
         pedidoSeleccionado = pedido;
         numeroAlbaran = string.Empty;
+        numeroFactura = string.Empty;
+        totalFactura = null;
         mostrarModal = true;
     }
 
@@ -221,7 +236,12 @@
     {
         if (pedidoSeleccionado != null && !string.IsNullOrWhiteSpace(numeroAlbaran))
         {
-            var (success, errorMessage) = await ComprasService.RecepcionarPedido(pedidoSeleccionado.Id, numeroAlbaran);
+            (bool success, string? errorMessage) resultado;
+            if (!string.IsNullOrWhiteSpace(numeroFactura) && totalFactura.HasValue)
+                resultado = await ComprasService.RecepcionarConFactura(pedidoSeleccionado.Id, numeroAlbaran, numeroFactura, totalFactura.Value);
+            else
+                resultado = await ComprasService.RecepcionarPedido(pedidoSeleccionado.Id, numeroAlbaran);
+            var (success, errorMessage) = resultado;
             if (success) 
             {
                 CerrarModal();
